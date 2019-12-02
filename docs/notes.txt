@@ -1,0 +1,12 @@
+
+
+MoveOnRondel (nation, lastAction) action  -> invoiceToInvestor
+OR
+MoveOnRondel nation moveOption -> invoiceToInvestor
+OR
+MoveOnRondel nation action -> invoiceToInvestor
+
+where
+type MoveOptions = position price list
+and Nation
+
