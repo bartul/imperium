@@ -1,4 +1,5 @@
 namespace Imperium
+
 open Structure
 
 module MonetarySystem =
