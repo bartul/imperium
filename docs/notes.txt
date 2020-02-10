@@ -2,12 +2,11 @@
 
 Can move 3 places at no cost, every additional place costs 1 + Power Factor on scoring track in million. Maximum move is 6 places. 
 
-CalculateMoveOpportunity rondel nation nationPowerFactor -> (position, fee) list
+CalculateMoveOpportunity (Nation & Position) -> nationPowerFactor -> (position, fee) list
 
-Move rondel nation nationPowerFactor position payment -> result : rondel | fail
+Move (Nation & Position) -> nationPowerFactor -> position -> payment -> result : (Nation & Position) | fail
 where
-type Rondel = (Nation & Position) list
-and type Position = Investor | Import | ... | Manuver
+type Position = Investor | Import | ... | Manuver
 
 # Monetary System
 
