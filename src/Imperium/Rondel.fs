@@ -1,6 +1,6 @@
 ﻿namespace Imperium
-
-open Structure
+ 
+open World
 open MonetarySystem
 
 module Rondel =
@@ -13,3 +13,4 @@ module Rondel =
             Ok nationPosition
         else
             Error ""
+     

@@ -3,7 +3,7 @@
     <TargetFramework>netstandard2.0</TargetFramework>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="Structure.fs" />
+    <Compile Include="World.fs" />
     <Compile Include="MonetarySystem.fs" />
     <Compile Include="Rondel.fs" />
   </ItemGroup>

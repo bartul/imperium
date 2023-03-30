@@ -1,6 +1,6 @@
 namespace Imperium
 
-open Structure
+open World
 
 module MonetarySystem =
 
