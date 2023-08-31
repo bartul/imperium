@@ -5,6 +5,10 @@ VisualStudioVersion = 15.0.26124.0
 MinimumVisualStudioVersion = 15.0.26124.0
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Imperium", "src\Imperium\Imperium.fsproj", "{A64186B2-3607-4BF9-9541-1D5E2A62805A}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{3E82EB04-F1AB-4607-A0A8-F9E0E38CFF12}"
+EndProject
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Imperium.Web", "src\Imperium.Web\Imperium.Web.fsproj", "{12E43560-B04D-40DB-973E-68CBFB5048A3}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -30,5 +34,20 @@ Global
 		{A64186B2-3607-4BF9-9541-1D5E2A62805A}.Release|x64.Build.0 = Release|Any CPU
 		{A64186B2-3607-4BF9-9541-1D5E2A62805A}.Release|x86.ActiveCfg = Release|Any CPU
 		{A64186B2-3607-4BF9-9541-1D5E2A62805A}.Release|x86.Build.0 = Release|Any CPU
+		{12E43560-B04D-40DB-973E-68CBFB5048A3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{12E43560-B04D-40DB-973E-68CBFB5048A3}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{12E43560-B04D-40DB-973E-68CBFB5048A3}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{12E43560-B04D-40DB-973E-68CBFB5048A3}.Debug|x64.Build.0 = Debug|Any CPU
+		{12E43560-B04D-40DB-973E-68CBFB5048A3}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{12E43560-B04D-40DB-973E-68CBFB5048A3}.Debug|x86.Build.0 = Debug|Any CPU
+		{12E43560-B04D-40DB-973E-68CBFB5048A3}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{12E43560-B04D-40DB-973E-68CBFB5048A3}.Release|Any CPU.Build.0 = Release|Any CPU
+		{12E43560-B04D-40DB-973E-68CBFB5048A3}.Release|x64.ActiveCfg = Release|Any CPU
+		{12E43560-B04D-40DB-973E-68CBFB5048A3}.Release|x64.Build.0 = Release|Any CPU
+		{12E43560-B04D-40DB-973E-68CBFB5048A3}.Release|x86.ActiveCfg = Release|Any CPU
+		{12E43560-B04D-40DB-973E-68CBFB5048A3}.Release|x86.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{12E43560-B04D-40DB-973E-68CBFB5048A3} = {3E82EB04-F1AB-4607-A0A8-F9E0E38CFF12}
 	EndGlobalSection
 EndGlobal
