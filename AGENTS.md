@@ -1,0 +1,31 @@
+# Repository Guidelines
+
+## Project Structure & Module Organization
+- `Imperium.sln` stitches together the core F# library and the ASP.NET Core web host.
+- `src/Imperium` contains the domain modules (`Rondel.fs`, `MonetarySystem.fs`, `World.fs`); keep shared rules and calculations here.
+- `src/Imperium.Web` bootstraps the HTTP layer (`Program.fs`). Reference the core project via the existing project reference instead of duplicating logic.
+- `docs/` stores reference rulebooks and internal notes. Leave build artefacts inside each project’s `bin/` and `obj/` directories untouched.
+
+## Build, Test, and Development Commands
+- Restore dependencies: `dotnet restore Imperium.sln`.
+- Compile everything: `dotnet build Imperium.sln` (fails fast on warnings-as-errors configured per project).
+- Run the web host locally: `dotnet run --project src/Imperium.Web/Imperium.Web.fsproj`.
+- Live reload during UI work: `dotnet watch --project src/Imperium.Web/Imperium.Web.fsproj run`.
+
+## Coding Style & Naming Conventions
+- Use the default F# formatting (4-space indentation, modules and types in `PascalCase`, functions and values in `camelCase`).
+- Group related functions into modules that mirror file names (`Rondel`, `MonetarySystem`); expose a minimal public surface.
+- Prefer expression-based code and pattern matching over mutable branches.
+- Before committing, run `dotnet tool run fantomas` if the formatter is configured; otherwise keep diffs tidy and minimal.
+
+## Testing Guidelines
+- Unit and property tests belong in a future `tests/Imperium.Tests` F# project that references `src/Imperium`.
+- Mirror the module under test (e.g., `RondelTests.fs` for `Rondel.fs`) and use `Expecto` or `xUnit` consistently.
+- Execute `dotnet test` from the repository root; aim to cover decision-heavy rules like movement costs and monetary transfers.
+- When adding new behaviour, include regression tests that fail prior to the change.
+
+## Commit & Pull Request Guidelines
+- Follow the existing history: imperative, concise subject lines (`Update to dotnet 9`, `Add web`).
+- Keep commits scoped to one concern; describe “what” and “why” in the body when context is non-trivial.
+- PRs should link relevant issues, outline test evidence (command outputs or screenshots), and call out any manual steps for deployment.
+- Request review from domain owners when altering core rule logic or public web endpoints.
