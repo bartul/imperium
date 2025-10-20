@@ -2,7 +2,7 @@ namespace Imperium
 
 open World
 
-module MonetarySystem =
+module FinancialSystem =
 
     type Bank = Bank of string     
     type Investor = Investor of string     
