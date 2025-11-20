@@ -3,6 +3,7 @@
     <TargetFramework>net10.0</TargetFramework>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="Rondel.fsi" />
     <Compile Include="World.fs" />
     <Compile Include="Economy.fs" />
     <Compile Include="Rondel.fs" />
