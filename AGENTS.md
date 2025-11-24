@@ -5,6 +5,9 @@
 - `src/Imperium` contains the domain modules (`Rondel.fs`, `MonetarySystem.fs`, `World.fs`); keep shared rules and calculations here.
 - `src/Imperium.Web` bootstraps the HTTP layer (`Program.fs`). Reference the core project via the existing project reference instead of duplicating logic.
 - `docs/` stores reference rulebooks and internal notes. Leave build artefacts inside each project’s `bin/` and `obj/` directories untouched.
+- Rondel domain context: rondel slots belong to nations (not players). Moves emit `MovePaymentRequired` when payment is needed; external payment completion enters via `onInvoicedPaid`. `createRondel` takes the set of participating `NationId`s.
+- Rondel spaces (board order): `Investor`, `Factory`, `Import`, `ManeuverOne`, `ProductionOne`, `ManeuverTwo`, `ProductionTwo`, `Taxation`.
+- Rondel rules source: mechanic follows the boardgame “rondel” described in `docs/Imperial_English_Rules.pdf`. Key rules: nations move clockwise, cannot stay put; 1–3 spaces are free, each extra space costs 2M to the bank (max 6), first turn may start anywhere. Factory: build in own city without hostile upright armies for 5M. Production: each unoccupied home factory produces 1 unit in its province. Import: buy up to 3 units for 1M each in home provinces. Maneuver: fleets move to adjacent sea; armies move to adjacent land or via fleets; rail within home; 3 armies can destroy a factory; place flags in newly occupied regions. Investor: pay bond interest, investor card gains 2M and may invest, Swiss bank owners may also invest; passing executes investor steps 2–3. Taxation: record tax (2M per unoccupied factory, 1M per flag), dividend if tax track increases, add power points, then treasury collects tax minus 1M per army/fleet. Game ends when a nation reaches 25 power points; score = bond interest x nation factor + personal cash.
 
 ## Build, Test, and Development Commands
 - Restore dependencies: `dotnet restore Imperium.sln`.

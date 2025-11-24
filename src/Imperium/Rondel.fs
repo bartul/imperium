@@ -4,12 +4,9 @@ open System
 
 module Rondel =
 
-    // Public aliases and types (moved here so the project compiles without a
-    // separate signature file). These mirror the API previously declared in
-    // `Rondel.fsi` and are intentionally minimal; the implementation will be
-    // completed later.
-    type PlayerId = Guid
-    type SlotIndex = int
+    // Public aliases and types kept in sync with the signature file; implementation
+    // is intentionally stubbed for now.
+    type NationId = Guid
     type Amount = int
     type Error = string
     type InvoiceId = Guid
@@ -17,29 +14,37 @@ module Rondel =
     // Opaque Rondel handle (private record for now).
     type Rondel = private { dummy: unit }
 
+    [<RequireQualifiedAccess>]
     type Space =
-        | Income
-        | Build
-        | MoveArmy
-        | Upgrade
-        | Market
-        | Diplomacy
-        | Invest
-        | Pass
+        | Investor
+        | Import
+        | ProductionOne
+        | ManeuverOne
+        | Taxation
+        | Factory
+        | ProductionTwo
+        | ManeuverTwo
+
+    [<RequireQualifiedAccess>]
+    type Action =
+        | Investor
+        | Import
+        | Production
+        | Maneuver
+        | Taxation
+        | Factory
 
     type Event =
-        | MoveAnnounced of PlayerId * Space * InvoiceId option
-        | InvoiceIssued of InvoiceId * PlayerId * Amount
-        | InvoicePaid of InvoiceId * PlayerId * Amount
-        | MoveCompleted of PlayerId * Space
-        | MoveCancelled of PlayerId * Space * string
-        | MoveFailed of PlayerId * Space * string
+        | RondelCreated
+        | NationActionDetermined of NationId * Action
 
     // Implementation stubs
-    let createRondel () : Rondel = { dummy = () }
+    let createRondel (nations: Set<NationId>) : Rondel =
+        let _ = nations
+        { dummy = () }
 
-    let move (rondel:Rondel) (playerId:PlayerId) (space:Space) : Result<Event list, Error> =
+    let move (rondel: Rondel) (nationId: NationId) (space: Space) : Result<Event list, Error> =
         invalidOp "Not implemented: move"
 
-    let onInvoicedPaid (rondel:Rondel) (invoiceId:InvoiceId) : Result<Event list, Error> =
+    let onInvoicedPaid (rondel: Rondel) (invoiceId: InvoiceId) : Result<Event list, Error> =
         invalidOp "Not implemented: onInvoicedPaid"
