@@ -55,5 +55,9 @@ module Rondel =
     /// Returns future movement events once implemented.
     val move : rondel:Rondel -> nationId:NationId -> space:Space -> Result<Event list, Error>
 
-    /// Placeholder for invoiced move completion; will emit movement events once implemented.
+    /// Handle an invoice-paid event published by another domain.
     val onInvoicedPaid : rondel:Rondel -> invoiceId:InvoiceId -> Result<Event list, Error>
+
+    /// Handle an invoice-payment-failed event from another domain; future implementation
+    /// may adjust state accordingly.
+    val onInvoicePaymentFailed : rondel:Rondel -> invoiceId:InvoiceId -> Result<Event list, Error>

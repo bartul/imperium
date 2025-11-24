@@ -48,3 +48,6 @@ module Rondel =
 
     let onInvoicedPaid (rondel: Rondel) (invoiceId: InvoiceId) : Result<Event list, Error> =
         invalidOp "Not implemented: onInvoicedPaid"
+
+    let onInvoicePaymentFailed (rondel: Rondel) (invoiceId: InvoiceId) : Result<Event list, Error> =
+        invalidOp "Not implemented: onInvoicePaymentFailed"
