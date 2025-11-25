@@ -3,6 +3,7 @@
 ## Project Structure & Module Organization
 - `Imperium.sln` stitches together the core F# library and the ASP.NET Core web host.
 - `src/Imperium` contains the domain modules (`Gameplay.fs`, `Economy.fs`, `Rondel.fs`); keep shared rules and calculations here.
+- `Economy.Amount` is a measured wrapper (`int<M>`) with guarded construction; errors return `Amount.Error.NegativeAmount`.
 - `src/Imperium.Web` bootstraps the HTTP layer (`Program.fs`). Reference the core project via the existing project reference instead of duplicating logic.
 - `docs/` stores reference rulebooks and internal notes. Leave build artefacts inside each project’s `bin/` and `obj/` directories untouched.
 - Rondel domain context: rondel slots belong to nations (not players). `Space` cases cover the board order, with `ProductionOne/Two` and `ManeuverOne/Two` mapping to the same `Action`. Current events: `RondelCreated`, `NationMovementInvoiced`, and `NationActionDetermined` (carries `NationId * Action`). `createRondel` takes the set of participating `NationId`s; move/payment flows are stubbed for now.
