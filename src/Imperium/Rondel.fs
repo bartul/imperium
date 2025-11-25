@@ -1,5 +1,6 @@
 ﻿namespace Imperium
 
+open System
 open Imperium.Gameplay
 open Imperium.Economy
 
@@ -9,7 +10,24 @@ module Rondel =
     // is intentionally stubbed for now.
     type Error = string
     // Opaque identifier for invoices scoped to the rondel domain.
-    type RondelInvoiceId = Guid
+    [<Struct>]
+    type RondelInvoiceId = private RondelInvoiceId of Guid
+
+    module RondelInvoiceId =
+        let create (guid: Guid) =
+            if guid = Guid.Empty then
+                Error "RondelInvoiceId cannot be Guid.Empty." |> Result.Error
+            else
+               RondelInvoiceId guid |> Ok
+
+        let newId () = Guid.NewGuid() |> RondelInvoiceId
+        let value (RondelInvoiceId g) = g
+        let toString (RondelInvoiceId g) = g.ToString()
+
+        let tryParse (raw: string) =
+            match Guid.TryParse raw with
+            | true, guid -> create guid
+            | false, _ -> Error "Invalid GUID format." |> Result.Error
 
     // Opaque Rondel handle (private record for now).
     type Rondel = private { dummy: unit }

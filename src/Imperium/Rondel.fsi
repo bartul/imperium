@@ -1,5 +1,6 @@
 namespace Imperium
 
+open System
 open Imperium.Gameplay
 open Imperium.Economy
 
@@ -8,7 +9,15 @@ module Rondel =
     // Minimal public aliases used by the Rondel API surface
     type Error = string
     /// Opaque identifier for invoices scoped to the rondel domain.
-    type RondelInvoiceId = Guid
+    [<Struct>]
+    type RondelInvoiceId = private RondelInvoiceId of Guid
+
+    module RondelInvoiceId =
+        val create : Guid -> Result<RondelInvoiceId, string>
+        val newId : unit -> RondelInvoiceId
+        val value : RondelInvoiceId -> Guid
+        val toString : RondelInvoiceId -> string
+        val tryParse : string -> Result<RondelInvoiceId, string>
 
     /// Abstract, opaque handle representing an instance of a Rondel that
     /// maintains its own internal state (nation positions, pending moves).

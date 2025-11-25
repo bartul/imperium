@@ -7,6 +7,7 @@ module Economy =
     type M // million
 
     // Shared amount representation across economic flows (millions).
+    [<Struct>]
     type Amount = private Amount of int<M>
 
     module Amount =
@@ -16,7 +17,7 @@ module Economy =
 
         let create (millions: int) =
             if millions < 0 then
-                Error(NegativeAmount "Amount cannot be negative (millions).")
+                Error "Amount cannot be negative (millions)."
             else
                 Ok (Amount(millions * 1<M>))
 
