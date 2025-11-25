@@ -27,5 +27,10 @@ module Economy =
         let zero = Amount 0<M>
         let (+) (Amount a) (Amount b) = Amount(a + b)
         let (-) (Amount a) (Amount b) = Amount(a - b)
+
+        let tryParse (raw: string) =
+            match Int32.TryParse raw with
+            | true, v -> create v
+            | false, _ -> Error $"Invalid amount format: '%s{raw}'."
     type Bank = Bank of string
     type Investor = Investor of string

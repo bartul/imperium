@@ -17,6 +17,7 @@ module Economy =
         val zero : Amount
         val (+) : Amount -> Amount -> Amount
         val (-) : Amount -> Amount -> Amount
+        val tryParse : string -> Result<Amount, string>
         
     type Bank = Bank of string
     type Investor = Investor of string
