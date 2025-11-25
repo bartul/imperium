@@ -3,9 +3,11 @@
     <TargetFramework>net10.0</TargetFramework>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="Rondel.fsi" />
-    <Compile Include="World.fs" />
+    <Compile Include="Gameplay.fsi" />
+    <Compile Include="Gameplay.fs" />
+    <Compile Include="Economy.fsi" />
     <Compile Include="Economy.fs" />
+    <Compile Include="Rondel.fsi" />
     <Compile Include="Rondel.fs" />
   </ItemGroup>
 </Project>

@@ -1,14 +1,14 @@
 namespace Imperium
 
-open System
+open Imperium.Gameplay
+open Imperium.Economy
 
 module Rondel =
 
     // Minimal public aliases used by the Rondel API surface
-    type NationId = Guid
-    type Amount = int
     type Error = string
-    type InvoiceId = Guid
+    /// Opaque identifier for invoices scoped to the rondel domain.
+    type RondelInvoiceId = Guid
 
     /// Abstract, opaque handle representing an instance of a Rondel that
     /// maintains its own internal state (nation positions, pending moves).
@@ -44,6 +44,7 @@ module Rondel =
     /// movement and invoicing flows are intentionally deferred.
     type Event =
         | RondelCreated
+        | NationMovementInvoiced of NationId * RondelInvoiceId * Amount
         | NationActionDetermined of NationId * Action
 
     // Public API (minimal surface)
@@ -56,8 +57,8 @@ module Rondel =
     val move : rondel:Rondel -> nationId:NationId -> space:Space -> Result<Event list, Error>
 
     /// Handle an invoice-paid event published by another domain.
-    val onInvoicedPaid : rondel:Rondel -> invoiceId:InvoiceId -> Result<Event list, Error>
+    val onInvoicedPaid : rondel:Rondel -> invoiceId:RondelInvoiceId -> Result<Event list, Error>
 
     /// Handle an invoice-payment-failed event from another domain; future implementation
     /// may adjust state accordingly.
-    val onInvoicePaymentFailed : rondel:Rondel -> invoiceId:InvoiceId -> Result<Event list, Error>
+    val onInvoicePaymentFailed : rondel:Rondel -> invoiceId:RondelInvoiceId -> Result<Event list, Error>

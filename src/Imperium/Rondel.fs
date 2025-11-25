@@ -1,15 +1,15 @@
 ﻿namespace Imperium
 
-open System
+open Imperium.Gameplay
+open Imperium.Economy
 
 module Rondel =
 
     // Public aliases and types kept in sync with the signature file; implementation
     // is intentionally stubbed for now.
-    type NationId = Guid
-    type Amount = int
     type Error = string
-    type InvoiceId = Guid
+    // Opaque identifier for invoices scoped to the rondel domain.
+    type RondelInvoiceId = Guid
 
     // Opaque Rondel handle (private record for now).
     type Rondel = private { dummy: unit }
@@ -36,6 +36,7 @@ module Rondel =
 
     type Event =
         | RondelCreated
+        | NationMovementInvoiced of NationId * RondelInvoiceId * Amount
         | NationActionDetermined of NationId * Action
 
     // Implementation stubs
@@ -46,8 +47,8 @@ module Rondel =
     let move (rondel: Rondel) (nationId: NationId) (space: Space) : Result<Event list, Error> =
         invalidOp "Not implemented: move"
 
-    let onInvoicedPaid (rondel: Rondel) (invoiceId: InvoiceId) : Result<Event list, Error> =
+    let onInvoicedPaid (rondel: Rondel) (invoiceId: RondelInvoiceId) : Result<Event list, Error> =
         invalidOp "Not implemented: onInvoicedPaid"
 
-    let onInvoicePaymentFailed (rondel: Rondel) (invoiceId: InvoiceId) : Result<Event list, Error> =
+    let onInvoicePaymentFailed (rondel: Rondel) (invoiceId: RondelInvoiceId) : Result<Event list, Error> =
         invalidOp "Not implemented: onInvoicePaymentFailed"
