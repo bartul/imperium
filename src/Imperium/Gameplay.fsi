@@ -1,7 +1,16 @@
 namespace Imperium
 
-open System
-
 module Gameplay =
-    /// Opaque identifier for a nation across domains.
-    type NationId = Guid
+    [<RequireQualifiedAccess>]
+    type NationId =
+        | Germany
+        | GreatBritain
+        | France
+        | Russia
+        | AustriaHungary
+        | Italy
+
+    module NationId =
+        val all : Set<NationId>
+        val toString : NationId -> string
+        val tryParse : string -> Result<NationId, string>
