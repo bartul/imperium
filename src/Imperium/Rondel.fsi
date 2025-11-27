@@ -7,7 +7,7 @@ open Imperium.Economy
 module Rondel =
 
     // Minimal public aliases used by the Rondel API surface
-    type Error = string
+    type RondelError = string
     /// Opaque identifier for invoices scoped to the rondel domain.
     [<Struct>]
     type RondelInvoiceId = private RondelInvoiceId of Guid
@@ -63,11 +63,11 @@ module Rondel =
 
     /// Initiate a move for `nationId` to the named `space` on the provided `rondel`.
     /// Returns future movement events once implemented.
-    val move : rondel:Rondel -> nationId:NationId -> space:Space -> Result<Event list, Error>
+    val move : rondel:Rondel -> nationId:NationId -> space:Space -> Result<Event list, RondelError>
 
     /// Handle an invoice-paid event published by another domain.
-    val onInvoicedPaid : rondel:Rondel -> invoiceId:RondelInvoiceId -> Result<Event list, Error>
+    val onInvoicedPaid : rondel:Rondel -> invoiceId:RondelInvoiceId -> Result<Event list, RondelError>
 
     /// Handle an invoice-payment-failed event from another domain; future implementation
     /// may adjust state accordingly.
-    val onInvoicePaymentFailed : rondel:Rondel -> invoiceId:RondelInvoiceId -> Result<Event list, Error>
+    val onInvoicePaymentFailed : rondel:Rondel -> invoiceId:RondelInvoiceId -> Result<Event list, RondelError>

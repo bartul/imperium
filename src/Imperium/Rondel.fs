@@ -8,7 +8,7 @@ module Rondel =
 
     // Public aliases and types kept in sync with the signature file; implementation
     // is intentionally stubbed for now.
-    type Error = string
+    type RondelError = string
     // Opaque identifier for invoices scoped to the rondel domain.
     [<Struct>]
     type RondelInvoiceId = private RondelInvoiceId of Guid
@@ -16,7 +16,7 @@ module Rondel =
     module RondelInvoiceId =
         let create (guid: Guid) =
             if guid = Guid.Empty then
-                Error "RondelInvoiceId cannot be Guid.Empty." |> Result.Error
+                RondelError "RondelInvoiceId cannot be Guid.Empty." |> Result.Error
             else
                RondelInvoiceId guid |> Ok
 
@@ -27,7 +27,7 @@ module Rondel =
         let tryParse (raw: string) =
             match Guid.TryParse raw with
             | true, guid -> create guid
-            | false, _ -> Error "Invalid GUID format." |> Result.Error
+            | false, _ -> RondelError "Invalid GUID format." |> Result.Error
 
     // Opaque Rondel handle (private record for now).
     type Rondel = private { dummy: unit }
@@ -62,11 +62,11 @@ module Rondel =
         let _ = nations
         { dummy = () }
 
-    let move (rondel: Rondel) (nationId: NationId) (space: Space) : Result<Event list, Error> =
+    let move (rondel: Rondel) (nationId: NationId) (space: Space) : Result<Event list, RondelError> =
         invalidOp "Not implemented: move"
 
-    let onInvoicedPaid (rondel: Rondel) (invoiceId: RondelInvoiceId) : Result<Event list, Error> =
+    let onInvoicedPaid (rondel: Rondel) (invoiceId: RondelInvoiceId) : Result<Event list, RondelError> =
         invalidOp "Not implemented: onInvoicedPaid"
 
-    let onInvoicePaymentFailed (rondel: Rondel) (invoiceId: RondelInvoiceId) : Result<Event list, Error> =
+    let onInvoicePaymentFailed (rondel: Rondel) (invoiceId: RondelInvoiceId) : Result<Event list, RondelError> =
         invalidOp "Not implemented: onInvoicePaymentFailed"
