@@ -1,8 +1,9 @@
 # Repository Guidelines
 
 ## Project Structure & Module Organization
-- `Imperium.sln` stitches together the core F# library and the ASP.NET Core web host.
+- `Imperium.sln` stitches together the core F# library, ASP.NET Core web host, and unit test project.
 - `src/Imperium` contains the domain modules (`Gameplay.fs`, `Economy.fs`, `Rondel.fs`); keep shared rules and calculations here.
+- `tests/Imperium.UnitTests` contains Expecto-based unit tests; test modules mirror source structure (e.g., `RondelTests.fs` tests `Rondel.fs`).
 - `Economy.Amount` is a measured struct wrapper (`int<M>`) with guarded construction; errors are plain strings (e.g., negative amount); includes `tryParse` for string inputs.
 - `Rondel.RondelInvoiceId` is a struct DU wrapping `Guid` with guarded creation/parse helpers; errors are plain strings for empty GUID or parse failures.
 - `Gameplay.NationId` is a DU for Imperial nations (Germany, Great Britain, France, Russia, Austria-Hungary, Italy) with `toString`/`tryParse` helpers; `all` is a `Set<NationId>`.
@@ -17,6 +18,7 @@
 - Compile everything: `dotnet build Imperium.sln` (fails fast on warnings-as-errors configured per project).
 - Run the web host locally: `dotnet run --project src/Imperium.Web/Imperium.Web.fsproj`.
 - Live reload during UI work: `dotnet watch --project src/Imperium.Web/Imperium.Web.fsproj run`.
+- Run unit tests: `dotnet test` (VS Code integration via YoloDev.Expecto.TestSdk) or `dotnet run --project tests/Imperium.UnitTests/Imperium.UnitTests.fsproj` (native Expecto runner).
 
 ## Coding Style & Naming Conventions
 - Use the default F# formatting (4-space indentation, modules and types in `PascalCase`, functions and values in `camelCase`).
@@ -25,10 +27,14 @@
 - Before committing, run `dotnet tool run fantomas` if the formatter is configured; otherwise keep diffs tidy and minimal.
 
 ## Testing Guidelines
-- Unit and property tests belong in a future `tests/Imperium.Tests` F# project that references `src/Imperium`.
-- Mirror the module under test (e.g., `RondelTests.fs` for `Rondel.fs`) and use `Expecto` or `xUnit` consistently.
-- Execute `dotnet test` from the repository root; aim to cover decision-heavy rules like movement costs and monetary transfers.
-- When adding new behaviour, include regression tests that fail prior to the change.
+- Unit tests live in `tests/Imperium.UnitTests` using Expecto 10.2.3 with FsCheck integration for property-based testing.
+- Test modules mirror source structure: `Imperium.UnitTests.Rondel` tests `Imperium.Rondel`; file names use `*Tests.fs` suffix (e.g., `RondelTests.fs`).
+- Use `[<Tests>]` attribute on test values for discovery by YoloDev.Expecto.TestSdk (enables VS Code Test Explorer integration).
+- Execute `dotnet test` (via TestSdk) or `dotnet run --project tests/Imperium.UnitTests/Imperium.UnitTests.fsproj` (native Expecto runner with colorized output).
+- Test organization: group related tests with `testList`, use descriptive test names in lowercase ("accepts valid GUID", not "AcceptsValidGuid").
+- Cover edge cases: null inputs, empty strings, invalid formats, boundary conditions.
+- Follow three-phase module development process documented in `docs/module_design_process.md`: define interface, write tests, implement functionality.
+- Current test coverage: `RondelInvoiceId` (create, newId, toString, tryParse) - 9 tests passing.
 
 ## Commit & Pull Request Guidelines
 - Follow the existing history: imperative, concise subject lines (`Update to dotnet 9`, `Add web`).

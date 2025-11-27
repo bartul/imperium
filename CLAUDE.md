@@ -12,6 +12,7 @@ Imperium is an F# implementation of the Imperial board game, featuring a domain-
 - `Imperium.sln` - Main solution file
 - `src/Imperium/` - Core F# library with domain logic (Gameplay, Economy, Rondel modules)
 - `src/Imperium.Web/` - ASP.NET Core web host (references core library)
+- `tests/Imperium.UnitTests/` - Expecto-based unit tests (references core library)
 - `docs/` - Reference rulebooks and design documentation
 
 **Key Domain Modules:**
@@ -38,10 +39,16 @@ dotnet watch --project src/Imperium.Web/Imperium.Web.fsproj run  # Live reload
 
 **Testing:**
 ```bash
-dotnet test                          # When test project exists
+dotnet test                          # Run via VS Code Test SDK integration
+dotnet run --project tests/Imperium.UnitTests/Imperium.UnitTests.fsproj  # Native Expecto runner
 ```
 
-**Future test structure:** Tests will live in `tests/Imperium.Tests` and use Expecto or xUnit.
+**Test Infrastructure:**
+- Expecto 10.2.3 with FsCheck for property-based testing
+- YoloDev.Expecto.TestSdk 0.15.3 for VS Code Test Explorer integration
+- Test modules mirror source: `Imperium.UnitTests.Rondel` tests `Imperium.Rondel`
+- Use `[<Tests>]` attribute for test discovery
+- Current coverage: RondelInvoiceId (9 tests passing)
 
 ## Module Development Process
 
