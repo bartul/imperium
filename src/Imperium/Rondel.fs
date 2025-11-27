@@ -54,8 +54,8 @@ module Rondel =
 
     type Event =
         | RondelCreated
-        | NationMovementInvoiced of NationId * RondelInvoiceId * Amount
-        | NationActionDetermined of NationId * Action
+        | NationMovementInvoiced of nationId:NationId * invoiceId:RondelInvoiceId * amount:Amount
+        | NationActionDetermined of nationId:NationId * action:Action
 
     // Implementation stubs
     let createRondel (nations: Set<NationId>) : Rondel =

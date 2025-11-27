@@ -53,8 +53,8 @@ module Rondel =
     /// movement and invoicing flows are intentionally deferred.
     type Event =
         | RondelCreated
-        | NationMovementInvoiced of NationId * RondelInvoiceId * Amount
-        | NationActionDetermined of NationId * Action
+        | NationMovementInvoiced of nationId:NationId * invoiceId:RondelInvoiceId * amount:Amount
+        | NationActionDetermined of nationId:NationId * action:Action
 
     // Public API (minimal surface)
     /// Create a new Rondel instance with the game's fixed space layout and the set
