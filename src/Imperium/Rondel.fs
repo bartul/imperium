@@ -14,7 +14,7 @@ module Rondel =
     type RondelInvoiceId = private RondelInvoiceId of Guid
 
     module RondelInvoiceId =
-        let create (guid: Guid) =
+        let create guid =
             if guid = Guid.Empty then
                 RondelError "RondelInvoiceId cannot be Guid.Empty." |> Result.Error
             else
