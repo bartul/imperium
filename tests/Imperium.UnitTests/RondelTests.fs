@@ -70,7 +70,7 @@ let tests =
             ]
 
             testList "property-based" [
-                testProperty "tryParse roundtrips with toString for valid GUIDs" (fun (guid: Guid) ->
+                testProperty "tryParse roundtrip with toString for valid GUIDs" (fun (guid: Guid) ->
                     match RondelInvoiceId.create guid with
                     | Ok id ->
                         let str = RondelInvoiceId.toString id
@@ -81,7 +81,7 @@ let tests =
                         true
                 )
 
-                testProperty "value roundtrips with create for valid GUIDs" (fun (guid: Guid) ->
+                testProperty "value roundtrip with create for valid GUIDs" (fun (guid: Guid) ->
                     match RondelInvoiceId.create guid with
                     | Ok id ->
                         let extractedGuid = RondelInvoiceId.value id
