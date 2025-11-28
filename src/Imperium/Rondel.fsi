@@ -58,8 +58,8 @@ module Rondel =
 
     // Public API (minimal surface)
     /// Create a new Rondel instance with the game's fixed space layout and the set
-    /// of nations that will occupy it.
-    val createRondel : nations:Set<NationId> -> Rondel
+    /// of nations that will occupy it. Returns error if nation set is empty.
+    val createRondel : nations:Set<NationId> -> Result<(Rondel * Event list), RondelError>
 
     /// Initiate a move for `nationId` to the named `space` on the provided `rondel`.
     /// Returns future movement events once implemented.

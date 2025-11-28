@@ -58,9 +58,8 @@ module Rondel =
         | NationActionDetermined of nationId:NationId * action:Action
 
     // Implementation stubs
-    let createRondel (nations: Set<NationId>) : Rondel =
-        let _ = nations
-        { dummy = () }
+    let createRondel (nations: Set<NationId>) : Result<(Rondel * Event list), RondelError> =
+       invalidOp "Not implemented: createRondel" 
 
     let move (rondel: Rondel) (nationId: NationId) (space: Space) : Result<Event list, RondelError> =
         invalidOp "Not implemented: move"
