@@ -68,5 +68,28 @@ let tests =
                     Expect.isError result "Should reject null string"
                 }
             ]
+
+            testList "property-based" [
+                testProperty "tryParse roundtrips with toString for valid GUIDs" (fun (guid: Guid) ->
+                    match RondelInvoiceId.create guid with
+                    | Ok id ->
+                        let str = RondelInvoiceId.toString id
+                        let parsed = RondelInvoiceId.tryParse str
+                        parsed = Ok id
+                    | Error _ ->
+                        // Skip empty GUIDs (they're rejected by create)
+                        true
+                )
+
+                testProperty "value roundtrips with create for valid GUIDs" (fun (guid: Guid) ->
+                    match RondelInvoiceId.create guid with
+                    | Ok id ->
+                        let extractedGuid = RondelInvoiceId.value id
+                        extractedGuid = guid
+                    | Error _ ->
+                        // Skip empty GUIDs (they're rejected by create)
+                        true
+                )
+            ]
         ]
     ]
