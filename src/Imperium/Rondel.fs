@@ -16,7 +16,7 @@ module Rondel =
     module RondelInvoiceId =
         let create guid =
             if guid = Guid.Empty then
-                RondelError "RondelInvoiceId cannot be Guid.Empty." |> Result.Error
+                RondelError "RondelInvoiceId cannot be Guid.Empty." |> Error
             else
                RondelInvoiceId guid |> Ok
 
@@ -27,7 +27,7 @@ module Rondel =
         let tryParse (raw: string) =
             match Guid.TryParse raw with
             | true, guid -> create guid
-            | false, _ -> RondelError "Invalid GUID format." |> Result.Error
+            | false, _ -> RondelError "Invalid GUID format." |> Error
 
     // Opaque Rondel handle (private record for now).
     type Rondel = private { dummy: unit }
