@@ -3,6 +3,7 @@
     <TargetFramework>net10.0</TargetFramework>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="Primitives.fs" />
     <Compile Include="Gameplay.fsi" />
     <Compile Include="Gameplay.fs" />
     <Compile Include="Economy.fsi" />

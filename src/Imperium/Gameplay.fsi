@@ -1,6 +1,19 @@
 namespace Imperium
 
+open System
+open Imperium.Primitives
+
 module Gameplay =
+
+    [<Struct>]
+    type GameId = private GameId of Id
+    module GameId =
+        val create : Guid -> Result<GameId, string>
+        val newId : unit -> GameId
+        val value : GameId -> Guid
+        val toString : GameId -> string
+        val tryParse : string -> Result<GameId, string>
+
     [<RequireQualifiedAccess>]
     type NationId =
         | Germany

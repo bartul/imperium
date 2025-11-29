@@ -6,18 +6,21 @@ open Imperium.Economy
 
 module Rondel =
 
+    open Imperium.Primitives
+    
     // Minimal public aliases used by the Rondel API surface
     type RondelError = string
     /// Opaque identifier for invoices scoped to the rondel domain.
     [<Struct>]
-    type RondelInvoiceId = private RondelInvoiceId of Guid
-
+    type RondelInvoiceId = private RondelInvoiceId of Id
     module RondelInvoiceId =
         val create : Guid -> Result<RondelInvoiceId, string>
         val newId : unit -> RondelInvoiceId
         val value : RondelInvoiceId -> Guid
         val toString : RondelInvoiceId -> string
         val tryParse : string -> Result<RondelInvoiceId, string>
+        val value : RondelInvoiceId -> Guid
+        val toString : RondelInvoiceId -> string
 
     /// Abstract, opaque handle representing an instance of a Rondel that
     /// maintains its own internal state (nation positions, pending moves).

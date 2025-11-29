@@ -5,29 +5,21 @@ open Imperium.Gameplay
 open Imperium.Economy
 
 module Rondel =
+    open Imperium.Primitives
 
     // Public aliases and types kept in sync with the signature file; implementation
     // is intentionally stubbed for now.
     type RondelError = string
     // Opaque identifier for invoices scoped to the rondel domain.
     [<Struct>]
-    type RondelInvoiceId = private RondelInvoiceId of Guid
+    type RondelInvoiceId = private RondelInvoiceId of Id
 
     module RondelInvoiceId =
-        let create guid =
-            if guid = Guid.Empty then
-                RondelError "RondelInvoiceId cannot be Guid.Empty." |> Error
-            else
-               RondelInvoiceId guid |> Ok
-
-        let newId () = Guid.NewGuid() |> RondelInvoiceId
-        let value (RondelInvoiceId g) = g
-        let toString (RondelInvoiceId g) = g.ToString()
-
-        let tryParse (raw: string) =
-            match Guid.TryParse raw with
-            | true, guid -> create guid
-            | false, _ -> RondelError "Invalid GUID format." |> Error
+        let create guid = guid |> Id.createMap RondelInvoiceId
+        let newId () = Id.newId () |> RondelInvoiceId
+        let value (RondelInvoiceId g) = g |> Id.value
+        let toString (RondelInvoiceId g) = g |> Id.toString
+        let tryParse raw = raw |> Id.tryParseMap RondelInvoiceId
 
     // Opaque Rondel handle (private record for now).
     type Rondel = private { dummy: unit }
