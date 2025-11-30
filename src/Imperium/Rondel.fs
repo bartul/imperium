@@ -2,13 +2,13 @@
 
 open System
 open Imperium.Gameplay
-open Imperium.Economy
 
 module Rondel =
     open Imperium.Primitives
 
-    // Public aliases and types kept in sync with the signature file; implementation
-    // is intentionally stubbed for now.
+    // CQRS bounded context for rondel game mechanics.
+    // Commands are identified by GameId; internal state will be managed by module.
+    // Implementation currently stubbed, following interface-first development.
     type RondelError = string
     // Opaque identifier for invoices scoped to the rondel domain.
     [<Struct>]
@@ -21,7 +21,8 @@ module Rondel =
         let toString (RondelInvoiceId g) = g |> Id.toString
         let tryParse raw = raw |> Id.tryParseMap RondelInvoiceId
 
-    // Opaque Rondel handle (private record for now).
+    // Temporary opaque handle - will be removed as part of CQRS refactoring.
+    // Future: internal state will be stored in a dictionary/map indexed by GameId.
     type Rondel = private { dummy: unit }
 
     [<RequireQualifiedAccess>]
@@ -45,19 +46,24 @@ module Rondel =
         | Factory
 
     type Event =
-        | RondelCreated
-        | NationMovementInvoiced of nationId:NationId * invoiceId:RondelInvoiceId * amount:Amount
-        | NationActionDetermined of nationId:NationId * action:Action
+        | PositionedAtStart of gameId:GameId
+        | ActionDetermined of gameId:GameId * nationId:NationId * action:Action
+        | MovementToActionRejected of gameId:GameId * nationId:NationId * space:Space
 
-    // Implementation stubs
-    let createRondel (nations: Set<NationId>) : Result<(Rondel * Event list), RondelError> =
-       invalidOp "Not implemented: createRondel" 
+    // CQRS Command Handlers and Event Handlers (stubbed implementations)
 
-    let move (rondel: Rondel) (nationId: NationId) (space: Space) : Result<Event list, RondelError> =
+    // Command: Initialize rondel state for a game
+    let setToStartPositions (gameId: GameId) (nations: Set<NationId>) : Result<Event list, RondelError> =
+       invalidOp "Not implemented: setToStartPositions"
+
+    // Command: Initiate nation movement to a space
+    let move (gameId: GameId) (nationId: NationId) (space: Space) : Result<Event list, RondelError> =
         invalidOp "Not implemented: move"
 
-    let onInvoicedPaid (rondel: Rondel) (invoiceId: RondelInvoiceId) : Result<Event list, RondelError> =
+    // Event handler: Process successful invoice payment from Economy domain
+    let onInvoicedPaid (gameId: GameId) (invoiceId: RondelInvoiceId) : Result<Event list, RondelError> =
         invalidOp "Not implemented: onInvoicedPaid"
 
-    let onInvoicePaymentFailed (rondel: Rondel) (invoiceId: RondelInvoiceId) : Result<Event list, RondelError> =
+    // Event handler: Process failed invoice payment from Economy domain
+    let onInvoicePaymentFailed (gameId: GameId) (invoiceId: RondelInvoiceId) : Result<Event list, RondelError> =
         invalidOp "Not implemented: onInvoicePaymentFailed"

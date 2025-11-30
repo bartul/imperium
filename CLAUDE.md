@@ -19,15 +19,23 @@ Imperium is an F# implementation of the Imperial board game, featuring a domain-
 - `Primitives.fs` - Foundational types with no domain logic; provides reusable `Id` type (struct wrapping `Guid` with validation); no `.fsi` file (intentionally public)
 - `Gameplay.fs/.fsi` - GameId and NationId types; nation definitions (Germany, Great Britain, France, Russia, Austria-Hungary, Italy) with parsing and display logic
 - `Economy.fs/.fsi` - Monetary system using measured struct `Amount` (wraps `int<M>`) with guarded construction
-- `Rondel.fs/.fsi` - RondelInvoiceId type; game board mechanics following the rondel pattern; nations move clockwise through spaces (Investor, Factory, Import, Maneuver, Production, Taxation); movement costs 2M per space beyond 3 free spaces
+- `Rondel.fs/.fsi` - CQRS bounded context for rondel game mechanics; commands identified by GameId; RondelInvoiceId type for invoice tracking; nations move clockwise through 8 spaces (Investor, Import, ProductionOne, ManeuverOne, Taxation, Factory, ProductionTwo, ManeuverTwo); movement costs 2M per space beyond 3 free spaces; publishes integration events for cross-domain communication
 
 **Domain Model Patterns:**
 - Use `.fsi` signature files to define public interfaces (except infrastructure modules like Primitives)
+- **CQRS Bounded Context Pattern**: Domain modules expose command handlers and event handlers identified by aggregate IDs
+  - Commands take `GameId` (or other aggregate ID) as first parameter
+  - Internal state managed by module, indexed by aggregate ID (hidden from public API)
+  - Commands return `Result<Event list, Error>` for integration events
+  - Example: `Rondel` module with commands `setToStartPositions`, `move` and event handlers `onInvoicedPaid`, `onInvoicePaymentFailed`
 - **Domain ID Pattern**: Struct DUs wrapping the `Id` primitive from Primitives module
   - Example: `type GameId = private GameId of Id`
   - Use mapper helpers: `Id.createMap GameId`, `Id.tryParseMap GameId`
   - Expose standard API: `create`, `newId`, `value`, `toString`, `tryParse`
   - Current implementations: `GameId` (Gameplay.fs:9-16), `RondelInvoiceId` (Rondel.fs:15-24)
+- **Integration Events Pattern**: Simple discriminated unions for cross-bounded-context communication
+  - Each event carries aggregate ID (e.g., `gameId:GameId`) and relevant domain data
+  - Example: `PositionedAtStart of gameId:GameId`, `ActionDetermined of gameId:GameId * nationId:NationId * action:Action`
 - Enum-based IDs use `[<RequireQualifiedAccess>]` DUs (e.g., `NationId`)
 - All parsers follow `tryParse : string -> Result<T, string>` convention
 - Errors are plain strings, not custom exception types
@@ -128,9 +136,13 @@ When using mapper functions like `Id.tryParseMap`, prefer Option 1 (explicit fun
 - **Infrastructure:** Primitives module with reusable `Id` type (Guid wrapper with validation)
 - **Domain IDs:** GameId and RondelInvoiceId fully implemented and tested (22 passing tests)
 - **Domain types:** NationId, Amount, Space, Action defined
-- **Events:** `RondelCreated`, `NationMovementInvoiced`, `NationActionDetermined`
-- **Rondel logic:** Movement and payment flows are stubbed (`invalidOp`)
-- **Next steps:** Implement actual rondel movement mechanics, expand test coverage to game logic
+- **Rondel bounded context (CQRS):**
+  - **Commands:** `setToStartPositions` (initialize nations), `move` (initiate movement)
+  - **Event handlers:** `onInvoicedPaid` (handle payment success), `onInvoicePaymentFailed` (handle payment failure)
+  - **Integration events:** `PositionedAtStart`, `ActionDetermined`, `MovementToActionRejected`
+  - **Implementation:** All command/event handlers currently stubbed (`invalidOp`)
+- **Architecture notes:** Rondel type is temporary and will be removed; module will manage internal state indexed by GameId
+- **Next steps:** Implement rondel movement mechanics, add internal state management, expand test coverage to game logic
 
 ## Important Files
 

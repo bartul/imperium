@@ -2,13 +2,13 @@ namespace Imperium
 
 open System
 open Imperium.Gameplay
-open Imperium.Economy
 
 module Rondel =
 
     open Imperium.Primitives
     
-    // Minimal public aliases used by the Rondel API surface
+    // CQRS bounded context for rondel game mechanics.
+    // Commands are identified by GameId; internal state management is hidden.
     type RondelError = string
     /// Opaque identifier for invoices scoped to the rondel domain.
     [<Struct>]
@@ -22,14 +22,9 @@ module Rondel =
         val value : RondelInvoiceId -> Guid
         val toString : RondelInvoiceId -> string
 
-    /// Abstract, opaque handle representing an instance of a Rondel that
-    /// maintains its own internal state (nation positions, pending moves).
-    type Rondel
-
-    /// Discriminated union naming the fixed spaces of the Rondel. Callers use
-    /// this to indicate desired action; the Rondel resolves it to the internal
-    /// ordered space layout. Each case is a unique rondel position (two Maneuver,
-    /// two Production slots on the board).
+    /// The eight fixed spaces on the rondel board, arranged clockwise.
+    /// Each space is a unique board position. Production and Maneuver appear twice
+    /// (One/Two) but map to the same action when landed upon.
     [<RequireQualifiedAccess>]
     type Space =
         | Investor
@@ -52,25 +47,31 @@ module Rondel =
         | Taxation
         | Factory
     
-    /// Events produced by the Rondel public API. Currently only signals initial creation;
-    /// movement and invoicing flows are intentionally deferred.
+    /// Integration events published by the Rondel bounded context to inform other domains.
+    /// PositionedAtStart: Nations positioned at starting positions, rondel ready for movement commands.
+    /// ActionDetermined: Nation successfully moved to a space and the corresponding action was determined.
+    /// MovementToActionRejected: Nation's movement rejected due to payment failure.
     type Event =
-        | RondelCreated
-        | NationMovementInvoiced of nationId:NationId * invoiceId:RondelInvoiceId * amount:Amount
-        | NationActionDetermined of nationId:NationId * action:Action
+        | PositionedAtStart of gameId:GameId
+        | ActionDetermined of gameId:GameId * nationId:NationId * action:Action
+        | MovementToActionRejected of gameId:GameId * nationId:NationId * space:Space
 
-    // Public API (minimal surface)
-    /// Create a new Rondel instance with the game's fixed space layout and the set
-    /// of nations that will occupy it. Returns error if nation set is empty.
-    val createRondel : nations:Set<NationId> -> Result<(Rondel * Event list), RondelError>
+    // Public API - CQRS command handlers
 
-    /// Initiate a move for `nationId` to the named `space` on the provided `rondel`.
-    /// Returns future movement events once implemented.
-    val move : rondel:Rondel -> nationId:NationId -> space:Space -> Result<Event list, RondelError>
+    /// Command: Initialize rondel for the specified game with the given nations.
+    /// All nations are positioned at their starting positions.
+    /// Returns PositionedAtStart event. Fails if nation set is empty.
+    val setToStartPositions : gameId:GameId -> nations:Set<NationId> -> Result<Event list, RondelError>
 
-    /// Handle an invoice-paid event published by another domain.
-    val onInvoicedPaid : rondel:Rondel -> invoiceId:RondelInvoiceId -> Result<Event list, RondelError>
+    /// Command: Move a nation to the specified space on the rondel.
+    /// Determines movement cost and issues invoice to Economy domain.
+    /// On payment success, publishes ActionDetermined event.
+    val move : gameId:GameId -> nationId:NationId -> space:Space -> Result<Event list, RondelError>
 
-    /// Handle an invoice-payment-failed event from another domain; future implementation
-    /// may adjust state accordingly.
-    val onInvoicePaymentFailed : rondel:Rondel -> invoiceId:RondelInvoiceId -> Result<Event list, RondelError>
+    /// Event handler: Processes invoice payment confirmation from Economy domain.
+    /// Completes the nation's movement and publishes ActionDetermined event.
+    val onInvoicedPaid : gameId:GameId -> invoiceId:RondelInvoiceId -> Result<Event list, RondelError>
+
+    /// Event handler: Processes invoice payment failure from Economy domain.
+    /// Rejects the movement and publishes MovementToActionRejected event.
+    val onInvoicePaymentFailed : gameId:GameId -> invoiceId:RondelInvoiceId -> Result<Event list, RondelError>
