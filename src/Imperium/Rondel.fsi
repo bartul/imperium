@@ -56,22 +56,22 @@ module Rondel =
         | ActionDetermined of gameId:GameId * nationId:NationId * action:Action
         | MovementToActionRejected of gameId:GameId * nationId:NationId * space:Space
 
-    // Public API - CQRS command handlers
+    // Public API
 
     /// Command: Initialize rondel for the specified game with the given nations.
     /// All nations are positioned at their starting positions.
-    /// Returns PositionedAtStart event. Fails if nation set is empty.
-    val setToStartPositions : gameId:GameId -> nations:Set<NationId> -> Result<Event list, RondelError>
+    /// Publishes PositionedAtStart event internally. Fails if nation set is empty.
+    val setToStartPositions : gameId:GameId -> nations:Set<NationId> -> Result<unit, RondelError>
 
     /// Command: Move a nation to the specified space on the rondel.
     /// Determines movement cost and issues invoice to Economy domain.
-    /// On payment success, publishes ActionDetermined event.
-    val move : gameId:GameId -> nationId:NationId -> space:Space -> Result<Event list, RondelError>
+    /// Events published internally upon completion.
+    val move : gameId:GameId -> nationId:NationId -> space:Space -> Result<unit, RondelError>
 
     /// Event handler: Processes invoice payment confirmation from Economy domain.
-    /// Completes the nation's movement and publishes ActionDetermined event.
-    val onInvoicedPaid : gameId:GameId -> invoiceId:RondelInvoiceId -> Result<Event list, RondelError>
+    /// Completes the nation's movement and publishes ActionDetermined event internally.
+    val onInvoicedPaid : gameId:GameId -> invoiceId:RondelInvoiceId -> Result<unit, RondelError>
 
     /// Event handler: Processes invoice payment failure from Economy domain.
-    /// Rejects the movement and publishes MovementToActionRejected event.
-    val onInvoicePaymentFailed : gameId:GameId -> invoiceId:RondelInvoiceId -> Result<Event list, RondelError>
+    /// Rejects the movement and publishes MovementToActionRejected event internally.
+    val onInvoicePaymentFailed : gameId:GameId -> invoiceId:RondelInvoiceId -> Result<unit, RondelError>
