@@ -5,7 +5,7 @@
 - `src/Imperium` contains the domain modules (`Gameplay.fs`, `Economy.fs`, `Rondel.fs`); keep shared rules and calculations here.
 - `tests/Imperium.UnitTests` contains Expecto-based unit tests; test modules mirror source structure (e.g., `RondelTests.fs` tests `Rondel.fs`).
 - `Economy.Amount` is a measured struct wrapper (`int<M>`) with guarded construction; errors are plain strings (e.g., negative amount); includes `tryParse` for string inputs.
-- `Rondel.RondelInvoiceId` is a struct DU wrapping `Guid` with guarded creation/parse helpers; errors are plain strings for empty GUID or parse failures.
+- `Rondel.RondelBillingId` is a struct DU wrapping `Guid` with guarded creation/parse helpers; errors are plain strings for empty GUID or parse failures.
 - `Gameplay.NationId` is a DU for Imperial nations (Germany, Great Britain, France, Russia, Austria-Hungary, Italy) with `toString`/`tryParse` helpers; `all` is a `Set<NationId>`.
 - `src/Imperium.Web` bootstraps the HTTP layer (`Program.fs`). Reference the core project via the existing project reference instead of duplicating logic.
 - `docs/` stores reference rulebooks; official rule PDFs live in `docs/official_rules/`. Leave build artefacts inside each project’s `bin/` and `obj/` directories untouched.
@@ -34,7 +34,7 @@
 - Test organization: group related tests with `testList`, use descriptive test names in lowercase ("accepts valid GUID", not "AcceptsValidGuid").
 - Cover edge cases: null inputs, empty strings, invalid formats, boundary conditions.
 - Follow three-phase module development process documented in `docs/module_design_process.md`: define interface, write tests, implement functionality.
-- Current test coverage: `RondelInvoiceId` (create, newId, toString, tryParse) - 9 tests passing.
+- Current test coverage: `RondelBillingId` (create, newId, toString, tryParse) - 9 tests passing.
 
 ## Commit & Pull Request Guidelines
 - Follow the existing history: imperative, concise subject lines (`Update to dotnet 9`, `Add web`).

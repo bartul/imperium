@@ -19,7 +19,7 @@ Imperium is an F# implementation of the Imperial board game, featuring a domain-
 - `Primitives.fs` - Foundational types with no domain logic; provides reusable `Id` type (struct wrapping `Guid` with validation); no `.fsi` file (intentionally public)
 - `Gameplay.fs/.fsi` - GameId and NationId types; nation definitions (Germany, Great Britain, France, Russia, Austria-Hungary, Italy) with parsing and display logic
 - `Economy.fs/.fsi` - Monetary system using measured struct `Amount` (wraps `int<M>`) with guarded construction
-- `Rondel.fs/.fsi` - CQRS bounded context for rondel game mechanics; commands identified by GameId; RondelInvoiceId type for invoice tracking; nations move clockwise through 8 spaces (Investor, Import, ProductionOne, ManeuverOne, Taxation, Factory, ProductionTwo, ManeuverTwo); movement costs 2M per space beyond 3 free spaces; publishes integration events for cross-domain communication
+- `Rondel.fs/.fsi` - CQRS bounded context for rondel game mechanics; commands identified by GameId; RondelBillingId type for invoice tracking; nations move clockwise through 8 spaces (Investor, Import, ProductionOne, ManeuverOne, Taxation, Factory, ProductionTwo, ManeuverTwo); movement costs 2M per space beyond 3 free spaces; publishes integration events for cross-domain communication
 
 **Domain Model Patterns:**
 - Use `.fsi` signature files to define public interfaces (except infrastructure modules like Primitives)
@@ -32,7 +32,7 @@ Imperium is an F# implementation of the Imperial board game, featuring a domain-
   - Example: `type GameId = private GameId of Id`
   - Use mapper helpers: `Id.createMap GameId`, `Id.tryParseMap GameId`
   - Expose standard API: `create`, `newId`, `value`, `toString`, `tryParse`
-  - Current implementations: `GameId` (Gameplay.fs:9-16), `RondelInvoiceId` (Rondel.fs:15-24)
+  - Current implementations: `GameId` (Gameplay.fs:9-16), `RondelBillingId` (Rondel.fs:15-24)
 - **Integration Events Pattern**: Simple discriminated unions for cross-bounded-context communication
   - Each event carries aggregate ID (e.g., `gameId:GameId`) and relevant domain data
   - Example: `PositionedAtStart of gameId:GameId`, `ActionDetermined of gameId:GameId * nationId:NationId * action:Action`
@@ -65,7 +65,7 @@ dotnet run --project tests/Imperium.UnitTests/Imperium.UnitTests.fsproj  # Nativ
 - Test files: `GameplayTests.fs`, `RondelTests.fs`, `Main.fs`
 - **Current coverage (22 tests passing):**
   - GameId: 9 tests (2 create, 2 newId, 1 toString, 4 tryParse, 2 property-based)
-  - RondelInvoiceId: 9 tests (same pattern)
+  - RondelBillingId: 9 tests (same pattern)
 - **Standard ID type test pattern:** Each ID type gets 9 tests covering construction, generation, serialization, parsing, and roundtrip invariants
 
 ## Module Development Process
@@ -134,7 +134,7 @@ When using mapper functions like `Id.tryParseMap`, prefer Option 1 (explicit fun
 **Current Implementation Status:**
 
 - **Infrastructure:** Primitives module with reusable `Id` type (Guid wrapper with validation)
-- **Domain IDs:** GameId and RondelInvoiceId fully implemented and tested (22 passing tests)
+- **Domain IDs:** GameId and RondelBillingId fully implemented and tested (22 passing tests)
 - **Domain types:** NationId, Amount, Space, Action defined
 - **Rondel bounded context (CQRS):**
   - **Commands:** `setToStartPositions` (initialize nations), `move` (initiate movement)

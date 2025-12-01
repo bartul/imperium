@@ -8,14 +8,14 @@ module Rondel =
 
     type RondelError = string
     [<Struct>]
-    type RondelInvoiceId = private RondelInvoiceId of Id
+    type RondelBillingId = private RondelBillingId of Id
 
-    module RondelInvoiceId =
-        let create guid = guid |> Id.createMap RondelInvoiceId
-        let newId () = Id.newId () |> RondelInvoiceId
-        let value (RondelInvoiceId g) = g |> Id.value
-        let toString (RondelInvoiceId g) = g |> Id.toString
-        let tryParse raw = raw |> Id.tryParseMap RondelInvoiceId
+    module RondelBillingId =
+        let create guid = guid |> Id.createMap RondelBillingId
+        let newId () = Id.newId () |> RondelBillingId
+        let value (RondelBillingId g) = g |> Id.value
+        let toString (RondelBillingId g) = g |> Id.toString
+        let tryParse raw = raw |> Id.tryParseMap RondelBillingId
 
     [<RequireQualifiedAccess>]
     type Space =
@@ -51,9 +51,9 @@ module Rondel =
         invalidOp "Not implemented: move"
 
     // Event handler: Process successful invoice payment from Economy domain
-    let onInvoicedPaid (gameId: GameId) (invoiceId: RondelInvoiceId) : Result<unit, RondelError> =
+    let onInvoicedPaid (gameId: GameId) (invoiceId: RondelBillingId) : Result<unit, RondelError> =
         invalidOp "Not implemented: onInvoicedPaid"
 
     // Event handler: Process failed invoice payment from Economy domain
-    let onInvoicePaymentFailed (gameId: GameId) (invoiceId: RondelInvoiceId) : Result<unit, RondelError> =
+    let onInvoicePaymentFailed (gameId: GameId) (invoiceId: RondelBillingId) : Result<unit, RondelError> =
         invalidOp "Not implemented: onInvoicePaymentFailed"

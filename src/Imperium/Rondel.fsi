@@ -10,17 +10,17 @@ module Rondel =
     // CQRS bounded context for rondel game mechanics.
     // Commands are identified by GameId; internal state management is hidden.
     type RondelError = string
-    /// Opaque identifier for invoices scoped to the rondel domain.
+    /// Opaque identifier for billing scoped to the rondel domain.
     [<Struct>]
-    type RondelInvoiceId = private RondelInvoiceId of Id
-    module RondelInvoiceId =
-        val create : Guid -> Result<RondelInvoiceId, string>
-        val newId : unit -> RondelInvoiceId
-        val value : RondelInvoiceId -> Guid
-        val toString : RondelInvoiceId -> string
-        val tryParse : string -> Result<RondelInvoiceId, string>
-        val value : RondelInvoiceId -> Guid
-        val toString : RondelInvoiceId -> string
+    type RondelBillingId = private RondelBillingId of Id
+    module RondelBillingId =
+        val create : Guid -> Result<RondelBillingId, string>
+        val newId : unit -> RondelBillingId
+        val value : RondelBillingId -> Guid
+        val toString : RondelBillingId -> string
+        val tryParse : string -> Result<RondelBillingId, string>
+        val value : RondelBillingId -> Guid
+        val toString : RondelBillingId -> string
 
     /// The eight fixed spaces on the rondel board, arranged clockwise.
     /// Each space is a unique board position. Production and Maneuver appear twice
@@ -70,8 +70,8 @@ module Rondel =
 
     /// Event handler: Processes invoice payment confirmation from Economy domain.
     /// Completes the nation's movement and publishes ActionDetermined event internally.
-    val onInvoicedPaid : gameId:GameId -> invoiceId:RondelInvoiceId -> Result<unit, RondelError>
+    val onInvoicedPaid : gameId:GameId -> invoiceId:RondelBillingId -> Result<unit, RondelError>
 
     /// Event handler: Processes invoice payment failure from Economy domain.
     /// Rejects the movement and publishes MovementToActionRejected event internally.
-    val onInvoicePaymentFailed : gameId:GameId -> invoiceId:RondelInvoiceId -> Result<unit, RondelError>
+    val onInvoicePaymentFailed : gameId:GameId -> invoiceId:RondelBillingId -> Result<unit, RondelError>
