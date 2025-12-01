@@ -51,7 +51,7 @@ module Rondel =
     /// PositionedAtStart: Nations positioned at starting positions, rondel ready for movement commands.
     /// ActionDetermined: Nation successfully moved to a space and the corresponding action was determined.
     /// MovementToActionRejected: Nation's movement rejected due to payment failure.
-    type Event =
+    type RondelEvent =
         | PositionedAtStart of gameId:GameId
         | ActionDetermined of gameId:GameId * nationId:NationId * action:Action
         | MovementToActionRejected of gameId:GameId * nationId:NationId * space:Space

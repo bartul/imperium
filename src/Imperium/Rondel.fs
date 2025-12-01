@@ -6,11 +6,7 @@ open Imperium.Gameplay
 module Rondel =
     open Imperium.Primitives
 
-    // CQRS bounded context for rondel game mechanics.
-    // Commands are identified by GameId; internal state will be managed by module.
-    // Implementation currently stubbed, following interface-first development.
     type RondelError = string
-    // Opaque identifier for invoices scoped to the rondel domain.
     [<Struct>]
     type RondelInvoiceId = private RondelInvoiceId of Id
 
@@ -20,10 +16,6 @@ module Rondel =
         let value (RondelInvoiceId g) = g |> Id.value
         let toString (RondelInvoiceId g) = g |> Id.toString
         let tryParse raw = raw |> Id.tryParseMap RondelInvoiceId
-
-    // Temporary opaque handle - will be removed as part of CQRS refactoring.
-    // Future: internal state will be stored in a dictionary/map indexed by GameId.
-    type Rondel = private { dummy: unit }
 
     [<RequireQualifiedAccess>]
     type Space =
@@ -45,12 +37,10 @@ module Rondel =
         | Taxation
         | Factory
 
-    type Event =
+    type RondelEvent =
         | PositionedAtStart of gameId:GameId
         | ActionDetermined of gameId:GameId * nationId:NationId * action:Action
         | MovementToActionRejected of gameId:GameId * nationId:NationId * space:Space
-
-    // CQRS Command Handlers and Event Handlers (stubbed implementations)
 
     // Command: Initialize rondel state for a game
     let setToStartPositions (gameId: GameId) (nations: Set<NationId>) : Result<unit, RondelError> =
