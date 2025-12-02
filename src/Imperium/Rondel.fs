@@ -50,10 +50,10 @@ module Rondel =
     let move (gameId: Guid) (nation: string) (space: string) : Result<unit, string> =
         invalidOp "Not implemented: move"
 
-    // Event handler: Process successful invoice payment from Economy domain
+    // Event handler: Process successful invoice payment from Accounting domain
     let onInvoicedPaid (gameId: Guid) (billingId: Guid) : Result<unit, string> =
         invalidOp "Not implemented: onInvoicedPaid"
 
-    // Event handler: Process failed invoice payment from Economy domain
+    // Event handler: Process failed invoice payment from Accounting domain
     let onInvoicePaymentFailed (gameId: Guid) (billingId: Guid) : Result<unit, string> =
         invalidOp "Not implemented: onInvoicePaymentFailed"

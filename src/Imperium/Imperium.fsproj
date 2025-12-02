@@ -6,8 +6,8 @@
     <Compile Include="Primitives.fs" />
     <Compile Include="Gameplay.fsi" />
     <Compile Include="Gameplay.fs" />
-    <Compile Include="Economy.fsi" />
-    <Compile Include="Economy.fs" />
+    <Compile Include="Accounting.fsi" />
+    <Compile Include="Accounting.fs" />
     <Compile Include="Rondel.fsi" />
     <Compile Include="Rondel.fs" />
   </ItemGroup>

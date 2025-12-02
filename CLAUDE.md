@@ -10,15 +10,15 @@ Imperium is an F# implementation of the Imperial board game, featuring a domain-
 
 **Solution Structure:**
 - `Imperium.sln` - Main solution file
-- `src/Imperium/` - Core F# library with domain logic (Primitives, Gameplay, Economy, Rondel modules)
+- `src/Imperium/` - Core F# library with domain logic (Primitives, Gameplay, Accounting, Rondel modules)
 - `src/Imperium.Web/` - ASP.NET Core web host (references core library)
 - `tests/Imperium.UnitTests/` - Expecto-based unit tests (references core library)
 - `docs/` - Reference rulebooks and design documentation
 
 **Core Modules (build order):**
-- `Primitives.fs` - Foundational types with no domain logic; provides reusable `Id` type (struct wrapping `Guid` with validation); no `.fsi` file (intentionally public)
-- `Gameplay.fs/.fsi` - GameId and NationId types; nation definitions (Germany, Great Britain, France, Russia, Austria-Hungary, Italy) with parsing and display logic
-- `Economy.fs/.fsi` - Monetary system using measured struct `Amount` (wraps `int<M>`) with guarded construction
+- `Primitives.fs` - Foundational types with no domain logic; provides reusable `Id` and `Amount` types (struct wrapping `Guid`/`int<M>` with validation); no `.fsi` file (intentionally public)
+- `Gameplay.fs/.fsi` - Internal types for GameId and NationId; nation definitions (Germany, Great Britain, France, Russia, Austria-Hungary, Italy) with parsing and display logic
+- `Accounting.fs/.fsi` - Internal bounded context for monetary operations; no public API currently
 - `Rondel.fs/.fsi` - CQRS bounded context for rondel game mechanics; commands identified by GameId; RondelBillingId type for invoice tracking; nations move clockwise through 8 spaces (Investor, Import, ProductionOne, ManeuverOne, Taxation, Factory, ProductionTwo, ManeuverTwo); movement costs 2M per space beyond 3 free spaces; publishes integration events for cross-domain communication
 
 **Domain Model Patterns:**

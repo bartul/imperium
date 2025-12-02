@@ -1,7 +1,7 @@
 namespace Imperium
 
-module Economy =
-    // Economy types are internal implementation details.
+module Accounting =
+    // Accounting types are internal implementation details.
     // Public API will be added here as the module evolves.
 
     /// Placeholder to make module valid - will be removed when public API is added.

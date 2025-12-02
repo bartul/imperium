@@ -24,13 +24,13 @@ module Rondel =
     val setToStartPositions : gameId:Guid -> nations:Set<string> -> Result<unit, string>
 
     /// Command: Move a nation to the specified space on the rondel.
-    /// Determines movement cost and issues invoice to Economy domain.
+    /// Determines movement cost and issues invoice to Accounting domain.
     /// Events published internally upon completion.
     val move : gameId:Guid -> nation:string -> space:string -> Result<unit, string>
 
-    /// Event handler: Processes invoice payment confirmation from Economy domain.
+    /// Event handler: Processes invoice payment confirmation from Accounting domain.
     /// Completes the nation's movement and publishes ActionDetermined event internally.
     val onInvoicedPaid : gameId:Guid -> billingId:Guid -> Result<unit, string>
-    /// Event handler: Processes invoice payment failure from Economy domain.
+    /// Event handler: Processes invoice payment failure from Accounting domain.
     /// Rejects the movement and publishes MovementToActionRejected event internally.
     val onInvoicePaymentFailed : gameId:Guid -> billingId:Guid -> Result<unit, string>

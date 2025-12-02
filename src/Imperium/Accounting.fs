@@ -1,6 +1,6 @@
 namespace Imperium
 
-module Economy =
+module Accounting =
 
     // Internal types - not exposed in public API
 
