@@ -1,23 +1,8 @@
 namespace Imperium
 
-open System
-
 module Economy =
-    [<Measure>]
-    type M // million
+    // Economy types are internal implementation details.
+    // Public API will be added here as the module evolves.
 
-    /// Shared amount representation across economic flows (millions).
-    [<Struct>]
-    type Amount = private Amount of int<M>
-
-    module Amount =
-        val create : millions:int -> Result<Amount, string>
-        val unsafe : millions:int -> Amount
-        val value : Amount -> int
-        val zero : Amount
-        val (+) : Amount -> Amount -> Amount
-        val (-) : Amount -> Amount -> Amount
-        val tryParse : string -> Result<Amount, string>
-        
-    type Bank = Bank of string
-    type Investor = Investor of string
+    /// Placeholder to make module valid - will be removed when public API is added.
+    val internal placeholder : unit
