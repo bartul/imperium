@@ -1,9 +1,11 @@
 namespace Imperium
 
 module Gameplay =
-    
+
     open System
     open Imperium.Primitives
+
+    // Internal types - not exposed in public API
 
     [<Struct>]
     type GameId = private GameId of Id
@@ -58,3 +60,6 @@ module Gameplay =
                 | None ->
                     let expected = all |> Seq.map toString |> String.concat ", "
                     Error $"Unknown nation '{raw}'. Expected one of: {expected}."
+
+    // Public API placeholder
+    let internal placeholder = ()
