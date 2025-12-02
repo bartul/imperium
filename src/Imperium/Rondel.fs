@@ -11,11 +11,11 @@ module Rondel =
     type RondelBillingId = private RondelBillingId of Id
 
     module RondelBillingId =
-        let create guid = guid |> Id.createMap RondelBillingId
+        let create = Id.createMap RondelBillingId
         let newId () = Id.newId () |> RondelBillingId
         let value (RondelBillingId g) = g |> Id.value
         let toString (RondelBillingId g) = g |> Id.toString
-        let tryParse raw = raw |> Id.tryParseMap RondelBillingId
+        let tryParse = Id.tryParseMap RondelBillingId
 
     [<RequireQualifiedAccess>]
     type Space =
@@ -39,15 +39,15 @@ module Rondel =
 
     type RondelEvent =
         | PositionedAtStart of gameId: Guid
-        | ActionDetermined of gameId: Guid * nationId: string * action: string
-        | MovementToActionRejected of gameId: Guid * nationId: string * space: string
+        | ActionDetermined of gameId: Guid * nation: string * action: string
+        | MovementToActionRejected of gameId: Guid * nation: string * space: string
 
     // Command: Initialize rondel state for a game
     let setToStartPositions (gameId: Guid) (nations: Set<string>) : Result<unit, string> =
         invalidOp "Not implemented: setToStartPositions"
 
     // Command: Initiate nation movement to a space
-    let move (gameId: Guid) (nationId: string) (space: string) : Result<unit, string> =
+    let move (gameId: Guid) (nation: string) (space: string) : Result<unit, string> =
         invalidOp "Not implemented: move"
 
     // Event handler: Process successful invoice payment from Economy domain
