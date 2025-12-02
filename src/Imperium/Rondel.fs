@@ -1,6 +1,8 @@
 ﻿namespace Imperium
 
 open System
+open Imperium.Contract.Accounting
+open Imperium.Contract.Rondel
 
 module Rondel =
     open Imperium.Primitives
@@ -37,23 +39,20 @@ module Rondel =
         | Taxation
         | Factory
 
-    type RondelEvent =
-        | PositionedAtStart of gameId: Guid
-        | ActionDetermined of gameId: Guid * nation: string * action: string
-        | MovementToActionRejected of gameId: Guid * nation: string * space: string
+    // RondelEvent is defined in Imperium.Contract.Rondel module
 
     // Command: Initialize rondel state for a game
-    let setToStartPositions (gameId: Guid) (nations: Set<string>) : Result<unit, string> =
+    let setToStartPositions (command: SetToStartPositionsCommand) : Result<unit, string> =
         invalidOp "Not implemented: setToStartPositions"
 
     // Command: Initiate nation movement to a space
-    let move (gameId: Guid) (nation: string) (space: string) : Result<unit, string> =
+    let move (chargeForMovement: ChargeNationForRondelMovement) (command: MoveCommand) : Result<unit, string> =
         invalidOp "Not implemented: move"
 
     // Event handler: Process successful invoice payment from Accounting domain
-    let onInvoicedPaid (gameId: Guid) (billingId: Guid) : Result<unit, string> =
+    let onInvoicedPaid (event: RondelInvoicePaid) : Result<unit, string> =
         invalidOp "Not implemented: onInvoicedPaid"
 
     // Event handler: Process failed invoice payment from Accounting domain
-    let onInvoicePaymentFailed (gameId: Guid) (billingId: Guid) : Result<unit, string> =
+    let onInvoicePaymentFailed (event: RondelInvoicePaymentFailed) : Result<unit, string> =
         invalidOp "Not implemented: onInvoicePaymentFailed"

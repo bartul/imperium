@@ -10,32 +10,37 @@ Imperium is an F# implementation of the Imperial board game, featuring a domain-
 
 **Solution Structure:**
 - `Imperium.sln` - Main solution file
-- `src/Imperium/` - Core F# library with domain logic (Primitives, Gameplay, Accounting, Rondel modules)
+- `src/Imperium/` - Core F# library with domain logic (Primitives, Contract, Gameplay, Accounting, Rondel modules)
 - `src/Imperium.Web/` - ASP.NET Core web host (references core library)
 - `tests/Imperium.UnitTests/` - Expecto-based unit tests (references core library)
 - `docs/` - Reference rulebooks and design documentation
 
 **Core Modules (build order):**
 - `Primitives.fs` - Foundational types with no domain logic; provides reusable `Id` and `Amount` types (struct wrapping `Guid`/`int<M>` with validation); no `.fsi` file (intentionally public)
-- `Gameplay.fs/.fsi` - Internal types for GameId and NationId; nation definitions (Germany, Great Britain, France, Russia, Austria-Hungary, Italy) with parsing and display logic
+- `Contract.fs` - Cross-bounded-context communication types; defines commands, events, and function types for inter-domain messaging; organized by domain (Accounting, Rondel, Gameplay); no `.fsi` file (intentionally public)
+- `Gameplay.fs/.fsi` - Internal types for GameId and NationId; nation definitions (Germany, Great Britain, France, Russia, Austria-Hungary, Italy) with parsing and display logic; no public API currently
 - `Accounting.fs/.fsi` - Internal bounded context for monetary operations; no public API currently
-- `Rondel.fs/.fsi` - CQRS bounded context for rondel game mechanics; commands identified by GameId; RondelBillingId type for invoice tracking; nations move clockwise through 8 spaces (Investor, Import, ProductionOne, ManeuverOne, Taxation, Factory, ProductionTwo, ManeuverTwo); movement costs 2M per space beyond 3 free spaces; publishes integration events for cross-domain communication
+- `Rondel.fs/.fsi` - CQRS bounded context for rondel game mechanics; exposes command handlers accepting contract types; internal types include RondelBillingId, Space, Action; all commands use dependency injection via contract function types
 
 **Domain Model Patterns:**
 - Use `.fsi` signature files to define public interfaces (except infrastructure modules like Primitives)
-- **CQRS Bounded Context Pattern**: Domain modules expose command handlers and event handlers identified by aggregate IDs
-  - Commands take `GameId` (or other aggregate ID) as first parameter
+- **CQRS Bounded Context Pattern**: Domain modules expose command handlers and event handlers accepting contract types
+  - Commands accept contract command types (records) and dependency function types
   - Internal state managed by module, indexed by aggregate ID (hidden from public API)
-  - Commands return `Result<Event list, Error>` for integration events
-  - Example: `Rondel` module with commands `setToStartPositions`, `move` and event handlers `onInvoicedPaid`, `onInvoicePaymentFailed`
-- **Domain ID Pattern**: Struct DUs wrapping the `Id` primitive from Primitives module
-  - Example: `type GameId = private GameId of Id`
+  - Commands return `Result<unit, string>` for synchronous execution
+  - Example: `Rondel.setToStartPositions : SetToStartPositionsCommand -> Result<unit, string>`
+  - Example with DI: `Rondel.move : ChargeNationForRondelMovement -> MoveCommand -> Result<unit, string>`
+  - Event handlers accept contract event types: `onInvoicedPaid : RondelInvoicePaid -> Result<unit, string>`
+- **Contract Types Pattern**: All cross-domain types defined in `Imperium.Contract` module
+  - Commands: Record types with required data (e.g., `SetToStartPositionsCommand`, `MoveCommand`)
+  - Events: DU with inline named fields (e.g., `RondelEvent`, `AccountingEvent`)
+  - Function types: For dependency injection (e.g., `ChargeNationForRondelMovement = ChargeNationForRondelMovementCommand -> unit`)
+  - Command/Event unions: Aggregate all commands/events for a domain (e.g., `RondelCommand`, `AccountingEvent`)
+- **Domain ID Pattern**: Struct DUs wrapping the `Id` primitive from Primitives module (internal to bounded contexts)
+  - Example: `type GameId = private GameId of Id` (internal, not exported)
   - Use mapper helpers: `Id.createMap GameId`, `Id.tryParseMap GameId`
-  - Expose standard API: `create`, `newId`, `value`, `toString`, `tryParse`
-  - Current implementations: `GameId` (Gameplay.fs:9-16), `RondelBillingId` (Rondel.fs:15-24)
-- **Integration Events Pattern**: Simple discriminated unions for cross-bounded-context communication
-  - Each event carries aggregate ID (e.g., `gameId:GameId`) and relevant domain data
-  - Example: `PositionedAtStart of gameId:GameId`, `ActionDetermined of gameId:GameId * nationId:NationId * action:Action`
+  - Standard API: `create`, `newId`, `value`, `toString`, `tryParse`
+  - Domain IDs are implementation details, not exposed in public APIs
 - Enum-based IDs use `[<RequireQualifiedAccess>]` DUs (e.g., `NationId`)
 - All parsers follow `tryParse : string -> Result<T, string>` convention
 - Errors are plain strings, not custom exception types
@@ -63,10 +68,8 @@ dotnet run --project tests/Imperium.UnitTests/Imperium.UnitTests.fsproj  # Nativ
 - Test modules mirror source: `Imperium.UnitTests.Gameplay` tests `Imperium.Gameplay`, etc.
 - Use `[<Tests>]` attribute for test discovery
 - Test files: `GameplayTests.fs`, `RondelTests.fs`, `Main.fs`
-- **Current coverage (22 tests passing):**
-  - GameId: 9 tests (2 create, 2 newId, 1 toString, 4 tryParse, 2 property-based)
-  - RondelBillingId: 9 tests (same pattern)
-- **Standard ID type test pattern:** Each ID type gets 9 tests covering construction, generation, serialization, parsing, and roundtrip invariants
+- **Current coverage:** No tests currently (internal types no longer exposed in public APIs)
+- **Testing approach:** Tests target public command/event handler APIs, not internal implementation details
 
 ## Module Development Process
 
@@ -133,16 +136,24 @@ When using mapper functions like `Id.tryParseMap`, prefer Option 1 (explicit fun
 
 **Current Implementation Status:**
 
-- **Infrastructure:** Primitives module with reusable `Id` type (Guid wrapper with validation)
-- **Domain IDs:** GameId and RondelBillingId fully implemented and tested (22 passing tests)
-- **Domain types:** NationId, Amount, Space, Action defined
-- **Rondel bounded context (CQRS):**
-  - **Commands:** `setToStartPositions` (initialize nations), `move` (initiate movement)
-  - **Event handlers:** `onInvoicedPaid` (handle payment success), `onInvoicePaymentFailed` (handle payment failure)
-  - **Integration events:** `PositionedAtStart`, `ActionDetermined`, `MovementToActionRejected`
-  - **Implementation:** All command/event handlers currently stubbed (`invalidOp`)
-- **Architecture notes:** Rondel type is temporary and will be removed; module will manage internal state indexed by GameId
-- **Next steps:** Implement rondel movement mechanics, add internal state management, expand test coverage to game logic
+- **Infrastructure:**
+  - `Primitives` - Provides `Id` (Guid wrapper) and `Amount` (int<M> wrapper) foundational types
+  - `Contract` - Defines all cross-domain communication types (commands, events, function types)
+- **Domain modules:** All use CQRS pattern with internal state, exposing only command/event handlers
+  - `Gameplay` - No public API yet; internal GameId and NationId types
+  - `Accounting` - No public API yet; internal Bank and Investor types
+  - `Rondel` - Public command handlers and event handlers accepting contract types
+- **Contract types defined:**
+  - `Contract.Rondel`: SetToStartPositionsCommand, MoveCommand, RondelEvent, RondelCommand
+  - `Contract.Accounting`: ChargeNationForRondelMovementCommand, RondelInvoicePaid, RondelInvoicePaymentFailed, AccountingEvent, AccountingCommand
+  - Function types for dependency injection (ChargeNationForRondelMovement)
+- **Rondel public API:**
+  - `setToStartPositions : SetToStartPositionsCommand -> Result<unit, string>`
+  - `move : ChargeNationForRondelMovement -> MoveCommand -> Result<unit, string>`
+  - `onInvoicedPaid : RondelInvoicePaid -> Result<unit, string>`
+  - `onInvoicePaymentFailed : RondelInvoicePaymentFailed -> Result<unit, string>`
+  - All implementations currently stubbed (`invalidOp "Not implemented"`)
+- **Next steps:** Implement command/event handler logic, add internal state management, write integration tests
 
 ## Important Files
 

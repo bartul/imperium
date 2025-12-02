@@ -4,6 +4,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="Primitives.fs" />
+    <Compile Include="Contract.fs" />
     <Compile Include="Gameplay.fsi" />
     <Compile Include="Gameplay.fs" />
     <Compile Include="Accounting.fsi" />
