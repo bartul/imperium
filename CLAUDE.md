@@ -28,14 +28,14 @@ Imperium is an F# implementation of the Imperial board game, featuring a domain-
   - Commands accept contract command types (records) and dependency function types
   - Internal state managed by module, indexed by aggregate ID (hidden from public API)
   - Commands return `Result<unit, string>` for synchronous execution
-  - Example: `Rondel.setToStartPositions : SetToStartPositionsCommand -> Result<unit, string>`
+  - Example: `Rondel.setToStartingPositions : SetToStartingPositionsCommand -> Result<unit, string>`
   - Example with DI: `Rondel.move : ChargeNationForRondelMovement -> MoveCommand -> Result<unit, string>`
   - Event handlers accept contract event types: `onInvoicedPaid : RondelInvoicePaid -> Result<unit, string>`
 - **Contract Types Pattern**: All cross-domain types defined in `Imperium.Contract` module
-  - Commands: Record types with required data (e.g., `SetToStartPositionsCommand`, `MoveCommand`)
-  - Events: DU with inline named fields (e.g., `RondelEvent`, `AccountingEvent`)
-  - Function types: For dependency injection (e.g., `ChargeNationForRondelMovement = ChargeNationForRondelMovementCommand -> unit`)
-  - Command/Event unions: Aggregate all commands/events for a domain (e.g., `RondelCommand`, `AccountingEvent`)
+  - Commands: Record types with required data (e.g., `SetToStartingPositionsCommand`, `MoveCommand`)
+  - Events: DU with record types (e.g., `RondelEvent`, `AccountingEvent`)
+  - Function types: For dependency injection (e.g., `ChargeNationForRondelMovement = ChargeNationForRondelMovementCommand -> Result<unit, string>`)
+  - Event unions: Aggregate all events for a domain (e.g., `RondelEvent`, `AccountingEvent`)
 - **Domain ID Pattern**: Struct DUs wrapping the `Id` primitive from Primitives module (internal to bounded contexts)
   - Example: `type GameId = private GameId of Id` (internal, not exported)
   - Use mapper helpers: `Id.createMap GameId`, `Id.tryParseMap GameId`
@@ -144,11 +144,11 @@ When using mapper functions like `Id.tryParseMap`, prefer Option 1 (explicit fun
   - `Accounting` - No public API yet; internal Bank and Investor types
   - `Rondel` - Public command handlers and event handlers accepting contract types
 - **Contract types defined:**
-  - `Contract.Rondel`: SetToStartPositionsCommand, MoveCommand, RondelEvent, RondelCommand
-  - `Contract.Accounting`: ChargeNationForRondelMovementCommand, RondelInvoicePaid, RondelInvoicePaymentFailed, AccountingEvent, AccountingCommand
-  - Function types for dependency injection (ChargeNationForRondelMovement)
+  - `Contract.Rondel`: SetToStartingPositionsCommand, MoveCommand, RondelEvent (PositionedAtStart, ActionDetermined, MoveToActionSpaceRejected)
+  - `Contract.Accounting`: ChargeNationForRondelMovementCommand, AccountingEvent (RondelInvoicePaid, RondelInvoicePaymentFailed)
+  - Function types for dependency injection (ChargeNationForRondelMovement, SetToStartingPositions, Move)
 - **Rondel public API:**
-  - `setToStartPositions : SetToStartPositionsCommand -> Result<unit, string>`
+  - `setToStartingPositions : SetToStartingPositionsCommand -> Result<unit, string>`
   - `move : ChargeNationForRondelMovement -> MoveCommand -> Result<unit, string>`
   - `onInvoicedPaid : RondelInvoicePaid -> Result<unit, string>`
   - `onInvoicePaymentFailed : RondelInvoicePaymentFailed -> Result<unit, string>`

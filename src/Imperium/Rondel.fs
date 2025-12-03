@@ -42,8 +42,8 @@ module Rondel =
     // RondelEvent is defined in Imperium.Contract.Rondel module
 
     // Command: Initialize rondel state for a game
-    let setToStartPositions (command: SetToStartPositionsCommand) : Result<unit, string> =
-        invalidOp "Not implemented: setToStartPositions"
+    let setToStartingPositions (command: SetToStartingPositionsCommand) : Result<unit, string> =
+        invalidOp "Not implemented: setToStartingPositions"
 
     // Command: Initiate nation movement to a space
     let move (chargeForMovement: ChargeNationForRondelMovement) (command: MoveCommand) : Result<unit, string> =

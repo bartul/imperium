@@ -8,15 +8,15 @@
   - `Id` - Struct wrapping `Guid` with validation; provides `create`, `newId`, `value`, `toString`, `tryParse`, and mapper helpers
   - `Amount` - Measured struct wrapper (`int<M>`) with guarded construction; errors are plain strings; includes `tryParse`
 - **Contract module:** Cross-bounded-context communication types; no `.fsi` file (intentionally public)
-  - `Contract.Rondel`: SetToStartPositionsCommand, MoveCommand, RondelEvent, RondelCommand
-  - `Contract.Accounting`: ChargeNationForRondelMovementCommand, RondelInvoicePaid, RondelInvoicePaymentFailed, AccountingEvent, AccountingCommand
-  - Function types for dependency injection (e.g., `ChargeNationForRondelMovement = ChargeNationForRondelMovementCommand -> unit`)
-  - Events use inline named fields (e.g., `PositionedAtStart of gameId:Guid`)
+  - `Contract.Rondel`: SetToStartingPositionsCommand, MoveCommand, RondelEvent (PositionedAtStart, ActionDetermined, MoveToActionSpaceRejected)
+  - `Contract.Accounting`: ChargeNationForRondelMovementCommand, AccountingEvent (RondelInvoicePaid, RondelInvoicePaymentFailed)
+  - Function types for dependency injection (e.g., `ChargeNationForRondelMovement = ChargeNationForRondelMovementCommand -> Result<unit, string>`)
+  - Events use record types (e.g., `RondelEvent = | PositionedAtStart of PositionedAtStart` where `PositionedAtStart = { GameId: Guid }`)
 - **Domain modules:** CQRS bounded contexts with `.fsi` files defining public APIs
   - Internal types (GameId, NationId, RondelBillingId, Space, Action, Bank, Investor) hidden from public APIs
   - Public APIs expose only command handlers and event handlers accepting contract types
   - `Gameplay` and `Accounting` have no public API currently (placeholder values only)
-  - `Rondel` exposes: setToStartPositions, move, onInvoicedPaid, onInvoicePaymentFailed (all stubbed with `invalidOp`)
+  - `Rondel` exposes: setToStartingPositions, move, onInvoicedPaid, onInvoicePaymentFailed (all stubbed with `invalidOp`)
 - `src/Imperium.Web` bootstraps the HTTP layer (`Program.fs`). Reference the core project via the existing project reference instead of duplicating logic.
 - `docs/` stores reference rulebooks; official rule PDFs live in `docs/official_rules/`. Leave build artefacts inside each project's `bin/` and `obj/` directories untouched.
 - Rondel spaces (board order): `Investor`, `Factory`, `Import`, `ManeuverOne`, `ProductionOne`, `ManeuverTwo`, `ProductionTwo`, `Taxation`.
