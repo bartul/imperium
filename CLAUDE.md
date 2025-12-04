@@ -28,9 +28,10 @@ Imperium is an F# implementation of the Imperial board game, featuring a domain-
   - Commands accept contract command types (records) and dependency function types
   - Internal state managed by module, indexed by aggregate ID (hidden from public API)
   - Commands return `Result<unit, string>` for synchronous execution
-  - Example: `Rondel.setToStartingPositions : SetToStartingPositionsCommand -> Result<unit, string>`
-  - Example with DI: `Rondel.move : ChargeNationForRondelMovement -> MoveCommand -> Result<unit, string>`
-  - Event handlers accept contract event types: `onInvoicedPaid : RondelInvoicePaid -> Result<unit, string>`
+  - **All handlers take event publisher as first parameter** for explicit dependency injection
+  - Example: `Rondel.setToStartingPositions : PublishRondelEvent -> SetToStartingPositions`
+  - Example with multiple DI: `Rondel.move : PublishRondelEvent -> ChargeNationForRondelMovement -> Move`
+  - Event handlers: `onInvoicedPaid : PublishRondelEvent -> RondelInvoicePaid -> Result<unit, string>`
 - **Contract Types Pattern**: All cross-domain types defined in `Imperium.Contract` module
   - Commands: Record types with required data (e.g., `SetToStartingPositionsCommand`, `MoveCommand`)
   - Events: DU with record types (e.g., `RondelEvent`, `AccountingEvent`)
@@ -148,10 +149,11 @@ When using mapper functions like `Id.tryParseMap`, prefer Option 1 (explicit fun
   - `Contract.Accounting`: ChargeNationForRondelMovementCommand, AccountingEvent (RondelInvoicePaid, RondelInvoicePaymentFailed)
   - Function types for dependency injection (ChargeNationForRondelMovement, SetToStartingPositions, Move)
 - **Rondel public API:**
-  - `setToStartingPositions : SetToStartingPositionsCommand -> Result<unit, string>`
-  - `move : ChargeNationForRondelMovement -> MoveCommand -> Result<unit, string>`
-  - `onInvoicedPaid : RondelInvoicePaid -> Result<unit, string>`
-  - `onInvoicePaymentFailed : RondelInvoicePaymentFailed -> Result<unit, string>`
+  - `PublishRondelEvent` type: `RondelEvent -> unit` (event publisher dependency)
+  - `setToStartingPositions : PublishRondelEvent -> SetToStartingPositions`
+  - `move : PublishRondelEvent -> ChargeNationForRondelMovement -> Move`
+  - `onInvoicedPaid : PublishRondelEvent -> RondelInvoicePaid -> Result<unit, string>`
+  - `onInvoicePaymentFailed : PublishRondelEvent -> RondelInvoicePaymentFailed -> Result<unit, string>`
   - All implementations currently stubbed (`invalidOp "Not implemented"`)
 - **Next steps:** Implement command/event handler logic, add internal state management, write integration tests
 

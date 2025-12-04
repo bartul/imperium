@@ -41,18 +41,21 @@ module Rondel =
 
     // RondelEvent is defined in Imperium.Contract.Rondel module
 
+    // Public API types
+    type PublishRondelEvent = RondelEvent -> unit
+
     // Command: Initialize rondel state for a game
-    let setToStartingPositions (command: SetToStartingPositionsCommand) : Result<unit, string> =
+    let setToStartingPositions (publish: PublishRondelEvent) (command: SetToStartingPositionsCommand) : Result<unit, string> =
         invalidOp "Not implemented: setToStartingPositions"
 
     // Command: Initiate nation movement to a space
-    let move (chargeForMovement: ChargeNationForRondelMovement) (command: MoveCommand) : Result<unit, string> =
+    let move (publish: PublishRondelEvent) (chargeForMovement: ChargeNationForRondelMovement) (command: MoveCommand) : Result<unit, string> =
         invalidOp "Not implemented: move"
 
     // Event handler: Process successful invoice payment from Accounting domain
-    let onInvoicedPaid (event: RondelInvoicePaid) : Result<unit, string> =
+    let onInvoicedPaid (publish: PublishRondelEvent) (event: RondelInvoicePaid) : Result<unit, string> =
         invalidOp "Not implemented: onInvoicedPaid"
 
     // Event handler: Process failed invoice payment from Accounting domain
-    let onInvoicePaymentFailed (event: RondelInvoicePaymentFailed) : Result<unit, string> =
+    let onInvoicePaymentFailed (publish: PublishRondelEvent) (event: RondelInvoicePaymentFailed) : Result<unit, string> =
         invalidOp "Not implemented: onInvoicePaymentFailed"
