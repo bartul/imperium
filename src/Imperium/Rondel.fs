@@ -46,7 +46,13 @@ module Rondel =
 
     // Command: Initialize rondel state for a game
     let setToStartingPositions (publish: PublishRondelEvent) (command: SetToStartingPositionsCommand) : Result<unit, string> =
-        invalidOp "Not implemented: setToStartingPositions"
+        match command.Nations with
+        | _ when Set.isEmpty command.Nations -> Error "Nation set cannot be empty."
+        | _ -> 
+            publish (PositionedAtStart { GameId = command.GameId })
+            Ok ()
+
+
 
     // Command: Initiate nation movement to a space
     let move (publish: PublishRondelEvent) (chargeForMovement: ChargeNationForRondelMovement) (command: MoveCommand) : Result<unit, string> =

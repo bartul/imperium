@@ -69,8 +69,8 @@ dotnet run --project tests/Imperium.UnitTests/Imperium.UnitTests.fsproj  # Nativ
 - Test modules mirror source: `Imperium.UnitTests.Gameplay` tests `Imperium.Gameplay`, etc.
 - Use `[<Tests>]` attribute for test discovery
 - Test files: `GameplayTests.fs`, `RondelTests.fs`, `Main.fs`
-- **Current coverage:** No tests currently (internal types no longer exposed in public APIs)
-- **Testing approach:** Tests target public command/event handler APIs, not internal implementation details
+- **Current coverage:** Tests for setToStartingPositions command (validation and event publication)
+- **Testing approach:** Tests target public command/event handler APIs using injected test publishers to verify events
 
 ## Module Development Process
 
@@ -150,11 +150,10 @@ When using mapper functions like `Id.tryParseMap`, prefer Option 1 (explicit fun
   - Function types for dependency injection (ChargeNationForRondelMovement, SetToStartingPositions, Move)
 - **Rondel public API:**
   - `PublishRondelEvent` type: `RondelEvent -> unit` (event publisher dependency)
-  - `setToStartingPositions : PublishRondelEvent -> SetToStartingPositions`
-  - `move : PublishRondelEvent -> ChargeNationForRondelMovement -> Move`
-  - `onInvoicedPaid : PublishRondelEvent -> RondelInvoicePaid -> Result<unit, string>`
-  - `onInvoicePaymentFailed : PublishRondelEvent -> RondelInvoicePaymentFailed -> Result<unit, string>`
-  - All implementations currently stubbed (`invalidOp "Not implemented"`)
+  - `setToStartingPositions : PublishRondelEvent -> SetToStartingPositions` (implemented)
+  - `move : PublishRondelEvent -> ChargeNationForRondelMovement -> Move` (stubbed)
+  - `onInvoicedPaid : PublishRondelEvent -> RondelInvoicePaid -> Result<unit, string>` (stubbed)
+  - `onInvoicePaymentFailed : PublishRondelEvent -> RondelInvoicePaymentFailed -> Result<unit, string>` (stubbed)
 - **Next steps:** Implement command/event handler logic, add internal state management, write integration tests
 
 ## Important Files

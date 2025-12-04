@@ -17,7 +17,7 @@
   - Public APIs expose only command handlers and event handlers accepting contract types
   - All handlers take `PublishRondelEvent` (event publisher) as first parameter for explicit dependency injection
   - `Gameplay` and `Accounting` have no public API currently (placeholder values only)
-  - `Rondel` exposes: PublishRondelEvent type, setToStartingPositions, move, onInvoicedPaid, onInvoicePaymentFailed (all stubbed with `invalidOp`)
+  - `Rondel` exposes: PublishRondelEvent type, setToStartingPositions (implemented), move, onInvoicedPaid, onInvoicePaymentFailed (remaining stubbed)
 - `src/Imperium.Web` bootstraps the HTTP layer (`Program.fs`). Reference the core project via the existing project reference instead of duplicating logic.
 - `docs/` stores reference rulebooks; official rule PDFs live in `docs/official_rules/`. Leave build artefacts inside each project's `bin/` and `obj/` directories untouched.
 - Rondel spaces (board order): `Investor`, `Factory`, `Import`, `ManeuverOne`, `ProductionOne`, `ManeuverTwo`, `ProductionTwo`, `Taxation`.
@@ -44,8 +44,8 @@
 - Test organization: group related tests with `testList`, use descriptive test names in lowercase ("accepts valid GUID", not "AcceptsValidGuid").
 - Cover edge cases: null inputs, empty strings, invalid formats, boundary conditions.
 - Follow three-phase module development process documented in `docs/module_design_process.md`: define interface, write tests, implement functionality.
-- **Testing approach:** Tests target public command/event handler APIs using contract types, not internal implementation details.
-- Current test coverage: No tests (internal types no longer exposed; will test public command handlers once implemented).
+- **Testing approach:** Tests target public command/event handler APIs using contract types and injected test publishers to verify event publication.
+- Current test coverage: Tests for setToStartingPositions command (validation of empty nation set, event publication verification).
 
 ## Commit & Pull Request Guidelines
 - Follow the existing history: imperative, concise subject lines (`Update to dotnet 9`, `Add web`).
