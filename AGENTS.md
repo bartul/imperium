@@ -1,4 +1,5 @@
 # Repository Guidelines
+Last verified: 2025-02-22
 
 ## Project Structure & Module Organization
 - `Imperium.sln` stitches together the core F# library, ASP.NET Core web host, and unit test project.
@@ -17,11 +18,21 @@
   - Public APIs expose only command handlers and event handlers accepting contract types
   - All handlers take `PublishRondelEvent` (event publisher) as first parameter for explicit dependency injection
   - `Gameplay` and `Accounting` have no public API currently (placeholder values only)
-  - `Rondel` exposes: PublishRondelEvent type, setToStartingPositions (implemented), move, onInvoicedPaid, onInvoicePaymentFailed (remaining stubbed)
+  - `Rondel` exposes: PublishRondelEvent type, setToStartingPositions (stubbed placeholder), move, onInvoicedPaid, onInvoicePaymentFailed (stubbed)
 - `src/Imperium.Web` bootstraps the HTTP layer (`Program.fs`). Reference the core project via the existing project reference instead of duplicating logic.
 - `docs/` stores reference rulebooks; official rule PDFs live in `docs/official_rules/`. Leave build artefacts inside each project's `bin/` and `obj/` directories untouched.
 - Rondel spaces (board order): `Investor`, `Factory`, `Import`, `ManeuverOne`, `ProductionOne`, `ManeuverTwo`, `ProductionTwo`, `Taxation`.
-- Rondel rules source: mechanic follows the boardgame “rondel” described in `docs/Imperial_English_Rules.pdf`. Key rules: nations move clockwise, cannot stay put; 1–3 spaces are free, each extra space costs 2M to the bank (max 6), first turn may start anywhere. Factory: build in own city without hostile upright armies for 5M. Production: each unoccupied home factory produces 1 unit in its province. Import: buy up to 3 units for 1M each in home provinces. Maneuver: fleets move to adjacent sea; armies move to adjacent land or via fleets; rail within home; 3 armies can destroy a factory; place flags in newly occupied regions. Investor: pay bond interest, investor card gains 2M and may invest, Swiss bank owners may also invest; passing executes investor steps 2–3. Taxation: record tax (2M per unoccupied factory, 1M per flag), dividend if tax track increases, add power points, then treasury collects tax minus 1M per army/fleet. Game ends when a nation reaches 25 power points; score = bond interest x nation factor + personal cash.
+- Rondel rules source: mechanic follows the boardgame “rondel” described in `docs/Imperial_English_Rules.pdf`. Keep only a quick cheat sheet here; see the PDF for full details. Key movement: clockwise, cannot stay put; 1–3 spaces free, 4–6 cost 2M each (max 6), first turn may start anywhere. Actions: Factory (build own city for 5M, no hostile upright armies), Production (each unoccupied home factory produces 1 unit), Import (buy up to 3 units for 1M each in home provinces), Maneuver (fleets adjacent sea; armies adjacent land or via fleets; rail within home; 3 armies can destroy a factory; place flags in newly occupied regions), Investor (pay bond interest; investor card gets 2M and may invest; Swiss bank owners may also invest; passing executes investor steps 2–3), Taxation (tax: 2M per unoccupied factory, 1M per flag; dividend if tax track increases; add power points; treasury collects tax minus 1M per army/fleet). Game ends at 25 power points; score = bond interest x nation factor + personal cash.
+
+### Handler Signature Pattern
+- Commands and event handlers take dependencies explicitly, with `PublishRondelEvent` (or equivalent) as the first parameter, followed by persistence loaders/savers, then other services (e.g., accounting charging).
+- Public APIs return `Result<unit, string>`; errors are plain strings.
+- Signature files define public shape first; implementations should not widen the surface in `.fs`.
+
+### Open Work (current)
+- Implement Rondel handlers (`setToStartingPositions`, `move`, `onInvoicedPaid`, `onInvoicePaymentFailed`) and persist/publish state per contracts and tests.
+- Add public APIs for Gameplay and Accounting or trim placeholders if unused.
+- Expand Expecto coverage for Rondel movement and payment flows once implemented.
 
 ## Build, Test, and Development Commands
 - Restore dependencies: `dotnet restore Imperium.sln`.
