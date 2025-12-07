@@ -63,16 +63,23 @@ module Rondel =
         (publish: PublishRondelEvent)
         (command: SetToStartingPositionsCommand)
         : Result<unit, string> =
-        match command.Nations with
-        | n when Set.isEmpty n -> Error "Cannot initialize rondel with zero nations."
-        | _ ->
-            let state = load command.GameId
-            match state with 
+        let state = load command.GameId
+        let validateCommand (commandState: SetToStartingPositionsCommand * Dto.RondelState option) : Result<SetToStartingPositionsCommand * Dto.RondelState option, string> =
+            let (unevaluatedCommand, state) = commandState
+            if Set.isEmpty unevaluatedCommand.Nations then Error "Cannot initialize rondel with zero nations." else Ok (unevaluatedCommand, state)
+        let handleState (validatedCommand: SetToStartingPositionsCommand, state: Dto.RondelState option) : Result<unit, string> = 
+            match state with
             | Some _ -> Ok () // Already initialized, no-op
             | None -> 
-                save { GameId = command.GameId; NationPositions = Map.empty; PendingMovements = Map.empty } |>  ignore 
-                publish (PositionedAtStart { GameId = command.GameId })
-                Ok ()
+                let saveResult = save { GameId = validatedCommand.GameId; NationPositions = Map.empty; PendingMovements = Map.empty }
+                match saveResult with
+                | Error e -> Error e
+                | Ok () ->
+                    publish (PositionedAtStart { GameId = validatedCommand.GameId })
+                    Ok ()
+        (command, state) 
+        |> validateCommand 
+        |> Result.bind handleState   
 
     // Command: Initiate nation movement to a space
     let move
