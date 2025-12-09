@@ -56,7 +56,7 @@ Last verified: 2025-02-22
 - Cover edge cases: null inputs, empty strings, invalid formats, boundary conditions.
 - Follow three-phase module development process documented in `docs/module_design_process.md`: define interface, write tests, implement functionality.
 - **Testing approach:** Tests target public command/event handler APIs using contract types and injected test publishers to verify event publication.
-- Current test coverage: Tests for setToStartingPositions command (validation of empty nation set, event publication verification).
+- Current test coverage: Tests for setToStartingPositions command (validation of empty game ID, zero nations, duplicate nations, event publication verification).
 
 ## Commit & Pull Request Guidelines
 - Follow the existing history: imperative, concise subject lines (`Update to dotnet 9`, `Add web`).
