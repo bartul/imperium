@@ -30,7 +30,7 @@ module Rondel =
 
     /// Initialize rondel positions for all nations in a game. Called once at game start.
     type SetToStartingPositions = SetToStartingPositionsCommand -> Result<unit, string>
-    and SetToStartingPositionsCommand = { GameId: Guid; Nations: Set<string> }
+    and SetToStartingPositionsCommand = { GameId: Guid; Nations: string array }
 
     /// Move a nation to a rondel space. Determines cost and may invoke Accounting dependency.
     type Move = MoveCommand -> Result<unit, string>

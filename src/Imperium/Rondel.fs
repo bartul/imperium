@@ -70,11 +70,11 @@ module Rondel =
         (command: SetToStartingPositionsCommand)
         : Result<unit, string> =
         let state = load command.GameId
-        let toDomain (command : SetToStartingPositionsCommand * Dto.RondelState option) = 
+        let toDomain (command : SetToStartingPositionsCommand * Dto.RondelState option) =
             let (command, state) = command
             Id.create command.GameId
             |> Result.map (fun id ->
-            { GameId = id; Nations = command.Nations },  state)
+            { GameId = id; Nations = Set.ofArray command.Nations },  state)
         let validateCommand (commandState: SetToStartingPositions * Dto.RondelState option) : Result<SetToStartingPositions * Dto.RondelState option, string> =
             let (unevaluatedCommand, state) = commandState
             if Set.isEmpty unevaluatedCommand.Nations then Error "Cannot initialize rondel with zero nations." else Ok (unevaluatedCommand, state)
