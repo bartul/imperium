@@ -27,13 +27,19 @@ let tests =
     testList "Rondel" [
         // Tests for public Rondel API 
         testList "setToStartingPositions" [
-            testCase "given no positions are set when instructed to set the initial positions for zero nations then should fail" <| fun _ ->
+            testCase "when instructed to set the starting positions for a game with an empty game id then should fail" <| fun _ ->
+                let load, save = createMockStore ()
+                let publish, _ = createMockPublisher ()
+                let command = { GameId = Guid.Empty; Nations = Set.ofList ["France"] }
+                let result = setToStartingPositions load save publish command
+                Expect.isError result "Expected error when setting starting positions with empty game id"
+            testCase "given starting positions are set when instructed to set the starting positions for zero nations then should fail" <| fun _ ->
                 let load, save = createMockStore ()
                 let publish, _ = createMockPublisher ()
                 let command = { GameId = Guid.NewGuid (); Nations = Set.empty }
                 let result = setToStartingPositions load save publish command
                 Expect.isError result "Expected error when setting starting positions with no nations"
-            testCase "given no positions are set when instructed to set the initial positions for actual nations then should succeed and event PositionedAtStart is published" <| fun _ ->
+            testCase "given starting positions are set when instructed to set the starting positions for actual nations then should succeed and event PositionedAtStart is published" <| fun _ ->
                 let load, save = createMockStore ()
                 let publish, publishedEvents = createMockPublisher ()
                 let command = { GameId = Guid.NewGuid (); Nations = Set.ofList ["France"; "Germany"] }
@@ -41,7 +47,7 @@ let tests =
                 Expect.isOk result "Expected success when setting starting positions with nations"
                 Expect.isNonEmpty publishedEvents "Events should be published in this simplified implementation"
                 Expect.contains publishedEvents (PositionedAtStart { GameId = command.GameId }) "Expected PositionedAtStart event to be published"
-            testCase "given positions are already set when instructed to set the initial positions then no error is raised and no PositionedAtStart event is published again" <| fun _ ->
+            testCase "given starting positions are already set when instructed to set the starting positions then no error is raised and no PositionedAtStart event is published again" <| fun _ ->
                 let load, save = createMockStore ()
                 let publish, publishedEvents = createMockPublisher ()
                 let command = { GameId = Guid.NewGuid (); Nations = Set.ofList ["France"; "Germany"] }
