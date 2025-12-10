@@ -22,6 +22,13 @@ let createMockPublisher () =
     let publish event = publishedEvents.Add event
     publish, publishedEvents
 
+let createMockCommandDispatcher () =
+    let dispatchedCommands = ResizeArray<Imperium.Contract.Accounting.ChargeNationForRondelMovementCommand>()
+    let chargeForMovement (command: Imperium.Contract.Accounting.ChargeNationForRondelMovementCommand) =
+        dispatchedCommands.Add command
+        Ok ()
+    chargeForMovement, dispatchedCommands
+
 [<Tests>]
 let tests = 
     testList "Rondel" [
@@ -68,4 +75,16 @@ let tests =
                 let positionedAtStartPublishedEvents = publishedEvents |> Seq.filter (function | PositionedAtStart _ -> true | _ -> false) |> Seq.toList
                 Expect.equal (List.length positionedAtStartPublishedEvents) 0 "Expected no PositionedAtStart event to be published again"
         ]
-    ] 
+        testList "move" [
+            testCase "given starting positions are not set when instructed to move a nation then should publish move rejected event and no charge command dispatched" <| fun _ ->
+                let load, save = createMockStore ()
+                let publish, publishedEvents = createMockPublisher ()
+                let chargeForMovement, dispatchedCommands = createMockCommandDispatcher ()
+                let moveCommand = { MoveCommand.GameId = Guid.NewGuid (); Nation = "France"; Space = "Factory" }
+                let result = move load save publish chargeForMovement moveCommand
+                Expect.isOk result "Expected success but with move rejected event published"
+                Expect.isNonEmpty publishedEvents "Events should be published"
+                Expect.contains publishedEvents (MoveToActionSpaceRejected { GameId = moveCommand.GameId; Nation = moveCommand.Nation; Space = moveCommand.Space }) "Expected MoveToActionSpaceRejected event to be published"
+                Expect.isEmpty dispatchedCommands "No charge command should be dispatched when starting positions are not set"
+        ]
+    ]

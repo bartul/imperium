@@ -104,7 +104,8 @@ module Rondel =
         (chargeForMovement: ChargeNationForRondelMovement)
         (command: MoveCommand)
         : Result<unit, string> =
-        invalidOp "Not implemented: move"
+            publish (MoveToActionSpaceRejected { GameId = command.GameId; Nation = command.Nation; Space = command.Space })
+            Ok ()
 
     // Event handler: Process successful invoice payment from Accounting domain
     let onInvoicedPaid

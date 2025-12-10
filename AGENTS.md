@@ -31,7 +31,8 @@ Last verified: 2025-02-22
 
 ### Open Work (current)
 - Rondel `setToStartingPositions` handler is complete with validation, state persistence, and event publishing.
-- Implement remaining Rondel handlers (`move`, `onInvoicedPaid`, `onInvoicePaymentFailed`) and persist/publish state per contracts and tests.
+- Rondel `move` handler has stub implementation (publishes MoveToActionSpaceRejected for uninitialized games); needs full implementation for movement rules, cost calculation, and state transitions.
+- Implement remaining Rondel handlers (`onInvoicedPaid`, `onInvoicePaymentFailed`) and persist/publish state per contracts and tests.
 - Add public APIs for Gameplay and Accounting or trim placeholders if unused.
 - Expand Expecto coverage for Rondel movement and payment flows once implemented.
 
@@ -56,8 +57,10 @@ Last verified: 2025-02-22
 - Test organization: group related tests with `testList`, use descriptive test names in lowercase ("accepts valid GUID", not "AcceptsValidGuid").
 - Cover edge cases: null inputs, empty strings, invalid formats, boundary conditions.
 - Follow three-phase module development process documented in `docs/module_design_process.md`: define interface, write tests, implement functionality.
-- **Testing approach:** Tests target public command/event handler APIs using contract types and injected test publishers to verify event publication.
-- Current test coverage: Tests for setToStartingPositions command (validation of empty game ID, zero nations, duplicate nations, event publication verification).
+- **Testing approach:** Tests target public command/event handler APIs using contract types and injected test publishers to verify event publication and mock command dispatchers to verify command dispatch.
+- Current test coverage:
+  - setToStartingPositions: validation of empty game ID, zero nations, duplicate nations, event publication verification
+  - move: rejection when starting positions not set (MoveToActionSpaceRejected event published, no charge command dispatched)
 
 ## Commit & Pull Request Guidelines
 - Follow the existing history: imperative, concise subject lines (`Update to dotnet 9`, `Add web`).
