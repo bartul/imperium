@@ -18,7 +18,7 @@ Last verified: 2025-02-22
   - Public APIs expose only command handlers and event handlers accepting contract types
   - All handlers take `PublishRondelEvent` (event publisher) as first parameter for explicit dependency injection
   - `Gameplay` and `Accounting` have no public API currently (placeholder values only)
-  - `Rondel` exposes: PublishRondelEvent type, setToStartingPositions (stubbed placeholder), move, onInvoicedPaid, onInvoicePaymentFailed (stubbed)
+  - `Rondel` exposes: PublishRondelEvent type, setToStartingPositions (implemented), move, onInvoicedPaid, onInvoicePaymentFailed (stubbed)
 - `src/Imperium.Web` bootstraps the HTTP layer (`Program.fs`). Reference the core project via the existing project reference instead of duplicating logic.
 - `docs/` stores reference rulebooks; official rule PDFs live in `docs/official_rules/`. Leave build artefacts inside each project's `bin/` and `obj/` directories untouched.
 - Rondel spaces (board order): `Investor`, `Factory`, `Import`, `ManeuverOne`, `ProductionOne`, `ManeuverTwo`, `ProductionTwo`, `Taxation`.
@@ -30,7 +30,8 @@ Last verified: 2025-02-22
 - Signature files define public shape first; implementations should not widen the surface in `.fs`.
 
 ### Open Work (current)
-- Implement Rondel handlers (`setToStartingPositions`, `move`, `onInvoicedPaid`, `onInvoicePaymentFailed`) and persist/publish state per contracts and tests.
+- Rondel `setToStartingPositions` handler is complete with validation, state persistence, and event publishing.
+- Implement remaining Rondel handlers (`move`, `onInvoicedPaid`, `onInvoicePaymentFailed`) and persist/publish state per contracts and tests.
 - Add public APIs for Gameplay and Accounting or trim placeholders if unused.
 - Expand Expecto coverage for Rondel movement and payment flows once implemented.
 
