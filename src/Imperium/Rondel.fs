@@ -49,13 +49,18 @@ module Rondel =
 
     // State DTOs for persistence
     module Dto =
-        type PendingMovement = { Nation: string; TargetSpace: string; BillingId: Guid }
 
         type RondelState = {
             GameId: Guid
             NationPositions: Map<string, string option>
             PendingMovements: Map<Guid, PendingMovement>
         }
+        and PendingMovement = { Nation: string; TargetSpace: string; BillingId: Guid }
+    module SetToStartingPositions =   
+        let toDomain (command : SetToStartingPositionsCommand) =
+            Id.create command.GameId
+            |> Result.map (fun id ->
+                { GameId = id; Nations = Set.ofArray command.Nations })
 
     // Public API types
     type LoadRondelState = Guid -> Dto.RondelState option
@@ -69,16 +74,12 @@ module Rondel =
         (publish: PublishRondelEvent)
         (command: SetToStartingPositionsCommand)
         : Result<unit, string> =
-        let state = load command.GameId
-        let toDomain (command : SetToStartingPositionsCommand * Dto.RondelState option) =
-            let (command, state) = command
-            Id.create command.GameId
-            |> Result.map (fun id ->
-            { GameId = id; Nations = Set.ofArray command.Nations },  state)
-        let validateCommand (commandState: SetToStartingPositions * Dto.RondelState option) : Result<SetToStartingPositions * Dto.RondelState option, string> =
-            let (unevaluatedCommand, state) = commandState
-            if Set.isEmpty unevaluatedCommand.Nations then Error "Cannot initialize rondel with zero nations." else Ok (unevaluatedCommand, state)
-        let handleState (validatedCommand: SetToStartingPositions, state: Dto.RondelState option) : Result<unit, string> =
+        
+        let validateCommand unevaluatedCommand =
+            if Set.isEmpty unevaluatedCommand.Nations then Error "Cannot initialize rondel with zero nations." else Ok unevaluatedCommand
+
+        let handleState (validatedCommand: SetToStartingPositions) =
+            let state = validatedCommand.GameId |> Id.value |> load
             match state with
             | Some _ -> Ok () // Already initialized, no-op
             | None ->
@@ -90,10 +91,10 @@ module Rondel =
                 |> Result.map (fun () ->
                      publish (PositionedAtStart { GameId = validatedCommand.GameId |> Id.value })) 
         
-        (command, state) 
-        |> toDomain
+        command 
+        |> SetToStartingPositions.toDomain 
         |> Result.bind validateCommand 
-        |> Result.bind handleState   
+        |> Result.bind handleState 
 
     // Command: Initiate nation movement to a space
     let move
