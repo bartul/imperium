@@ -29,6 +29,16 @@ let createMockCommandDispatcher () =
         Ok ()
     chargeForMovement, dispatchedCommands
 
+let spaceToAction (space: string) : string =
+    match space with
+    | "Investor" -> "Investor"
+    | "Factory" -> "Factory"
+    | "Import" -> "Import"
+    | "Taxation" -> "Taxation"
+    | "ProductionOne" | "ProductionTwo" -> "Production"
+    | "ManeuverOne" | "ManeuverTwo" -> "Maneuver"
+    | _ -> failwith $"Unknown space: {space}"
+
 [<Tests>]
 let tests = 
     testList "Rondel" [
@@ -86,5 +96,35 @@ let tests =
                 Expect.isNonEmpty publishedEvents "Events should be published"
                 Expect.contains publishedEvents (MoveToActionSpaceRejected { GameId = moveCommand.GameId; Nation = moveCommand.Nation; Space = moveCommand.Space }) "Expected MoveToActionSpaceRejected event to be published"
                 Expect.isEmpty dispatchedCommands "No charge command should be dispatched when starting positions are not set"
+
+            testPropertyWithConfig { FsCheckConfig.defaultConfig with maxTest = 15 } "given starting positions set when nation makes first move to any space then ActionDetermined published and no charge" <| fun (gameId: Guid) (nationIndex: int) (spaceIndex: int) ->
+                let nations = [|"Austria"; "Britain"; "France"; "Germany"; "Italy"; "Russia"|]
+                let allSpaces = ["Investor"; "Factory"; "Import"; "ManeuverOne"; "ProductionOne"; "ManeuverTwo"; "ProductionTwo"; "Taxation"]
+
+                let nation = nations.[abs nationIndex % nations.Length]
+                let space = allSpaces.[abs spaceIndex % allSpaces.Length]
+
+                // Setup: initialize rondel
+                let load, save = createMockStore()
+                let publish, publishedEvents = createMockPublisher()
+                let chargeForMovement, dispatchedCommands = createMockCommandDispatcher()
+
+                let initCommand = { GameId = gameId; Nations = nations }
+                setToStartingPositions load save publish initCommand |> ignore
+                publishedEvents.Clear()
+
+                // Execute: move one nation to target space
+                let moveCommand = { MoveCommand.GameId = gameId; Nation = nation; Space = space }
+                let result = move load save publish chargeForMovement moveCommand
+
+                // Assert: move succeeds
+                Expect.isOk result "First move to any space should succeed"
+
+                // Assert: ActionDetermined event published with correct action
+                let expectedAction = spaceToAction space
+                Expect.contains publishedEvents (ActionDetermined { GameId = gameId; Nation = nation; Action = expectedAction }) (sprintf "ActionDetermined event should be published for nation %s moving to %s with action %s" nation space expectedAction)
+
+                // Assert: No charge commands dispatched (first move is free)
+                Expect.isEmpty dispatchedCommands "First move should be free - no charge commands dispatched"
         ]
     ]

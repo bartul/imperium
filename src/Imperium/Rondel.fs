@@ -22,6 +22,24 @@ module Rondel =
         let tryParse = Id.tryParseMap RondelBillingId
 
     [<RequireQualifiedAccess>]
+    type Action =
+        | Investor
+        | Import
+        | Production
+        | Maneuver
+        | Taxation
+        | Factory
+    module Action =
+        let toString action =
+            match action with
+            | Action.Investor -> "Investor"
+            | Action.Import -> "Import"
+            | Action.Production -> "Production"
+            | Action.Maneuver -> "Maneuver"
+            | Action.Taxation -> "Taxation"
+            | Action.Factory -> "Factory"
+
+    [<RequireQualifiedAccess>]
     type Space =
         | Investor
         | Import
@@ -31,15 +49,27 @@ module Rondel =
         | Factory
         | ProductionTwo
         | ManeuverTwo
+    module Space =
+        let fromString (s: string) : Result<Space, string> =
+            match s with
+            | "Investor" -> Ok Space.Investor
+            | "Import" -> Ok Space.Import
+            | "ProductionOne" -> Ok Space.ProductionOne
+            | "ManeuverOne" -> Ok Space.ManeuverOne
+            | "Taxation" -> Ok Space.Taxation
+            | "Factory" -> Ok Space.Factory
+            | "ProductionTwo" -> Ok Space.ProductionTwo
+            | "ManeuverTwo" -> Ok Space.ManeuverTwo
+            | _ -> Error $"Invalid rondel space: {s}"
+        let toAction space =
+            match space with
+            | Space.Investor -> Action.Investor
+            | Space.Import -> Action.Import
+            | Space.ProductionOne | Space.ProductionTwo -> Action.Production
+            | Space.ManeuverOne | Space.ManeuverTwo -> Action.Maneuver
+            | Space.Taxation -> Action.Taxation
+            | Space.Factory -> Action.Factory
 
-    [<RequireQualifiedAccess>]
-    type Action =
-        | Investor
-        | Import
-        | Production
-        | Maneuver
-        | Taxation
-        | Factory
 
     type RondelCommand =
         | StartingPositions of SetToStartingPositions
@@ -105,8 +135,17 @@ module Rondel =
         (chargeForMovement: ChargeNationForRondelMovement)
         (command: MoveCommand)
         : Result<unit, string> =
-            publish (MoveToActionSpaceRejected { GameId = command.GameId; Nation = command.Nation; Space = command.Space })
-            Ok ()
+            let state = load command.GameId
+            match state with
+            | None -> 
+                publish (MoveToActionSpaceRejected { GameId = command.GameId; Nation = command.Nation; Space = command.Space })
+                Ok ()
+            | Some rondelState ->
+                command.Space
+                |> Space.fromString
+                |> Result.map (fun space ->
+                    ActionDetermined { GameId = command.GameId; Nation = command.Nation; Action = space |> Space.toAction |> Action.toString })
+                |> Result.map publish
 
     // Event handler: Process successful invoice payment from Accounting domain
     let onInvoicedPaid
