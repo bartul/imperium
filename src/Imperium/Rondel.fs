@@ -7,7 +7,7 @@ open Imperium.Contract.Rondel
 module Rondel =
     open Imperium.Primitives
 
-    // Internal types
+    // Domain types
 
     type RondelError = string
 
@@ -47,6 +47,12 @@ module Rondel =
     and SetToStartingPositions = { GameId: Id; Nations: Set<string> }
     and Move = { GameId: Id; Nation: string; Space: Space }
 
+    module SetToStartingPositions =   
+        let toDomain (command : SetToStartingPositionsCommand) =
+            Id.create command.GameId
+            |> Result.map (fun id ->
+                { GameId = id; Nations = Set.ofArray command.Nations })
+
     // State DTOs for persistence
     module Dto =
 
@@ -56,11 +62,6 @@ module Rondel =
             PendingMovements: Map<Guid, PendingMovement>
         }
         and PendingMovement = { Nation: string; TargetSpace: string; BillingId: Guid }
-    module SetToStartingPositions =   
-        let toDomain (command : SetToStartingPositionsCommand) =
-            Id.create command.GameId
-            |> Result.map (fun id ->
-                { GameId = id; Nations = Set.ofArray command.Nations })
 
     // Public API types
     type LoadRondelState = Guid -> Dto.RondelState option
@@ -78,7 +79,7 @@ module Rondel =
         let validateCommand unevaluatedCommand =
             if Set.isEmpty unevaluatedCommand.Nations then Error "Cannot initialize rondel with zero nations." else Ok unevaluatedCommand
 
-        let handleState (validatedCommand: SetToStartingPositions) =
+        let execute (validatedCommand: SetToStartingPositions) =
             let state = validatedCommand.GameId |> Id.value |> load
             match state with
             | Some _ -> Ok () // Already initialized, no-op
@@ -94,7 +95,7 @@ module Rondel =
         command 
         |> SetToStartingPositions.toDomain 
         |> Result.bind validateCommand 
-        |> Result.bind handleState 
+        |> Result.bind execute
 
     // Command: Initiate nation movement to a space
     let move
