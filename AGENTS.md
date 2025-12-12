@@ -57,11 +57,11 @@ Last verified: 2025-02-22
 - Test organization: group related tests with `testList`, use descriptive test names in lowercase ("accepts valid GUID", not "AcceptsValidGuid").
 - Cover edge cases: null inputs, empty strings, invalid formats, boundary conditions.
 - Follow three-phase module development process documented in `docs/module_design_process.md`: define interface, write tests, implement functionality.
-- **Testing approach:** Tests target public command/event handler APIs using contract types and injected test publishers to verify event publication and mock command dispatchers to verify command dispatch.
+- **Testing approach:** Tests target public handler APIs using contract types and injected publishers/dispatchers to verify the rondel signals the right outcomes and charges the right costs.
 - Current test coverage:
-  - setToStartingPositions: validation of empty game ID, zero nations, duplicate nations, event publication verification
-  - move: rejection when starting positions not set (MoveToActionSpaceRejected event published, no charge command dispatched)
-  - move: property test for first move to any space (15 iterations varying gameId, nation, space; verifies ActionDetermined event with correct Space→Action mapping, no charge commands)
+  - starting positions: rejects missing game id; rejects empty roster; ignores duplicate nations; rondel signals that starting positions are set
+  - move: before starting positions are chosen, the move is denied and no movement fee is due
+  - move: nation’s first move may choose any rondel space (free); chosen rondel space determines the action
 
 ## Commit & Pull Request Guidelines
 - Follow the existing history: imperative, concise subject lines (`Update to dotnet 9`, `Add web`).
