@@ -31,10 +31,10 @@ Last verified: 2025-02-22
 
 ### Open Work (current)
 - Rondel `setToStartingPositions` handler is complete with validation, state persistence, and event publishing.
-- Rondel `move` handler has stub implementation (publishes MoveToActionSpaceRejected for uninitialized games); needs full implementation for movement rules, cost calculation, and state transitions.
+- Rondel `move` handler partially implemented: handles first move to any space (free, no charge), publishes ActionDetermined with correct Space→Action mapping; still needs movement rules for subsequent moves (1-3 spaces free, 4-6 spaces cost 2M), position tracking, and state persistence.
 - Implement remaining Rondel handlers (`onInvoicedPaid`, `onInvoicePaymentFailed`) and persist/publish state per contracts and tests.
 - Add public APIs for Gameplay and Accounting or trim placeholders if unused.
-- Expand Expecto coverage for Rondel movement and payment flows once implemented.
+- Expand Expecto coverage for Rondel movement rules (clockwise distance, paid moves, position tracking) and payment flows once implemented.
 
 ## Build, Test, and Development Commands
 - Restore dependencies: `dotnet restore Imperium.sln`.
@@ -61,6 +61,7 @@ Last verified: 2025-02-22
 - Current test coverage:
   - setToStartingPositions: validation of empty game ID, zero nations, duplicate nations, event publication verification
   - move: rejection when starting positions not set (MoveToActionSpaceRejected event published, no charge command dispatched)
+  - move: property test for first move to any space (15 iterations varying gameId, nation, space; verifies ActionDetermined event with correct Space→Action mapping, no charge commands)
 
 ## Commit & Pull Request Guidelines
 - Follow the existing history: imperative, concise subject lines (`Update to dotnet 9`, `Add web`).

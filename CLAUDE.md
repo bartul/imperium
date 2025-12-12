@@ -4,9 +4,9 @@ This file guides Claude Code (claude.ai/code) for this repository. For shared re
 Last verified: 2025-02-22
 
 ## Quick Status (last verified: current)
-- Rondel handlers (`setToStartingPositions`, `move`, `onInvoicedPaid`, `onInvoicePaymentFailed`) are stubbed placeholders.
+- Rondel handlers: `setToStartingPositions` (complete), `move` (partially implemented - first move only), `onInvoicedPaid`, `onInvoicePaymentFailed` (stubbed).
 - Gameplay and Accounting modules expose no public API yet.
-- Tests only cover Rondel `setToStartingPositions` validation/event publication.
+- Tests cover Rondel `setToStartingPositions` validation/event publication and `move` first-move-to-any-space (property test with 15 iterations).
 
 ## Agent Priorities
 - Follow the three-phase process in `docs/module_design_process.md`: define `.fsi`, write tests, then implement.
