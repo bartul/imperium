@@ -37,42 +37,42 @@ let spaceToAction (space: string) : string =
     | "Taxation" -> "Taxation"
     | "ProductionOne" | "ProductionTwo" -> "Production"
     | "ManeuverOne" | "ManeuverTwo" -> "Maneuver"
-    | _ -> failwith $"Unknown space: {space}"
+    | _ -> failwith $"Unknown rondel space: {space}"
 
 [<Tests>]
 let tests = 
     testList "Rondel" [
         // Tests for public Rondel API 
-        testList "setToStartingPositions" [
-            testCase "when instructed to set the starting positions for a game with an empty game id then should fail" <| fun _ ->
+        testList "starting positions" [
+            testCase "starting positions: requires a game id" <| fun _ ->
                 let load, save = createMockStore ()
                 let publish, _ = createMockPublisher ()
                 let command = { GameId = Guid.Empty; Nations = [|"France"|] }
                 let result = setToStartingPositions load save publish command
-                Expect.isError result "Expected error when setting starting positions with empty game id"
-            testCase "given starting positions are set when instructed to set the starting positions for zero nations then should fail" <| fun _ ->
+                Expect.isError result "starting positions cannot be chosen without a game id"
+            testCase "starting positions: requires at least one nation" <| fun _ ->
                 let load, save = createMockStore ()
                 let publish, _ = createMockPublisher ()
                 let command = { GameId = Guid.NewGuid (); Nations = [||] }
                 let result = setToStartingPositions load save publish command
-                Expect.isError result "Expected error when setting starting positions with no nations"
-            testCase "when instructed to set the starting positions with duplicate nations then should succeed and duplicates are ignored" <| fun _ ->
+                Expect.isError result "starting positions require at least one nation"
+            testCase "starting positions: ignores duplicate nations" <| fun _ ->
                 let load, save = createMockStore ()
                 let publish, publishedEvents = createMockPublisher ()
                 let command = { GameId = Guid.NewGuid (); Nations = [|"France"; "France"|] }
                 let result = setToStartingPositions load save publish command
-                Expect.isOk result "Expected success when setting starting positions with duplicate nations (duplicates ignored)"
-                Expect.isNonEmpty publishedEvents "Events should be published"
-                Expect.contains publishedEvents (PositionedAtStart { GameId = command.GameId }) "Expected PositionedAtStart event to be published"
-            testCase "given starting positions are set when instructed to set the starting positions for actual nations then should succeed and event PositionedAtStart is published" <| fun _ ->
+                Expect.isOk result "starting positions accept the roster (duplicates ignored)"
+                Expect.isNonEmpty publishedEvents "the rondel should signal that starting positions are set"
+                Expect.contains publishedEvents (PositionedAtStart { GameId = command.GameId }) "the rondel should signal that starting positions are set"
+            testCase "starting positions: signals setup for the roster" <| fun _ ->
                 let load, save = createMockStore ()
                 let publish, publishedEvents = createMockPublisher ()
                 let command = { GameId = Guid.NewGuid (); Nations = [|"France"; "Germany"|] }
                 let result = setToStartingPositions load save publish command
-                Expect.isOk result "Expected success when setting starting positions with nations"
-                Expect.isNonEmpty publishedEvents "Events should be published in this simplified implementation"
-                Expect.contains publishedEvents (PositionedAtStart { GameId = command.GameId }) "Expected PositionedAtStart event to be published"
-            testCase "given starting positions are already set when instructed to set the starting positions then no error is raised and no PositionedAtStart event is published again" <| fun _ ->
+                Expect.isOk result "starting positions should be accepted"
+                Expect.isNonEmpty publishedEvents "the rondel should signal that starting positions are set"
+                Expect.contains publishedEvents (PositionedAtStart { GameId = command.GameId }) "the rondel should signal that starting positions are set"
+            testCase "starting positions: setting twice does not signal again" <| fun _ ->
                 let load, save = createMockStore ()
                 let publish, publishedEvents = createMockPublisher ()
                 let command = { GameId = Guid.NewGuid (); Nations = [|"France"; "Germany"|] }
@@ -81,23 +81,24 @@ let tests =
                 publishedEvents.Clear ()
                 // Second call to set positions again
                 let result = setToStartingPositions load save publish command
-                Expect.isOk result "Expected no error when setting starting positions again"
+                Expect.isOk result "setting starting positions twice should not fail"
                 let positionedAtStartPublishedEvents = publishedEvents |> Seq.filter (function | PositionedAtStart _ -> true | _ -> false) |> Seq.toList
-                Expect.equal (List.length positionedAtStartPublishedEvents) 0 "Expected no PositionedAtStart event to be published again"
+                Expect.equal (List.length positionedAtStartPublishedEvents) 0 "setting starting positions twice should not signal starting positions again"
         ]
         testList "move" [
-            testCase "given starting positions are not set when instructed to move a nation then should publish move rejected event and no charge command dispatched" <| fun _ ->
+            testCase "move: cannot begin before starting positions are chosen" <| fun _ ->
                 let load, save = createMockStore ()
                 let publish, publishedEvents = createMockPublisher ()
                 let chargeForMovement, dispatchedCommands = createMockCommandDispatcher ()
                 let moveCommand = { MoveCommand.GameId = Guid.NewGuid (); Nation = "France"; Space = "Factory" }
                 let result = move load save publish chargeForMovement moveCommand
-                Expect.isOk result "Expected success but with move rejected event published"
-                Expect.isNonEmpty publishedEvents "Events should be published"
-                Expect.contains publishedEvents (MoveToActionSpaceRejected { GameId = moveCommand.GameId; Nation = moveCommand.Nation; Space = moveCommand.Space }) "Expected MoveToActionSpaceRejected event to be published"
-                Expect.isEmpty dispatchedCommands "No charge command should be dispatched when starting positions are not set"
+                Expect.isOk result "the move should be denied without breaking the game flow"
+                Expect.isNonEmpty publishedEvents "the rondel should signal why the move was denied"
+                Expect.contains publishedEvents (MoveToActionSpaceRejected { GameId = moveCommand.GameId; Nation = moveCommand.Nation; Space = moveCommand.Space }) "the rondel should signal that the move was denied"
+                Expect.isEmpty dispatchedCommands "no movement fee is due when the move is denied"
 
-            testPropertyWithConfig { FsCheckConfig.defaultConfig with maxTest = 15 } "given starting positions set when nation makes first move to any space then ActionDetermined published and no charge" <| fun (gameId: Guid) (nationIndex: int) (spaceIndex: int) ->
+            testPropertyWithConfig { FsCheckConfig.defaultConfig with maxTest = 15 } "move: nation’s first move may choose any rondel space (free)" <| fun (gameId: Guid) (nationIndex: int) (spaceIndex: int) ->
+            
                 let nations = [|"Austria"; "Britain"; "France"; "Germany"; "Italy"; "Russia"|]
                 let allSpaces = ["Investor"; "Factory"; "Import"; "ManeuverOne"; "ProductionOne"; "ManeuverTwo"; "ProductionTwo"; "Taxation"]
 
@@ -118,16 +119,16 @@ let tests =
                 let result = move load save publish chargeForMovement moveCommand
 
                 // Assert: move succeeds
-                Expect.isOk result "First move to any space should succeed"
+                Expect.isOk result "first move should allow choosing any rondel space"
 
                 // Assert: ActionDetermined event published with correct action
                 let expectedAction = spaceToAction space
-                Expect.contains publishedEvents (ActionDetermined { GameId = gameId; Nation = nation; Action = expectedAction }) (sprintf "ActionDetermined event should be published for nation %s moving to %s with action %s" nation space expectedAction)
+                Expect.contains publishedEvents (ActionDetermined { GameId = gameId; Nation = nation; Action = expectedAction }) (sprintf "the rondel space %s determines %s’s action: %s" space nation expectedAction)
 
                 // Assert: No charge commands dispatched (first move is free)
-                Expect.isEmpty dispatchedCommands "First move should be free - no charge commands dispatched"
+                Expect.isEmpty dispatchedCommands "first move is free (no movement fee)"
 
-            testCase "given starting positions set when instructed to move to invalid space then should return error and no events or commands published" <| fun _ ->
+            testCase "move: rejects an unknown rondel space" <| fun _ ->
                 let load, save = createMockStore ()
                 let publish, publishedEvents = createMockPublisher ()
                 let chargeForMovement, dispatchedCommands = createMockCommandDispatcher ()
@@ -143,15 +144,15 @@ let tests =
                 let result = move load save publish chargeForMovement moveCommand
 
                 // Assert: operation should fail
-                Expect.isError result "Expected error when moving to invalid space"
+                Expect.isError result "unknown rondel space is not allowed"
 
                 // Assert: No events published
-                Expect.isEmpty publishedEvents "No events should be published when space is invalid"
+                Expect.isEmpty publishedEvents "an unknown space should not trigger any rondel signal"
 
                 // Assert: No charge commands dispatched
-                Expect.isEmpty dispatchedCommands "No charge commands should be dispatched when space is invalid"
+                Expect.isEmpty dispatchedCommands "no movement fee is due for an invalid move"
 
-            testCase "when instructed to move with empty game id then should return error and no events or commands published" <| fun _ ->
+            testCase "move: requires a game id" <| fun _ ->
                 let load, save = createMockStore ()
                 let publish, publishedEvents = createMockPublisher ()
                 let chargeForMovement, dispatchedCommands = createMockCommandDispatcher ()
@@ -161,12 +162,12 @@ let tests =
                 let result = move load save publish chargeForMovement moveCommand
 
                 // Assert: operation should fail
-                Expect.isError result "Expected error when moving with empty game id"
+                Expect.isError result "a move cannot be taken without a game id"
 
                 // Assert: No events published
-                Expect.isEmpty publishedEvents "No events should be published when game id is empty"
+                Expect.isEmpty publishedEvents "without a game id, the rondel should not signal anything"
 
                 // Assert: No charge commands dispatched
-                Expect.isEmpty dispatchedCommands "No charge commands should be dispatched when game id is empty"
+                Expect.isEmpty dispatchedCommands "no movement fee is due without a game id"
         ]
     ]
