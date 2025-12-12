@@ -50,6 +50,16 @@ module Rondel =
         | ProductionTwo
         | ManeuverTwo
     module Space =
+        let toString space =
+            match space with
+            | Space.Investor -> "Investor"
+            | Space.Import -> "Import"
+            | Space.ProductionOne -> "ProductionOne"
+            | Space.ManeuverOne -> "ManeuverOne"
+            | Space.Taxation -> "Taxation"
+            | Space.Factory -> "Factory"
+            | Space.ProductionTwo -> "ProductionTwo"
+            | Space.ManeuverTwo -> "ManeuverTwo"
         let fromString (s: string) : Result<Space, string> =
             match s with
             | "Investor" -> Ok Space.Investor
@@ -83,6 +93,11 @@ module Rondel =
             |> Result.map (fun id ->
                 { GameId = id; Nations = Set.ofArray command.Nations })
 
+    module Move =
+        let toDomain (command : MoveCommand) =
+            Id.create command.GameId
+            |> Result.bind (fun id -> Space.fromString command.Space |> Result.map (fun space -> id, space))
+            |> Result.map (fun (id, space) -> { GameId = id; Nation = command.Nation; Space = space })
     // State DTOs for persistence
     module Dto =
 
@@ -105,12 +120,11 @@ module Rondel =
         (publish: PublishRondelEvent)
         (command: SetToStartingPositionsCommand)
         : Result<unit, string> =
-        
-        let validateCommand unevaluatedCommand =
-            if Set.isEmpty unevaluatedCommand.Nations then Error "Cannot initialize rondel with zero nations." else Ok unevaluatedCommand
 
-        let execute (validatedCommand: SetToStartingPositions) =
-            let state = validatedCommand.GameId |> Id.value |> load
+        let validate unvalidatedCommand =
+            if Set.isEmpty unvalidatedCommand.Nations then Error "Cannot initialize rondel with zero nations." else Ok unvalidatedCommand
+
+        let execute state (validatedCommand : SetToStartingPositions) =
             match state with
             | Some _ -> Ok () // Already initialized, no-op
             | None ->
@@ -121,11 +135,12 @@ module Rondel =
                 }
                 |> Result.map (fun () ->
                      publish (PositionedAtStart { GameId = validatedCommand.GameId |> Id.value })) 
-        
+
+        let state = load command.GameId      
         command 
         |> SetToStartingPositions.toDomain 
-        |> Result.bind validateCommand 
-        |> Result.bind execute
+        |> Result.bind validate 
+        |> Result.bind (execute state)
 
     // Command: Initiate nation movement to a space
     let move
@@ -135,17 +150,19 @@ module Rondel =
         (chargeForMovement: ChargeNationForRondelMovement)
         (command: MoveCommand)
         : Result<unit, string> =
-            let state = load command.GameId
-            match state with
-            | None -> 
-                publish (MoveToActionSpaceRejected { GameId = command.GameId; Nation = command.Nation; Space = command.Space })
+            
+            let execute state validatedCommand =
+                match state with
+                | None -> 
+                    publish (MoveToActionSpaceRejected { GameId = validatedCommand.GameId |> Id.value; Nation = validatedCommand.Nation; Space = validatedCommand.Space |> Space.toString })
+                | Some _ ->
+                    publish (ActionDetermined { GameId = validatedCommand.GameId |> Id.value; Nation = validatedCommand.Nation; Action = validatedCommand.Space |> Space.toAction |> Action.toString})
                 Ok ()
-            | Some rondelState ->
-                command.Space
-                |> Space.fromString
-                |> Result.map (fun space ->
-                    ActionDetermined { GameId = command.GameId; Nation = command.Nation; Action = space |> Space.toAction |> Action.toString })
-                |> Result.map publish
+
+            let state = load command.GameId
+            command
+            |> Move.toDomain
+            |> Result.bind (execute state)
 
     // Event handler: Process successful invoice payment from Accounting domain
     let onInvoicedPaid

@@ -126,5 +126,47 @@ let tests =
 
                 // Assert: No charge commands dispatched (first move is free)
                 Expect.isEmpty dispatchedCommands "First move should be free - no charge commands dispatched"
+
+            testCase "given starting positions set when instructed to move to invalid space then should return error and no events or commands published" <| fun _ ->
+                let load, save = createMockStore ()
+                let publish, publishedEvents = createMockPublisher ()
+                let chargeForMovement, dispatchedCommands = createMockCommandDispatcher ()
+
+                // Setup: initialize rondel with starting positions
+                let gameId = Guid.NewGuid ()
+                let initCommand = { GameId = gameId; Nations = [|"France"; "Germany"|] }
+                setToStartingPositions load save publish initCommand |> ignore
+                publishedEvents.Clear ()
+
+                // Execute: attempt to move to an invalid space
+                let moveCommand = { MoveCommand.GameId = gameId; Nation = "France"; Space = "InvalidSpace" }
+                let result = move load save publish chargeForMovement moveCommand
+
+                // Assert: operation should fail
+                Expect.isError result "Expected error when moving to invalid space"
+
+                // Assert: No events published
+                Expect.isEmpty publishedEvents "No events should be published when space is invalid"
+
+                // Assert: No charge commands dispatched
+                Expect.isEmpty dispatchedCommands "No charge commands should be dispatched when space is invalid"
+
+            testCase "when instructed to move with empty game id then should return error and no events or commands published" <| fun _ ->
+                let load, save = createMockStore ()
+                let publish, publishedEvents = createMockPublisher ()
+                let chargeForMovement, dispatchedCommands = createMockCommandDispatcher ()
+
+                // Execute: attempt to move with empty game id
+                let moveCommand = { MoveCommand.GameId = Guid.Empty; Nation = "France"; Space = "Factory" }
+                let result = move load save publish chargeForMovement moveCommand
+
+                // Assert: operation should fail
+                Expect.isError result "Expected error when moving with empty game id"
+
+                // Assert: No events published
+                Expect.isEmpty publishedEvents "No events should be published when game id is empty"
+
+                // Assert: No charge commands dispatched
+                Expect.isEmpty dispatchedCommands "No charge commands should be dispatched when game id is empty"
         ]
     ]
