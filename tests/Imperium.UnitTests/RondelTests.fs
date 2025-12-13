@@ -169,5 +169,38 @@ let tests =
 
                 // Assert: No charge commands dispatched
                 Expect.isEmpty dispatchedCommands "no movement fee is due without a game id"
+
+            testCase "move: rejects move to nation's current position" <| fun _ ->
+                let load, save = createMockStore ()
+                let publish, publishedEvents = createMockPublisher ()
+                let chargeForMovement, dispatchedCommands = createMockCommandDispatcher ()
+
+                // Setup: initialize rondel with starting positions
+                let gameId = Guid.NewGuid ()
+                let initCommand = { GameId = gameId; Nations = [|"France"|] }
+                setToStartingPositions load save publish initCommand |> ignore
+                publishedEvents.Clear ()
+
+                // Execute: move France to Factory
+                let moveCommand = { MoveCommand.GameId = gameId; Nation = "France"; Space = "Factory" }
+                let firstMoveResult = move load save publish chargeForMovement moveCommand
+                Expect.isOk firstMoveResult "first move to Factory should succeed"
+                Expect.contains publishedEvents (ActionDetermined { GameId = gameId; Nation = "France"; Action = "Factory" }) "the rondel should determine Factory action for France"
+                publishedEvents.Clear ()
+                dispatchedCommands.Clear ()
+
+                // Execute: attempt to move France to Factory again (same position)
+                let secondMoveResult = move load save publish chargeForMovement moveCommand
+
+                // Assert: move should be rejected
+                Expect.isOk secondMoveResult "the move should be denied without breaking the game flow"
+                Expect.isNonEmpty publishedEvents "the rondel should signal why the move was denied"
+                Expect.contains publishedEvents (MoveToActionSpaceRejected { GameId = gameId; Nation = "France"; Space = "Factory" }) "the rondel should signal that the move was rejected"
+
+                // Assert: No action determined for rejected move
+                Expect.isFalse (publishedEvents |> Seq.contains (ActionDetermined { GameId = gameId; Nation = "France"; Action = "Factory" })) "no action should be determined when move to current position is rejected"
+
+                // Assert: No charge commands dispatched
+                Expect.isEmpty dispatchedCommands "no movement fee is due when moving to current position"
         ]
     ]

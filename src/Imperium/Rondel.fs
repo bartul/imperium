@@ -130,7 +130,7 @@ module Rondel =
             | None ->
                 save { 
                     GameId = validatedCommand.GameId |> Id.value 
-                    NationPositions = Map.empty
+                    NationPositions = validatedCommand.Nations |> Set.toSeq |> Seq.map (fun n -> n, None) |> Map.ofSeq
                     PendingMovements = Map.empty 
                 }
                 |> Result.map (fun () ->
@@ -151,12 +151,27 @@ module Rondel =
         (command: MoveCommand)
         : Result<unit, string> =
             
-            let execute state validatedCommand =
+            let execute (state : Dto.RondelState option) validatedCommand =
                 match state with
                 | None -> 
                     publish (MoveToActionSpaceRejected { GameId = validatedCommand.GameId |> Id.value; Nation = validatedCommand.Nation; Space = validatedCommand.Space |> Space.toString })
-                | Some _ ->
-                    publish (ActionDetermined { GameId = validatedCommand.GameId |> Id.value; Nation = validatedCommand.Nation; Action = validatedCommand.Space |> Space.toAction |> Action.toString})
+                | Some rondelState ->
+                    let position = rondelState.NationPositions |> Map.tryFind validatedCommand.Nation
+                    match position with
+                    | None ->
+                        publish (MoveToActionSpaceRejected { GameId = validatedCommand.GameId |> Id.value; Nation = validatedCommand.Nation; Space = validatedCommand.Space |> Space.toString })
+                    | Some possibleNationPosition ->
+                        match possibleNationPosition with
+                        | None ->
+                            let newState = { rondelState with NationPositions = rondelState.NationPositions |> Map.add validatedCommand.Nation (Some (Space.toString validatedCommand.Space)) }
+                            save newState |> ignore
+                            publish (ActionDetermined { GameId = validatedCommand.GameId |> Id.value; Nation = validatedCommand.Nation; Action = validatedCommand.Space |> Space.toAction |> Action.toString})
+                        | Some nationPositionString ->
+                            if nationPositionString = Space.toString validatedCommand.Space then
+                                publish (MoveToActionSpaceRejected { GameId = validatedCommand.GameId |> Id.value; Nation = validatedCommand.Nation; Space = validatedCommand.Space |> Space.toString })
+                            else
+                                publish (ActionDetermined { GameId = validatedCommand.GameId |> Id.value; Nation = validatedCommand.Nation; Action = validatedCommand.Space |> Space.toAction |> Action.toString})
+
                 Ok ()
 
             let state = load command.GameId
