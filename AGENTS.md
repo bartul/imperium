@@ -61,8 +61,8 @@ Last verified: 2025-02-22
 - Current test coverage:
   - starting positions: rejects missing game id; rejects empty roster; ignores duplicate nations; rondel signals that starting positions are set
   - move: before starting positions are chosen, the move is denied and no movement fee is due
-  - move: nation's first move may choose any rondel space (free); chosen rondel space determines the action
-  - move: rejects move to nation's current position (no charge, no action determined)
+  - move: nation's first move may choose any rondel space (free); chosen rondel space determines the action (property test, 15 iterations)
+  - move: rejects move to nation's current position repeatedly (property test, 15 iterations; validates rejection stability across multiple attempts, no charges, no action determined)
 
 ## Commit & Pull Request Guidelines
 - Follow the existing history: imperative, concise subject lines (`Update to dotnet 9`, `Add web`).

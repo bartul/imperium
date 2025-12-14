@@ -170,37 +170,54 @@ let tests =
                 // Assert: No charge commands dispatched
                 Expect.isEmpty dispatchedCommands "no movement fee is due without a game id"
 
-            testCase "move: rejects move to nation's current position" <| fun _ ->
-                let load, save = createMockStore ()
-                let publish, publishedEvents = createMockPublisher ()
-                let chargeForMovement, dispatchedCommands = createMockCommandDispatcher ()
+            testPropertyWithConfig { FsCheckConfig.defaultConfig with maxTest = 15 } "move: rejects move to nation's current position repeatedly" <| fun (gameId: Guid) (nationIndex: int) (spaceIndex: int) ->
 
-                // Setup: initialize rondel with starting positions
-                let gameId = Guid.NewGuid ()
-                let initCommand = { GameId = gameId; Nations = [|"France"|] }
+                let nations = [|"Austria"; "Britain"; "France"; "Germany"; "Italy"; "Russia"|]
+                let allSpaces = ["Investor"; "Factory"; "Import"; "ManeuverOne"; "ProductionOne"; "ManeuverTwo"; "ProductionTwo"; "Taxation"]
+
+                let nation = nations.[abs nationIndex % nations.Length]
+                let space = allSpaces.[abs spaceIndex % allSpaces.Length]
+
+                // Setup: initialize rondel
+                let load, save = createMockStore()
+                let publish, publishedEvents = createMockPublisher()
+                let chargeForMovement, dispatchedCommands = createMockCommandDispatcher()
+
+                let initCommand = { GameId = gameId; Nations = nations }
                 setToStartingPositions load save publish initCommand |> ignore
-                publishedEvents.Clear ()
+                publishedEvents.Clear()
 
-                // Execute: move France to Factory
-                let moveCommand = { MoveCommand.GameId = gameId; Nation = "France"; Space = "Factory" }
+                // Execute: move nation to target space (first move)
+                let moveCommand = { MoveCommand.GameId = gameId; Nation = nation; Space = space }
                 let firstMoveResult = move load save publish chargeForMovement moveCommand
-                Expect.isOk firstMoveResult "first move to Factory should succeed"
-                Expect.contains publishedEvents (ActionDetermined { GameId = gameId; Nation = "France"; Action = "Factory" }) "the rondel should determine Factory action for France"
-                publishedEvents.Clear ()
-                dispatchedCommands.Clear ()
 
-                // Execute: attempt to move France to Factory again (same position)
+                // Assert: first move succeeds
+                Expect.isOk firstMoveResult "first move should succeed"
+                let expectedAction = spaceToAction space
+                Expect.contains publishedEvents (ActionDetermined { GameId = gameId; Nation = nation; Action = expectedAction }) (sprintf "the rondel space %s determines %s's action: %s" space nation expectedAction)
+                publishedEvents.Clear()
+                dispatchedCommands.Clear()
+
+                // Execute: attempt to move to same position (first rejection)
                 let secondMoveResult = move load save publish chargeForMovement moveCommand
 
-                // Assert: move should be rejected
+                // Assert: second move is rejected
                 Expect.isOk secondMoveResult "the move should be denied without breaking the game flow"
                 Expect.isNonEmpty publishedEvents "the rondel should signal why the move was denied"
-                Expect.contains publishedEvents (MoveToActionSpaceRejected { GameId = gameId; Nation = "France"; Space = "Factory" }) "the rondel should signal that the move was rejected"
-
-                // Assert: No action determined for rejected move
-                Expect.isFalse (publishedEvents |> Seq.contains (ActionDetermined { GameId = gameId; Nation = "France"; Action = "Factory" })) "no action should be determined when move to current position is rejected"
-
-                // Assert: No charge commands dispatched
+                Expect.contains publishedEvents (MoveToActionSpaceRejected { GameId = gameId; Nation = nation; Space = space }) (sprintf "%s's move to current position %s should be rejected" nation space)
+                Expect.isFalse (publishedEvents |> Seq.contains (ActionDetermined { GameId = gameId; Nation = nation; Action = expectedAction })) "no action should be determined when move to current position is rejected"
                 Expect.isEmpty dispatchedCommands "no movement fee is due when moving to current position"
+                publishedEvents.Clear()
+                dispatchedCommands.Clear()
+
+                // Execute: attempt to move to same position again (second rejection)
+                let thirdMoveResult = move load save publish chargeForMovement moveCommand
+
+                // Assert: third move is also rejected
+                Expect.isOk thirdMoveResult "the move should be denied without breaking the game flow"
+                Expect.isNonEmpty publishedEvents "the rondel should signal why the move was denied"
+                Expect.contains publishedEvents (MoveToActionSpaceRejected { GameId = gameId; Nation = nation; Space = space }) (sprintf "%s's repeated move to current position %s should be rejected" nation space)
+                Expect.isFalse (publishedEvents |> Seq.contains (ActionDetermined { GameId = gameId; Nation = nation; Action = expectedAction })) "no action should be determined when move to current position is rejected repeatedly"
+                Expect.isEmpty dispatchedCommands "no movement fee is due when moving to current position repeatedly"
         ]
     ]
