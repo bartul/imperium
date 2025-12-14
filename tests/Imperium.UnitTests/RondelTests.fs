@@ -219,5 +219,59 @@ let tests =
                 Expect.contains publishedEvents (MoveToActionSpaceRejected { GameId = gameId; Nation = nation; Space = space }) (sprintf "%s's repeated move to current position %s should be rejected" nation space)
                 Expect.isFalse (publishedEvents |> Seq.contains (ActionDetermined { GameId = gameId; Nation = nation; Action = expectedAction })) "no action should be determined when move to current position is rejected repeatedly"
                 Expect.isEmpty dispatchedCommands "no movement fee is due when moving to current position repeatedly"
+
+            testPropertyWithConfig { FsCheckConfig.defaultConfig with maxTest = 15 } "move: multiple consecutive moves of 1-3 spaces are free" <| fun (gameId: Guid) (nationIndex: int) (startSpaceIndex: int) (distance1: int) (distance2: int) ->
+
+                let nations = [|"Austria"; "Britain"; "France"; "Germany"; "Italy"; "Russia"|]
+                let allSpaces = ["Investor"; "Import"; "ProductionOne"; "ManeuverOne"; "Taxation"; "Factory"; "ProductionTwo"; "ManeuverTwo"]
+
+                let nation = nations.[abs nationIndex % nations.Length]
+                let startIndex = abs startSpaceIndex % allSpaces.Length
+                let dist1 = abs distance1 % 3 + 1  // 1, 2, or 3
+                let dist2 = abs distance2 % 3 + 1  // 1, 2, or 3
+
+                // Setup: initialize rondel
+                let load, save = createMockStore()
+                let publish, publishedEvents = createMockPublisher()
+                let chargeForMovement, dispatchedCommands = createMockCommandDispatcher()
+
+                let initCommand = { GameId = gameId; Nations = nations }
+                setToStartingPositions load save publish initCommand |> ignore
+                publishedEvents.Clear()
+
+                // First move: to starting position
+                let startSpace = allSpaces.[startIndex]
+                let moveCommand1 = { MoveCommand.GameId = gameId; Nation = nation; Space = startSpace }
+                let result1 = move load save publish chargeForMovement moveCommand1
+
+                Expect.isOk result1 "first move should succeed"
+                let expectedAction1 = spaceToAction startSpace
+                Expect.contains publishedEvents (ActionDetermined { GameId = gameId; Nation = nation; Action = expectedAction1 }) (sprintf "%s's first move to %s should determine action %s" nation startSpace expectedAction1)
+                publishedEvents.Clear()
+                dispatchedCommands.Clear()
+
+                // Second move: 1-3 spaces forward
+                let secondIndex = (startIndex + dist1) % allSpaces.Length
+                let secondSpace = allSpaces.[secondIndex]
+                let moveCommand2 = { MoveCommand.GameId = gameId; Nation = nation; Space = secondSpace }
+                let result2 = move load save publish chargeForMovement moveCommand2
+
+                Expect.isOk result2 (sprintf "second move (distance %d) should succeed" dist1)
+                let expectedAction2 = spaceToAction secondSpace
+                Expect.contains publishedEvents (ActionDetermined { GameId = gameId; Nation = nation; Action = expectedAction2 }) (sprintf "%s's move from %s to %s (distance %d) should determine action %s" nation startSpace secondSpace dist1 expectedAction2)
+                Expect.isEmpty dispatchedCommands (sprintf "move of %d spaces should be free" dist1)
+                publishedEvents.Clear()
+                dispatchedCommands.Clear()
+
+                // Third move: 1-3 spaces forward from second position
+                let thirdIndex = (secondIndex + dist2) % allSpaces.Length
+                let thirdSpace = allSpaces.[thirdIndex]
+                let moveCommand3 = { MoveCommand.GameId = gameId; Nation = nation; Space = thirdSpace }
+                let result3 = move load save publish chargeForMovement moveCommand3
+
+                Expect.isOk result3 (sprintf "third move (distance %d) should succeed" dist2)
+                let expectedAction3 = spaceToAction thirdSpace
+                Expect.contains publishedEvents (ActionDetermined { GameId = gameId; Nation = nation; Action = expectedAction3 }) (sprintf "%s's move from %s to %s (distance %d) should determine action %s" nation secondSpace thirdSpace dist2 expectedAction3)
+                Expect.isEmpty dispatchedCommands (sprintf "move of %d spaces should be free" dist2)
         ]
     ]

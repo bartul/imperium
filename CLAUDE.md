@@ -6,7 +6,7 @@ Last verified: 2025-02-22
 ## Quick Status (last verified: current)
 - Rondel handlers: `setToStartingPositions` (complete), `move` (partially implemented - first move, position tracking, rejection of moves to current position), `onInvoicedPaid`, `onInvoicePaymentFailed` (stubbed).
 - Gameplay and Accounting modules expose no public API yet.
-- Tests cover Rondel starting positions validation/signaling, `move` first-move-to-any-space (property test with 15 iterations), and rejection of moves to current position (property test with 15 iterations, validates repeated rejections are stable).
+- Tests cover Rondel starting positions validation/signaling, `move` first-move-to-any-space (property test with 15 iterations), rejection of moves to current position (property test with 15 iterations), and multiple consecutive moves of 1-3 spaces (property test with 15 iterations, validates free movement without charges).
 
 ## Agent Priorities
 - Follow the three-phase process in `docs/module_design_process.md`: define `.fsi`, write tests, then implement.

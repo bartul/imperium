@@ -21,7 +21,7 @@ Last verified: 2025-02-22
   - `Rondel` exposes: PublishRondelEvent type, setToStartingPositions (implemented), move, onInvoicedPaid, onInvoicePaymentFailed (stubbed)
 - `src/Imperium.Web` bootstraps the HTTP layer (`Program.fs`). Reference the core project via the existing project reference instead of duplicating logic.
 - `docs/` stores reference rulebooks; official rule PDFs live in `docs/official_rules/`. Leave build artefacts inside each project's `bin/` and `obj/` directories untouched.
-- Rondel spaces (board order): `Investor`, `Factory`, `Import`, `ManeuverOne`, `ProductionOne`, `ManeuverTwo`, `ProductionTwo`, `Taxation`.
+- Rondel spaces (board order): `Investor`, `Import`, `ProductionOne`, `ManeuverOne`, `Taxation`, `Factory`, `ProductionTwo`, `ManeuverTwo`.
 - Rondel rules source: mechanic follows the boardgame “rondel” described in `docs/Imperial_English_Rules.pdf`. Keep only a quick cheat sheet here; see the PDF for full details. Key movement: clockwise, cannot stay put; 1–3 spaces free, 4–6 cost 2M each (max 6), first turn may start anywhere. Actions: Factory (build own city for 5M, no hostile upright armies), Production (each unoccupied home factory produces 1 unit), Import (buy up to 3 units for 1M each in home provinces), Maneuver (fleets adjacent sea; armies adjacent land or via fleets; rail within home; 3 armies can destroy a factory; place flags in newly occupied regions), Investor (pay bond interest; investor card gets 2M and may invest; Swiss bank owners may also invest; passing executes investor steps 2–3), Taxation (tax: 2M per unoccupied factory, 1M per flag; dividend if tax track increases; add power points; treasury collects tax minus 1M per army/fleet). Game ends at 25 power points; score = bond interest x nation factor + personal cash.
 
 ### Handler Signature Pattern
@@ -63,6 +63,7 @@ Last verified: 2025-02-22
   - move: before starting positions are chosen, the move is denied and no movement fee is due
   - move: nation's first move may choose any rondel space (free); chosen rondel space determines the action (property test, 15 iterations)
   - move: rejects move to nation's current position repeatedly (property test, 15 iterations; validates rejection stability across multiple attempts, no charges, no action determined)
+  - move: multiple consecutive moves of 1-3 spaces are free (property test, 15 iterations; validates 3 consecutive moves per nation with correct action determination and no charges, includes wraparound)
 
 ## Commit & Pull Request Guidelines
 - Follow the existing history: imperative, concise subject lines (`Update to dotnet 9`, `Add web`).
