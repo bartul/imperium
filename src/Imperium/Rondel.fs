@@ -50,6 +50,23 @@ module Rondel =
         | ProductionTwo
         | ManeuverTwo
     module Space =
+        let private spacesInOrder = [|
+            Space.Investor
+            Space.Import
+            Space.ProductionOne
+            Space.ManeuverOne
+            Space.Taxation
+            Space.Factory
+            Space.ProductionTwo
+            Space.ManeuverTwo
+        |]
+        let distance fromSpace toSpace =
+            let fromIndex = Array.findIndex ((=) fromSpace) spacesInOrder
+            let toIndex = Array.findIndex ((=) toSpace) spacesInOrder
+            if toIndex >= fromIndex then
+                toIndex - fromIndex
+            else
+                (Array.length spacesInOrder - fromIndex) + toIndex
         let toString space =
             match space with
             | Space.Investor -> "Investor"
@@ -167,11 +184,19 @@ module Rondel =
                             save newState |> ignore
                             publish (ActionDetermined { GameId = validatedCommand.GameId |> Id.value; Nation = validatedCommand.Nation; Action = validatedCommand.Space |> Space.toAction |> Action.toString})
                         | Some nationPositionString ->
-                            if nationPositionString = Space.toString validatedCommand.Space then
-                                publish (MoveToActionSpaceRejected { GameId = validatedCommand.GameId |> Id.value; Nation = validatedCommand.Nation; Space = validatedCommand.Space |> Space.toString })
-                            else
-                                publish (ActionDetermined { GameId = validatedCommand.GameId |> Id.value; Nation = validatedCommand.Nation; Action = validatedCommand.Space |> Space.toAction |> Action.toString})
-
+                            let nationPosition = nationPositionString |> Space.fromString 
+                            match nationPosition with
+                            | Error e -> failwith $"Invalid nation position in state. {e}"
+                            | Ok nationPosition ->
+                                let distance = Space.distance nationPosition validatedCommand.Space
+                                match distance with
+                                | 0 -> publish (MoveToActionSpaceRejected { GameId = validatedCommand.GameId |> Id.value; Nation = validatedCommand.Nation; Space = validatedCommand.Space |> Space.toString })
+                                | 1 | 2 | 3 -> 
+                                    let newState = { rondelState with NationPositions = rondelState.NationPositions |> Map.add validatedCommand.Nation (Some (Space.toString validatedCommand.Space)) }
+                                    save newState |> ignore
+                                    publish (ActionDetermined { GameId = validatedCommand.GameId |> Id.value; Nation = validatedCommand.Nation; Action = validatedCommand.Space |> Space.toAction |> Action.toString})
+                                | 4 | 5 | 6 | 7 -> publish (MoveToActionSpaceRejected { GameId = validatedCommand.GameId |> Id.value; Nation = validatedCommand.Nation; Space = validatedCommand.Space |> Space.toString })
+                                | d -> failwithf $"Unhandled distance case - {d}."
                 Ok ()
 
             let state = load command.GameId

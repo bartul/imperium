@@ -31,10 +31,10 @@ Last verified: 2025-02-22
 
 ### Open Work (current)
 - Rondel `setToStartingPositions` handler is complete with validation, state persistence, and event publishing.
-- Rondel `move` handler partially implemented: handles first move to any space (free, no charge), publishes ActionDetermined with correct Space→Action mapping, tracks nation positions, rejects moves to current position; still needs movement rules for subsequent moves (1-3 spaces free, 4-6 spaces cost 2M, clockwise distance validation).
+- Rondel `move` handler partially implemented: clockwise distance calculation, 1-3 space free moves with state persistence and action determination, rejects 0-space (stay put) and 7-space (exceeds max) moves; still needs implementation for 4-6 space paid moves (currently rejected, need to dispatch charges and accept move).
 - Implement remaining Rondel handlers (`onInvoicedPaid`, `onInvoicePaymentFailed`) and persist/publish state per contracts and tests.
 - Add public APIs for Gameplay and Accounting or trim placeholders if unused.
-- Expand Expecto coverage for Rondel movement rules (clockwise distance, paid moves) and payment flows once implemented.
+- Expand Expecto coverage for 4-6 space paid moves and payment flows once ready to implement.
 
 ## Build, Test, and Development Commands
 - Restore dependencies: `dotnet restore Imperium.sln`.
@@ -64,8 +64,10 @@ Last verified: 2025-02-22
   - move: nation's first move may choose any rondel space (free); chosen rondel space determines the action (property test, 15 iterations)
   - move: rejects move to nation's current position repeatedly (property test, 15 iterations; validates rejection stability across multiple attempts, no charges, no action determined)
   - move: multiple consecutive moves of 1-3 spaces are free (property test, 15 iterations; validates 3 consecutive moves per nation with correct action determination and no charges, includes wraparound)
+  - move: rejects moves of 7 spaces as exceeding maximum distance (property test, 15 iterations; validates all nations and starting positions reject 7-space moves with MoveToActionSpaceRejected, no charges)
 
 ## Commit & Pull Request Guidelines
+
 - Follow the existing history: imperative, concise subject lines (`Update to dotnet 9`, `Add web`).
 - Keep commits scoped to one concern; describe “what” and “why” in the body when context is non-trivial.
 - PRs should link relevant issues, outline test evidence (command outputs or screenshots), and call out any manual steps for deployment.

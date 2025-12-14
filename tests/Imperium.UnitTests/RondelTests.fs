@@ -273,5 +273,51 @@ let tests =
                 let expectedAction3 = spaceToAction thirdSpace
                 Expect.contains publishedEvents (ActionDetermined { GameId = gameId; Nation = nation; Action = expectedAction3 }) (sprintf "%s's move from %s to %s (distance %d) should determine action %s" nation secondSpace thirdSpace dist2 expectedAction3)
                 Expect.isEmpty dispatchedCommands (sprintf "move of %d spaces should be free" dist2)
+
+            testPropertyWithConfig { FsCheckConfig.defaultConfig with maxTest = 15 } "move: rejects moves of 7 spaces as exceeding maximum distance" <| fun (gameId: Guid) (nationIndex: int) (startSpaceIndex: int) ->
+
+                let nations = [|"Austria"; "Britain"; "France"; "Germany"; "Italy"; "Russia"|]
+                let allSpaces = ["Investor"; "Import"; "ProductionOne"; "ManeuverOne"; "Taxation"; "Factory"; "ProductionTwo"; "ManeuverTwo"]
+
+                let nation = nations.[abs nationIndex % nations.Length]
+                let startIndex = abs startSpaceIndex % allSpaces.Length
+
+                // Setup: initialize rondel
+                let load, save = createMockStore()
+                let publish, publishedEvents = createMockPublisher()
+                let chargeForMovement, dispatchedCommands = createMockCommandDispatcher()
+
+                let initCommand = { GameId = gameId; Nations = nations }
+                setToStartingPositions load save publish initCommand |> ignore
+                publishedEvents.Clear()
+
+                // First move: establish starting position
+                let startSpace = allSpaces.[startIndex]
+                let moveCommand1 = { MoveCommand.GameId = gameId; Nation = nation; Space = startSpace }
+                let result1 = move load save publish chargeForMovement moveCommand1
+
+                Expect.isOk result1 "first move should succeed"
+                let expectedAction1 = spaceToAction startSpace
+                Expect.contains publishedEvents (ActionDetermined { GameId = gameId; Nation = nation; Action = expectedAction1 }) (sprintf "%s's first move to %s should succeed" nation startSpace)
+                publishedEvents.Clear()
+                dispatchedCommands.Clear()
+
+                // Second move: attempt to move 7 spaces (invalid distance)
+                let targetIndex = (startIndex + 7) % allSpaces.Length
+                let targetSpace = allSpaces.[targetIndex]
+                let moveCommand2 = { MoveCommand.GameId = gameId; Nation = nation; Space = targetSpace }
+                let result2 = move load save publish chargeForMovement moveCommand2
+
+                // Assert: move should be rejected (7 spaces exceeds maximum of 6)
+                Expect.isOk result2 "the move should be denied without breaking the game flow"
+                Expect.isNonEmpty publishedEvents "the rondel should signal why the move was denied"
+                Expect.contains publishedEvents (MoveToActionSpaceRejected { GameId = gameId; Nation = nation; Space = targetSpace }) (sprintf "%s's move from %s to %s (7 spaces) should be rejected as exceeding maximum distance" nation startSpace targetSpace)
+
+                // Assert: No action determined for invalid distance
+                let expectedAction2 = spaceToAction targetSpace
+                Expect.isFalse (publishedEvents |> Seq.contains (ActionDetermined { GameId = gameId; Nation = nation; Action = expectedAction2 })) "no action should be determined when move exceeds maximum distance"
+
+                // Assert: No charge commands dispatched
+                Expect.isEmpty dispatchedCommands "no movement fee is due for invalid moves"
         ]
     ]
