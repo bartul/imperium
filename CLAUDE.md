@@ -1,13 +1,13 @@
 # CLAUDE.md
 
 This file guides Claude Code (claude.ai/code) for this repository. For shared repo facts, module summaries, and commands, see `AGENTS.md`.
-Last verified: 2025-02-22
+Last verified: 2025-12-15
 
 ## Quick Status (last verified: current)
 
-- Rondel handlers: `setToStartingPositions` (complete), `move` (partially implemented - clockwise distance calculation, 1-3 space free moves with state persistence, rejects 0 and 7+ space moves; 4-6 space paid moves not yet implemented), `onInvoicedPaid`, `onInvoicePaymentFailed` (stubbed).
+- Rondel handlers: `setToStartingPositions` (complete), `move` (complete - handles 1-3 space free moves, 4-6 space paid moves with charge dispatch and pending state, rejects 0 and 7+ space moves), `onInvoicedPaid`, `onInvoicePaymentFailed` (stubbed).
 - Gameplay and Accounting modules expose no public API yet.
-- Tests cover Rondel starting positions validation/signaling, `move` first-move-to-any-space (property test with 15 iterations), rejection of moves to current position (property test with 15 iterations), multiple consecutive moves of 1-3 spaces (property test with 15 iterations), and rejection of 7-space moves as exceeding maximum distance (property test with 15 iterations).
+- Tests cover Rondel starting positions validation/signaling, `move` first-move-to-any-space (property test with 15 iterations), rejection of moves to current position (property test with 15 iterations), multiple consecutive moves of 1-3 spaces (property test with 15 iterations), rejection of 7-space moves as exceeding maximum distance (property test with 15 iterations), and moves of 4-6 spaces requiring payment with correct amount formula (property test with 15 iterations).
 
 ## Agent Priorities
 

@@ -319,5 +319,60 @@ let tests =
 
                 // Assert: No charge commands dispatched
                 Expect.isEmpty dispatchedCommands "no movement fee is due for invalid moves"
+
+            testPropertyWithConfig { FsCheckConfig.defaultConfig with maxTest = 15 } "move: moves of 4-6 spaces require payment (2M per additional space beyond 3)" <| fun (gameId: Guid) (nationIndex: int) (startSpaceIndex: int) (distanceRaw: int) ->
+
+                let nations = [|"Austria"; "Britain"; "France"; "Germany"; "Italy"; "Russia"|]
+                let allSpaces = ["Investor"; "Import"; "ProductionOne"; "ManeuverOne"; "Taxation"; "Factory"; "ProductionTwo"; "ManeuverTwo"]
+
+                let nation = nations.[abs nationIndex % nations.Length]
+                let startIndex = abs startSpaceIndex % allSpaces.Length
+                let dist = abs distanceRaw % 3 + 4  // 4, 5, or 6
+
+                // Setup: initialize rondel
+                let load, save = createMockStore()
+                let publish, publishedEvents = createMockPublisher()
+                let chargeForMovement, dispatchedCommands = createMockCommandDispatcher()
+
+                let initCommand = { GameId = gameId; Nations = nations }
+                setToStartingPositions load save publish initCommand |> ignore
+                publishedEvents.Clear()
+
+                // First move: establish starting position
+                let startSpace = allSpaces.[startIndex]
+                let moveCommand1 = { MoveCommand.GameId = gameId; Nation = nation; Space = startSpace }
+                let result1 = move load save publish chargeForMovement moveCommand1
+
+                Expect.isOk result1 "first move should succeed"
+                publishedEvents.Clear()
+                dispatchedCommands.Clear()
+
+                // Second move: 4-6 spaces forward (requires payment)
+                let targetIndex = (startIndex + dist) % allSpaces.Length
+                let targetSpace = allSpaces.[targetIndex]
+                let moveCommand2 = { MoveCommand.GameId = gameId; Nation = nation; Space = targetSpace }
+                let result2 = move load save publish chargeForMovement moveCommand2
+
+                // Assert: move command succeeds
+                Expect.isOk result2 (sprintf "move of %d spaces should be accepted (payment required)" dist)
+
+                // Assert: charge command dispatched with correct amount
+                Expect.hasLength dispatchedCommands 1 (sprintf "exactly one charge command should be dispatched for %d-space move" dist)
+                let chargeCmd = dispatchedCommands.[0]
+                Expect.equal chargeCmd.GameId gameId "charge command should have correct GameId"
+                Expect.equal chargeCmd.Nation nation "charge command should have correct Nation"
+
+                let expectedAmount = Imperium.Primitives.Amount.unsafe ((dist - 3) * 2)
+                Expect.equal chargeCmd.Amount expectedAmount (sprintf "charge for %d spaces should be %dM ((distance - 3) * 2)" dist ((dist - 3) * 2))
+
+                Expect.notEqual chargeCmd.BillingId Guid.Empty "charge command should have valid BillingId"
+
+                // Assert: NO ActionDetermined event (payment pending)
+                let actionDeterminedEvents = publishedEvents |> Seq.filter (function | ActionDetermined _ -> true | _ -> false) |> Seq.toList
+                Expect.isEmpty actionDeterminedEvents "no action should be determined until payment is confirmed"
+
+                // Assert: NO MoveToActionSpaceRejected event (move not rejected)
+                let rejectedEvents = publishedEvents |> Seq.filter (function | MoveToActionSpaceRejected _ -> true | _ -> false) |> Seq.toList
+                Expect.isEmpty rejectedEvents "move requiring payment should not be rejected"
         ]
     ]

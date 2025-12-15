@@ -195,8 +195,18 @@ module Rondel =
                                     let newState = { rondelState with NationPositions = rondelState.NationPositions |> Map.add validatedCommand.Nation (Some (Space.toString validatedCommand.Space)) }
                                     save newState |> ignore
                                     publish (ActionDetermined { GameId = validatedCommand.GameId |> Id.value; Nation = validatedCommand.Nation; Action = validatedCommand.Space |> Space.toAction |> Action.toString})
-                                | 4 | 5 | 6 | 7 -> publish (MoveToActionSpaceRejected { GameId = validatedCommand.GameId |> Id.value; Nation = validatedCommand.Nation; Space = validatedCommand.Space |> Space.toString })
-                                | d -> failwithf $"Unhandled distance case - {d}."
+                                | 4 | 5 | 6 ->
+                                    let billingId = Guid.NewGuid()
+                                    let pendingMovement = { TargetSpace = validatedCommand.Space |> Space.toString; Nation = validatedCommand.Nation; BillingId = billingId } : Dto.PendingMovement
+                                    let newState = { rondelState with PendingMovements = rondelState.PendingMovements |> Map.add pendingMovement.BillingId pendingMovement }
+                                    save newState |> ignore
+                                    let amount = (distance - 3) * 2 |> Amount.create
+                                    let chargeCommand amount = { GameId = validatedCommand.GameId |> Id.value; Nation = validatedCommand.Nation; Amount = amount; BillingId = billingId }
+                                    amount 
+                                    |> Result.map chargeCommand
+                                    |> Result.bind chargeForMovement
+                                    |> ignore
+                                | _ -> publish (MoveToActionSpaceRejected { GameId = validatedCommand.GameId |> Id.value; Nation = validatedCommand.Nation; Space = validatedCommand.Space |> Space.toString })
                 Ok ()
 
             let state = load command.GameId
