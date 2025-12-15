@@ -29,6 +29,13 @@ let createMockCommandDispatcher () =
         Ok ()
     chargeForMovement, dispatchedCommands
 
+let createMockVoidCharge () =
+    let voidedCommands = ResizeArray<Imperium.Contract.Accounting.VoidRondelChargeCommand>()
+    let voidCharge (command: Imperium.Contract.Accounting.VoidRondelChargeCommand) =
+        voidedCommands.Add command
+        Ok ()
+    voidCharge, voidedCommands
+
 let spaceToAction (space: string) : string =
     match space with
     | "Investor" -> "Investor"
@@ -90,8 +97,9 @@ let tests =
                 let load, save = createMockStore ()
                 let publish, publishedEvents = createMockPublisher ()
                 let chargeForMovement, dispatchedCommands = createMockCommandDispatcher ()
+                let voidCharge, voidedCommands = createMockVoidCharge ()
                 let moveCommand = { MoveCommand.GameId = Guid.NewGuid (); Nation = "France"; Space = "Factory" }
-                let result = move load save publish chargeForMovement moveCommand
+                let result = move load save publish chargeForMovement voidCharge moveCommand
                 Expect.isOk result "the move should be denied without breaking the game flow"
                 Expect.isNonEmpty publishedEvents "the rondel should signal why the move was denied"
                 Expect.contains publishedEvents (MoveToActionSpaceRejected { GameId = moveCommand.GameId; Nation = moveCommand.Nation; Space = moveCommand.Space }) "the rondel should signal that the move was denied"
@@ -109,6 +117,7 @@ let tests =
                 let load, save = createMockStore()
                 let publish, publishedEvents = createMockPublisher()
                 let chargeForMovement, dispatchedCommands = createMockCommandDispatcher()
+                let voidCharge, voidedCommands = createMockVoidCharge()
 
                 let initCommand = { GameId = gameId; Nations = nations }
                 setToStartingPositions load save publish initCommand |> ignore
@@ -116,7 +125,7 @@ let tests =
 
                 // Execute: move one nation to target space
                 let moveCommand = { MoveCommand.GameId = gameId; Nation = nation; Space = space }
-                let result = move load save publish chargeForMovement moveCommand
+                let result = move load save publish chargeForMovement voidCharge moveCommand
 
                 // Assert: move succeeds
                 Expect.isOk result "first move should allow choosing any rondel space"
@@ -132,6 +141,7 @@ let tests =
                 let load, save = createMockStore ()
                 let publish, publishedEvents = createMockPublisher ()
                 let chargeForMovement, dispatchedCommands = createMockCommandDispatcher ()
+                let voidCharge, voidedCommands = createMockVoidCharge ()
 
                 // Setup: initialize rondel with starting positions
                 let gameId = Guid.NewGuid ()
@@ -141,7 +151,7 @@ let tests =
 
                 // Execute: attempt to move to an invalid space
                 let moveCommand = { MoveCommand.GameId = gameId; Nation = "France"; Space = "InvalidSpace" }
-                let result = move load save publish chargeForMovement moveCommand
+                let result = move load save publish chargeForMovement voidCharge moveCommand
 
                 // Assert: operation should fail
                 Expect.isError result "unknown rondel space is not allowed"
@@ -156,10 +166,11 @@ let tests =
                 let load, save = createMockStore ()
                 let publish, publishedEvents = createMockPublisher ()
                 let chargeForMovement, dispatchedCommands = createMockCommandDispatcher ()
+                let voidCharge, voidedCommands = createMockVoidCharge ()
 
                 // Execute: attempt to move with empty game id
                 let moveCommand = { MoveCommand.GameId = Guid.Empty; Nation = "France"; Space = "Factory" }
-                let result = move load save publish chargeForMovement moveCommand
+                let result = move load save publish chargeForMovement voidCharge moveCommand
 
                 // Assert: operation should fail
                 Expect.isError result "a move cannot be taken without a game id"
@@ -182,6 +193,7 @@ let tests =
                 let load, save = createMockStore()
                 let publish, publishedEvents = createMockPublisher()
                 let chargeForMovement, dispatchedCommands = createMockCommandDispatcher()
+                let voidCharge, voidedCommands = createMockVoidCharge()
 
                 let initCommand = { GameId = gameId; Nations = nations }
                 setToStartingPositions load save publish initCommand |> ignore
@@ -189,7 +201,7 @@ let tests =
 
                 // Execute: move nation to target space (first move)
                 let moveCommand = { MoveCommand.GameId = gameId; Nation = nation; Space = space }
-                let firstMoveResult = move load save publish chargeForMovement moveCommand
+                let firstMoveResult = move load save publish chargeForMovement voidCharge moveCommand
 
                 // Assert: first move succeeds
                 Expect.isOk firstMoveResult "first move should succeed"
@@ -199,7 +211,7 @@ let tests =
                 dispatchedCommands.Clear()
 
                 // Execute: attempt to move to same position (first rejection)
-                let secondMoveResult = move load save publish chargeForMovement moveCommand
+                let secondMoveResult = move load save publish chargeForMovement voidCharge moveCommand
 
                 // Assert: second move is rejected
                 Expect.isOk secondMoveResult "the move should be denied without breaking the game flow"
@@ -211,7 +223,7 @@ let tests =
                 dispatchedCommands.Clear()
 
                 // Execute: attempt to move to same position again (second rejection)
-                let thirdMoveResult = move load save publish chargeForMovement moveCommand
+                let thirdMoveResult = move load save publish chargeForMovement voidCharge moveCommand
 
                 // Assert: third move is also rejected
                 Expect.isOk thirdMoveResult "the move should be denied without breaking the game flow"
@@ -234,6 +246,7 @@ let tests =
                 let load, save = createMockStore()
                 let publish, publishedEvents = createMockPublisher()
                 let chargeForMovement, dispatchedCommands = createMockCommandDispatcher()
+                let voidCharge, voidedCommands = createMockVoidCharge()
 
                 let initCommand = { GameId = gameId; Nations = nations }
                 setToStartingPositions load save publish initCommand |> ignore
@@ -242,7 +255,7 @@ let tests =
                 // First move: to starting position
                 let startSpace = allSpaces.[startIndex]
                 let moveCommand1 = { MoveCommand.GameId = gameId; Nation = nation; Space = startSpace }
-                let result1 = move load save publish chargeForMovement moveCommand1
+                let result1 = move load save publish chargeForMovement voidCharge moveCommand1
 
                 Expect.isOk result1 "first move should succeed"
                 let expectedAction1 = spaceToAction startSpace
@@ -254,7 +267,7 @@ let tests =
                 let secondIndex = (startIndex + dist1) % allSpaces.Length
                 let secondSpace = allSpaces.[secondIndex]
                 let moveCommand2 = { MoveCommand.GameId = gameId; Nation = nation; Space = secondSpace }
-                let result2 = move load save publish chargeForMovement moveCommand2
+                let result2 = move load save publish chargeForMovement voidCharge moveCommand2
 
                 Expect.isOk result2 (sprintf "second move (distance %d) should succeed" dist1)
                 let expectedAction2 = spaceToAction secondSpace
@@ -267,7 +280,7 @@ let tests =
                 let thirdIndex = (secondIndex + dist2) % allSpaces.Length
                 let thirdSpace = allSpaces.[thirdIndex]
                 let moveCommand3 = { MoveCommand.GameId = gameId; Nation = nation; Space = thirdSpace }
-                let result3 = move load save publish chargeForMovement moveCommand3
+                let result3 = move load save publish chargeForMovement voidCharge moveCommand3
 
                 Expect.isOk result3 (sprintf "third move (distance %d) should succeed" dist2)
                 let expectedAction3 = spaceToAction thirdSpace
@@ -286,6 +299,7 @@ let tests =
                 let load, save = createMockStore()
                 let publish, publishedEvents = createMockPublisher()
                 let chargeForMovement, dispatchedCommands = createMockCommandDispatcher()
+                let voidCharge, voidedCommands = createMockVoidCharge()
 
                 let initCommand = { GameId = gameId; Nations = nations }
                 setToStartingPositions load save publish initCommand |> ignore
@@ -294,7 +308,7 @@ let tests =
                 // First move: establish starting position
                 let startSpace = allSpaces.[startIndex]
                 let moveCommand1 = { MoveCommand.GameId = gameId; Nation = nation; Space = startSpace }
-                let result1 = move load save publish chargeForMovement moveCommand1
+                let result1 = move load save publish chargeForMovement voidCharge moveCommand1
 
                 Expect.isOk result1 "first move should succeed"
                 let expectedAction1 = spaceToAction startSpace
@@ -306,7 +320,7 @@ let tests =
                 let targetIndex = (startIndex + 7) % allSpaces.Length
                 let targetSpace = allSpaces.[targetIndex]
                 let moveCommand2 = { MoveCommand.GameId = gameId; Nation = nation; Space = targetSpace }
-                let result2 = move load save publish chargeForMovement moveCommand2
+                let result2 = move load save publish chargeForMovement voidCharge moveCommand2
 
                 // Assert: move should be rejected (7 spaces exceeds maximum of 6)
                 Expect.isOk result2 "the move should be denied without breaking the game flow"
@@ -333,6 +347,7 @@ let tests =
                 let load, save = createMockStore()
                 let publish, publishedEvents = createMockPublisher()
                 let chargeForMovement, dispatchedCommands = createMockCommandDispatcher()
+                let voidCharge, voidedCommands = createMockVoidCharge()
 
                 let initCommand = { GameId = gameId; Nations = nations }
                 setToStartingPositions load save publish initCommand |> ignore
@@ -341,7 +356,7 @@ let tests =
                 // First move: establish starting position
                 let startSpace = allSpaces.[startIndex]
                 let moveCommand1 = { MoveCommand.GameId = gameId; Nation = nation; Space = startSpace }
-                let result1 = move load save publish chargeForMovement moveCommand1
+                let result1 = move load save publish chargeForMovement voidCharge moveCommand1
 
                 Expect.isOk result1 "first move should succeed"
                 publishedEvents.Clear()
@@ -351,7 +366,7 @@ let tests =
                 let targetIndex = (startIndex + dist) % allSpaces.Length
                 let targetSpace = allSpaces.[targetIndex]
                 let moveCommand2 = { MoveCommand.GameId = gameId; Nation = nation; Space = targetSpace }
-                let result2 = move load save publish chargeForMovement moveCommand2
+                let result2 = move load save publish chargeForMovement voidCharge moveCommand2
 
                 // Assert: move command succeeds
                 Expect.isOk result2 (sprintf "move of %d spaces should be accepted (payment required)" dist)

@@ -103,18 +103,17 @@ module Rondel =
         | Move of Move
     and SetToStartingPositions = { GameId: Id; Nations: Set<string> }
     and Move = { GameId: Id; Nation: string; Space: Space }
-
     module SetToStartingPositions =   
         let toDomain (command : SetToStartingPositionsCommand) =
             Id.create command.GameId
             |> Result.map (fun id ->
                 { GameId = id; Nations = Set.ofArray command.Nations })
-
     module Move =
         let toDomain (command : MoveCommand) =
             Id.create command.GameId
             |> Result.bind (fun id -> Space.fromString command.Space |> Result.map (fun space -> id, space))
             |> Result.map (fun (id, space) -> { GameId = id; Nation = command.Nation; Space = space })
+
     // State DTOs for persistence
     module Dto =
 
@@ -165,6 +164,7 @@ module Rondel =
         (save: SaveRondelState)
         (publish: PublishRondelEvent)
         (chargeForMovement: ChargeNationForRondelMovement)
+        (voidCharge: VoidRondelCharge)
         (command: MoveCommand)
         : Result<unit, string> =
             

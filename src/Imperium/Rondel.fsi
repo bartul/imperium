@@ -39,7 +39,7 @@ module Rondel =
     /// Command: Move a nation to the specified space on the rondel.
     /// Determines movement cost and charges via injected Accounting dependency.
     /// Integration event ActionDetermined published based on payment requirement.
-    val move: LoadRondelState -> SaveRondelState -> PublishRondelEvent -> ChargeNationForRondelMovement -> Move
+    val move: LoadRondelState -> SaveRondelState -> PublishRondelEvent -> ChargeNationForRondelMovement -> VoidRondelCharge -> Move
 
     // Event handlers
 

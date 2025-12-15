@@ -9,9 +9,13 @@ module Accounting =
 
     // Commands
     
-    /// Charge a nation for rondel movement. 
+    /// Charge a nation for rondel movement.
     type ChargeNationForRondelMovement = ChargeNationForRondelMovementCommand -> Result<unit, string>
     and ChargeNationForRondelMovementCommand = { GameId: Guid; Nation: string; Amount: Amount; BillingId: Guid }
+
+    /// Void a previously initiated rondel charge before payment completion.
+    type VoidRondelCharge = VoidRondelChargeCommand -> Result<unit, string>
+    and VoidRondelChargeCommand = { GameId: Guid; BillingId: Guid }
 
     // Events
     /// Integration events published by Accounting domain to notify other bounded contexts of payment outcomes.
