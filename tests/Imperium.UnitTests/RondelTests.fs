@@ -389,5 +389,126 @@ let tests =
                 // Assert: NO MoveToActionSpaceRejected event (move not rejected)
                 let rejectedEvents = publishedEvents |> Seq.filter (function | MoveToActionSpaceRejected _ -> true | _ -> false) |> Seq.toList
                 Expect.isEmpty rejectedEvents "move requiring payment should not be rejected"
+
+            testCase "move: superseding pending paid move with another paid move voids old charge and rejects old move" <| fun _ ->
+                // Setup
+                let load, save = createMockStore()
+                let publish, publishedEvents = createMockPublisher()
+                let chargeForMovement, dispatchedCommands = createMockCommandDispatcher()
+                let voidCharge, voidedCommands = createMockVoidCharge()
+
+                let gameId = Guid.NewGuid()
+                let nations = [|"France"|]
+
+                // Initialize rondel
+                setToStartingPositions load save publish { GameId = gameId; Nations = nations } |> ignore
+                publishedEvents.Clear()
+
+                // First move: Establish starting position (2 spaces, free)
+                move load save publish chargeForMovement voidCharge
+                    { GameId = gameId; Nation = "France"; Space = "ProductionOne" } |> ignore
+
+                Expect.contains publishedEvents (ActionDetermined { GameId = gameId; Nation = "France"; Action = "Production" })
+                    "first move should determine action"
+                publishedEvents.Clear()
+                dispatchedCommands.Clear()
+
+                // Second move: 4 spaces (pending payment) - ProductionOne to ProductionTwo
+                move load save publish chargeForMovement voidCharge
+                    { GameId = gameId; Nation = "France"; Space = "ProductionTwo" } |> ignore
+
+                Expect.hasLength dispatchedCommands 1 "first pending move should dispatch charge"
+                let firstBillingId = dispatchedCommands.[0].BillingId
+                Expect.equal dispatchedCommands.[0].Amount (Imperium.Primitives.Amount.unsafe 2) "charge for 4 spaces should be 2M"
+
+                let actionEvents1 = publishedEvents |> Seq.filter (function | ActionDetermined _ -> true | _ -> false) |> Seq.toList
+                Expect.isEmpty actionEvents1 "no action should be determined for pending move"
+
+                publishedEvents.Clear()
+                dispatchedCommands.Clear()
+
+                // Third move: 5 spaces (should supersede pending move) - ProductionOne to ManeuverTwo
+                move load save publish chargeForMovement voidCharge
+                    { GameId = gameId; Nation = "France"; Space = "ManeuverTwo" } |> ignore
+
+                // Assert: old charge voided
+                Expect.hasLength voidedCommands 1 "exactly one void command should be dispatched"
+                Expect.equal voidedCommands.[0].BillingId firstBillingId "should void the first billing"
+                Expect.equal voidedCommands.[0].GameId gameId "void command should have correct GameId"
+
+                // Assert: old move rejected
+                Expect.contains publishedEvents
+                    (MoveToActionSpaceRejected { GameId = gameId; Nation = "France"; Space = "ProductionTwo" })
+                    "first pending move should be rejected"
+
+                // Assert: new charge created
+                Expect.hasLength dispatchedCommands 1 "exactly one new charge should be dispatched"
+                let secondCharge = dispatchedCommands.[0]
+                Expect.equal secondCharge.Amount (Imperium.Primitives.Amount.unsafe 4) "charge for 5 spaces should be 4M"
+                Expect.notEqual secondCharge.BillingId firstBillingId "new charge should have different billing id"
+                Expect.equal secondCharge.GameId gameId "new charge should have correct GameId"
+                Expect.equal secondCharge.Nation "France" "new charge should have correct Nation"
+
+                // Assert: no action determined (new move still pending payment)
+                let actionEvents2 = publishedEvents |> Seq.filter (function | ActionDetermined _ -> true | _ -> false) |> Seq.toList
+                Expect.isEmpty actionEvents2 "no action should be determined for new pending move"
+
+            testCase "move: superseding pending paid move with free move voids charge and completes immediately" <| fun _ ->
+                // Setup
+                let load, save = createMockStore()
+                let publish, publishedEvents = createMockPublisher()
+                let chargeForMovement, dispatchedCommands = createMockCommandDispatcher()
+                let voidCharge, voidedCommands = createMockVoidCharge()
+
+                let gameId = Guid.NewGuid()
+                let nations = [|"Germany"|]
+
+                // Initialize rondel
+                setToStartingPositions load save publish { GameId = gameId; Nations = nations } |> ignore
+                publishedEvents.Clear()
+
+                // First move: Establish starting position (3 spaces, free)
+                move load save publish chargeForMovement voidCharge
+                    { GameId = gameId; Nation = "Germany"; Space = "ManeuverOne" } |> ignore
+
+                Expect.contains publishedEvents (ActionDetermined { GameId = gameId; Nation = "Germany"; Action = "Maneuver" })
+                    "first move should determine action"
+                publishedEvents.Clear()
+                dispatchedCommands.Clear()
+
+                // Second move: 5 spaces (pending payment) - ManeuverOne to Investor
+                move load save publish chargeForMovement voidCharge
+                    { GameId = gameId; Nation = "Germany"; Space = "Investor" } |> ignore
+
+                Expect.hasLength dispatchedCommands 1 "first pending move should dispatch charge"
+                let firstBillingId = dispatchedCommands.[0].BillingId
+                Expect.equal dispatchedCommands.[0].Amount (Imperium.Primitives.Amount.unsafe 4) "charge for 5 spaces should be 4M"
+
+                let actionEvents1 = publishedEvents |> Seq.filter (function | ActionDetermined _ -> true | _ -> false) |> Seq.toList
+                Expect.isEmpty actionEvents1 "no action should be determined for pending move"
+
+                publishedEvents.Clear()
+                dispatchedCommands.Clear()
+
+                // Third move: 2 spaces (free, should supersede and complete immediately) - ManeuverOne to Factory
+                move load save publish chargeForMovement voidCharge
+                    { GameId = gameId; Nation = "Germany"; Space = "Factory" } |> ignore
+
+                // Assert: old charge voided
+                Expect.hasLength voidedCommands 1 "exactly one void command should be dispatched"
+                Expect.equal voidedCommands.[0].BillingId firstBillingId "should void the first billing"
+                Expect.equal voidedCommands.[0].GameId gameId "void command should have correct GameId"
+
+                // Assert: old move rejected
+                Expect.contains publishedEvents
+                    (MoveToActionSpaceRejected { GameId = gameId; Nation = "Germany"; Space = "Investor" })
+                    "first pending move should be rejected"
+
+                // Assert: no new charge (free move)
+                Expect.isEmpty dispatchedCommands "free move should not dispatch charge command"
+
+                // Assert: action determined for new move (free move completes immediately)
+                Expect.contains publishedEvents (ActionDetermined { GameId = gameId; Nation = "Germany"; Action = "Factory" })
+                    "free move should determine action immediately despite superseding"
         ]
     ]

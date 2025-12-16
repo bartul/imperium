@@ -188,14 +188,11 @@ module Rondel =
                             match nationPosition with
                             | Error e -> failwith $"Invalid nation position in state. {e}"
                             | Ok nationPosition ->
-                                let distance = Space.distance nationPosition validatedCommand.Space
-                                match distance with
-                                | 0 -> publish (MoveToActionSpaceRejected { GameId = validatedCommand.GameId |> Id.value; Nation = validatedCommand.Nation; Space = validatedCommand.Space |> Space.toString })
-                                | 1 | 2 | 3 -> 
-                                    let newState = { rondelState with NationPositions = rondelState.NationPositions |> Map.add validatedCommand.Nation (Some (Space.toString validatedCommand.Space)) }
+                                let doFeeMovement nation space = 
+                                    let newState = { rondelState with NationPositions = rondelState.NationPositions |> Map.add nation (Some (Space.toString space)) }
                                     save newState |> ignore
-                                    publish (ActionDetermined { GameId = validatedCommand.GameId |> Id.value; Nation = validatedCommand.Nation; Action = validatedCommand.Space |> Space.toAction |> Action.toString})
-                                | 4 | 5 | 6 ->
+                                    publish (ActionDetermined { GameId = validatedCommand.GameId |> Id.value; Nation = nation; Action = space |> Space.toAction |> Action.toString})
+                                let createBillingAndCharge distance =
                                     let billingId = Guid.NewGuid()
                                     let pendingMovement = { TargetSpace = validatedCommand.Space |> Space.toString; Nation = validatedCommand.Nation; BillingId = billingId } : Dto.PendingMovement
                                     let newState = { rondelState with PendingMovements = rondelState.PendingMovements |> Map.add pendingMovement.BillingId pendingMovement }
@@ -206,6 +203,31 @@ module Rondel =
                                     |> Result.map chargeCommand
                                     |> Result.bind chargeForMovement
                                     |> ignore
+                                let forfeitSupersedingUnpaidMovement nation =
+                                    let supersedingPendingMovement =
+                                        rondelState.PendingMovements
+                                        |> Map.toSeq
+                                        |> Seq.find (fun (_, pm) -> pm.Nation = nation)
+                                        |> snd
+                                    let newState = { rondelState with PendingMovements = rondelState.PendingMovements |> Map.remove supersedingPendingMovement.BillingId }
+                                    save newState |> ignore
+                                    let voidCommand = { GameId = validatedCommand.GameId |> Id.value; BillingId = supersedingPendingMovement.BillingId } : VoidRondelChargeCommand
+                                    voidCommand |> voidCharge |> ignore
+                                    publish (MoveToActionSpaceRejected { GameId = validatedCommand.GameId |> Id.value; Nation = nation; Space = supersedingPendingMovement.TargetSpace })
+                                let distance = Space.distance nationPosition validatedCommand.Space
+                                let hasPendingMovement = rondelState.PendingMovements |> Map.exists (fun _ pm -> pm.Nation = validatedCommand.Nation)
+                                match distance, hasPendingMovement with
+                                | 0, _ -> publish (MoveToActionSpaceRejected { GameId = validatedCommand.GameId |> Id.value; Nation = validatedCommand.Nation; Space = validatedCommand.Space |> Space.toString })
+                                | 1, true | 2, true | 3, true -> 
+                                    forfeitSupersedingUnpaidMovement validatedCommand.Nation
+                                    doFeeMovement validatedCommand.Nation validatedCommand.Space
+                                | 1, false | 2, false | 3, false -> 
+                                    doFeeMovement validatedCommand.Nation validatedCommand.Space
+                                | 4, true | 5, true | 6, true ->
+                                    forfeitSupersedingUnpaidMovement validatedCommand.Nation
+                                    createBillingAndCharge distance
+                                | 4, false | 5, false | 6, false ->
+                                    createBillingAndCharge distance
                                 | _ -> publish (MoveToActionSpaceRejected { GameId = validatedCommand.GameId |> Id.value; Nation = validatedCommand.Nation; Space = validatedCommand.Space |> Space.toString })
                 Ok ()
 

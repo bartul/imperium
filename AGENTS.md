@@ -31,7 +31,7 @@ Last verified: 2025-12-15
 
 ### Open Work (current)
 - Rondel `setToStartingPositions` handler is complete with validation, state persistence, and event publishing.
-- Rondel `move` handler is complete: clockwise distance calculation, 1-3 space free moves with immediate action determination, 4-6 space paid moves with charge dispatch and pending state storage (formula: (distance - 3) * 2M), rejects 0-space (stay put) and 7+ space (exceeds max) moves. Handler accepts `ChargeNationForRondelMovement` and `VoidRondelCharge` dependencies (VoidRondelCharge currently unused, reserved for canceling pending charges).
+- Rondel `move` handler is complete: clockwise distance calculation, 1-3 space free moves with immediate action determination, 4-6 space paid moves with charge dispatch and pending state storage (formula: (distance - 3) * 2M), rejects 0-space (stay put) and 7+ space (exceeds max) moves. Handler accepts `ChargeNationForRondelMovement` and `VoidRondelCharge` dependencies. When a nation initiates a new move while a previous move is pending payment, the handler automatically voids the old charge, rejects the old pending move, and proceeds with the new move.
 - Implement remaining Rondel handlers (`onInvoicedPaid`, `onInvoicePaymentFailed`) to complete payment flow (move stored as pending, needs completion on payment confirmation or rejection on payment failure).
 - Add public APIs for Gameplay and Accounting or trim placeholders if unused.
 - Add Expecto tests for payment flow handlers (`onInvoicedPaid`, `onInvoicePaymentFailed`) once implemented.
@@ -66,6 +66,8 @@ Last verified: 2025-12-15
   - move: multiple consecutive moves of 1-3 spaces are free (property test, 15 iterations; validates 3 consecutive moves per nation with correct action determination and no charges, includes wraparound)
   - move: rejects moves of 7 spaces as exceeding maximum distance (property test, 15 iterations; validates all nations and starting positions reject 7-space moves with MoveToActionSpaceRejected, no charges)
   - move: moves of 4-6 spaces require payment (property test, 15 iterations; validates charge command dispatched with correct amount (distance - 3) * 2M, no premature action determination, move not rejected)
+  - move: superseding pending paid move with another paid move voids old charge and rejects old move (validates void command dispatched for old BillingId, old move rejected, new charge created with correct amount, no action determined for new pending move)
+  - move: superseding pending paid move with free move voids charge and completes immediately (validates void command dispatched, old move rejected, no new charge, new move completes with ActionDetermined)
 
 ## Commit & Pull Request Guidelines
 
