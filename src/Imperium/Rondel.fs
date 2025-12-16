@@ -120,7 +120,7 @@ module Rondel =
         type RondelState = {
             GameId: Guid
             NationPositions: Map<string, string option>
-            PendingMovements: Map<Guid, PendingMovement>
+            PendingMovements: Map<string, PendingMovement>
         }
         and PendingMovement = { Nation: string; TargetSpace: string; BillingId: Guid }
 
@@ -195,7 +195,7 @@ module Rondel =
                                 let createBillingAndCharge distance =
                                     let billingId = Guid.NewGuid()
                                     let pendingMovement = { TargetSpace = validatedCommand.Space |> Space.toString; Nation = validatedCommand.Nation; BillingId = billingId } : Dto.PendingMovement
-                                    let newState = { rondelState with PendingMovements = rondelState.PendingMovements |> Map.add pendingMovement.BillingId pendingMovement }
+                                    let newState = { rondelState with PendingMovements = rondelState.PendingMovements |> Map.add validatedCommand.Nation pendingMovement }
                                     save newState |> ignore
                                     let amount = (distance - 3) * 2 |> Amount.create
                                     let chargeCommand amount = { GameId = validatedCommand.GameId |> Id.value; Nation = validatedCommand.Nation; Amount = amount; BillingId = billingId }
@@ -204,18 +204,14 @@ module Rondel =
                                     |> Result.bind chargeForMovement
                                     |> ignore
                                 let forfeitSupersedingUnpaidMovement nation =
-                                    let supersedingPendingMovement =
-                                        rondelState.PendingMovements
-                                        |> Map.toSeq
-                                        |> Seq.find (fun (_, pm) -> pm.Nation = nation)
-                                        |> snd
-                                    let newState = { rondelState with PendingMovements = rondelState.PendingMovements |> Map.remove supersedingPendingMovement.BillingId }
+                                    let supersedingPendingMovement = rondelState.PendingMovements |> Map.find nation
+                                    let newState = { rondelState with PendingMovements = rondelState.PendingMovements |> Map.remove nation }
                                     save newState |> ignore
                                     let voidCommand = { GameId = validatedCommand.GameId |> Id.value; BillingId = supersedingPendingMovement.BillingId } : VoidRondelChargeCommand
                                     voidCommand |> voidCharge |> ignore
                                     publish (MoveToActionSpaceRejected { GameId = validatedCommand.GameId |> Id.value; Nation = nation; Space = supersedingPendingMovement.TargetSpace })
                                 let distance = Space.distance nationPosition validatedCommand.Space
-                                let hasPendingMovement = rondelState.PendingMovements |> Map.exists (fun _ pm -> pm.Nation = validatedCommand.Nation)
+                                let hasPendingMovement = rondelState.PendingMovements |> Map.containsKey validatedCommand.Nation
                                 match distance, hasPendingMovement with
                                 | 0, _ -> publish (MoveToActionSpaceRejected { GameId = validatedCommand.GameId |> Id.value; Nation = validatedCommand.Nation; Space = validatedCommand.Space |> Space.toString })
                                 | 1, true | 2, true | 3, true -> 

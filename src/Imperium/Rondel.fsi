@@ -14,7 +14,7 @@ module Rondel =
         type RondelState = {
             GameId: Guid
             NationPositions: Map<string, string option>
-            PendingMovements: Map<Guid, PendingMovement>
+            PendingMovements: Map<string, PendingMovement>
         }
         and PendingMovement = { Nation: string; TargetSpace: string; BillingId: Guid }
 

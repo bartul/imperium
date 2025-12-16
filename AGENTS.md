@@ -19,6 +19,7 @@ Last verified: 2025-12-15
   - All handlers take `PublishRondelEvent` (event publisher) as first parameter for explicit dependency injection
   - `Gameplay` and `Accounting` have no public API currently (placeholder values only)
   - `Rondel` exposes: PublishRondelEvent type, setToStartingPositions (implemented), move, onInvoicedPaid, onInvoicePaymentFailed (stubbed)
+  - `Rondel.Dto.RondelState`: GameId, NationPositions (Map<string, string option>), PendingMovements (Map<string, PendingMovement> keyed by nation name for O(log n) lookups)
 - `src/Imperium.Web` bootstraps the HTTP layer (`Program.fs`). Reference the core project via the existing project reference instead of duplicating logic.
 - `docs/` stores reference rulebooks; official rule PDFs live in `docs/official_rules/`. Leave build artefacts inside each project's `bin/` and `obj/` directories untouched.
 - Rondel spaces (board order): `Investor`, `Import`, `ProductionOne`, `ManeuverOne`, `Taxation`, `Factory`, `ProductionTwo`, `ManeuverTwo`.
