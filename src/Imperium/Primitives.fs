@@ -55,3 +55,31 @@ module Amount =
         match Int32.TryParse raw with
         | true, v -> create v
         | false, _ -> Error $"Invalid amount format: '%s{raw}'."
+
+/// Decision type for stateful processing with early resolution.
+/// Continue carries state to the next step, Resolve exits with an outcome.
+type Decision<'State, 'Outcome> =
+    | Continue of 'State
+    | Resolve of 'Outcome
+
+module Decision =
+    /// Bind: transform state or pass through resolution
+    let bind (f: 'a -> Decision<'b, 'outcome>) (pipeline: Decision<'a, 'outcome>) =
+        match pipeline with
+        | Resolve outcome -> Resolve outcome
+        | Continue state -> f state
+
+    /// Map: transform continuing state
+    let map (f: 'a -> 'b) (pipeline: Decision<'a, 'outcome>) =
+        match pipeline with
+        | Resolve outcome -> Resolve outcome
+        | Continue state -> Continue (f state)
+
+    /// Merge both cases when they contain the same type
+    let resolve (continueToOutcome: 'a -> 'outcome) (decision: Decision<'a, 'outcome>) : 'outcome =
+        match decision with
+        | Continue value -> continueToOutcome value
+        | Resolve value -> value
+
+    /// Infix bind operator
+    let (>>=) pipeline f = bind f pipeline

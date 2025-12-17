@@ -158,6 +158,12 @@ module Rondel =
         |> Result.bind validate 
         |> Result.bind (execute state)
 
+    type MoveOutcome = 
+        | Rejected
+        | Free of Space 
+        | FreeWithSupersedingUnpaidMovement of (Space * string)
+        | Paid of (Space * int)
+        | PaidWithSupersedingUnpaidMovement of (Space * int * string)
     // Command: Initiate nation movement to a space
     let move
         (load: LoadRondelState)
@@ -167,70 +173,111 @@ module Rondel =
         (voidCharge: VoidRondelCharge)
         (command: MoveCommand)
         : Result<unit, string> =
-            
-            let execute (state : Dto.RondelState option) validatedCommand =
+            let noMovesAllowedIfNotInitialized (state : Dto.RondelState option, validatedCommand) =
                 match state with
-                | None -> 
-                    publish (MoveToActionSpaceRejected { GameId = validatedCommand.GameId |> Id.value; Nation = validatedCommand.Nation; Space = validatedCommand.Space |> Space.toString })
-                | Some rondelState ->
-                    let position = rondelState.NationPositions |> Map.tryFind validatedCommand.Nation
-                    match position with
-                    | None ->
-                        publish (MoveToActionSpaceRejected { GameId = validatedCommand.GameId |> Id.value; Nation = validatedCommand.Nation; Space = validatedCommand.Space |> Space.toString })
-                    | Some possibleNationPosition ->
-                        match possibleNationPosition with
-                        | None ->
-                            let newState = { rondelState with NationPositions = rondelState.NationPositions |> Map.add validatedCommand.Nation (Some (Space.toString validatedCommand.Space)) }
-                            save newState |> ignore
-                            publish (ActionDetermined { GameId = validatedCommand.GameId |> Id.value; Nation = validatedCommand.Nation; Action = validatedCommand.Space |> Space.toAction |> Action.toString})
-                        | Some nationPositionString ->
-                            let nationPosition = nationPositionString |> Space.fromString 
-                            match nationPosition with
-                            | Error e -> failwith $"Invalid nation position in state. {e}"
-                            | Ok nationPosition ->
-                                let doFeeMovement nation space = 
-                                    let newState = { rondelState with NationPositions = rondelState.NationPositions |> Map.add nation (Some (Space.toString space)) }
-                                    save newState |> ignore
-                                    publish (ActionDetermined { GameId = validatedCommand.GameId |> Id.value; Nation = nation; Action = space |> Space.toAction |> Action.toString})
-                                let createBillingAndCharge distance =
-                                    let billingId = Guid.NewGuid()
-                                    let pendingMovement = { TargetSpace = validatedCommand.Space |> Space.toString; Nation = validatedCommand.Nation; BillingId = billingId } : Dto.PendingMovement
-                                    let newState = { rondelState with PendingMovements = rondelState.PendingMovements |> Map.add validatedCommand.Nation pendingMovement }
-                                    save newState |> ignore
-                                    let amount = (distance - 3) * 2 |> Amount.create
-                                    let chargeCommand amount = { GameId = validatedCommand.GameId |> Id.value; Nation = validatedCommand.Nation; Amount = amount; BillingId = billingId }
-                                    amount 
-                                    |> Result.map chargeCommand
-                                    |> Result.bind chargeForMovement
-                                    |> ignore
-                                let forfeitSupersedingUnpaidMovement nation =
-                                    let supersedingPendingMovement = rondelState.PendingMovements |> Map.find nation
-                                    let newState = { rondelState with PendingMovements = rondelState.PendingMovements |> Map.remove nation }
-                                    save newState |> ignore
-                                    let voidCommand = { GameId = validatedCommand.GameId |> Id.value; BillingId = supersedingPendingMovement.BillingId } : VoidRondelChargeCommand
-                                    voidCommand |> voidCharge |> ignore
-                                    publish (MoveToActionSpaceRejected { GameId = validatedCommand.GameId |> Id.value; Nation = nation; Space = supersedingPendingMovement.TargetSpace })
-                                let distance = Space.distance nationPosition validatedCommand.Space
-                                let hasPendingMovement = rondelState.PendingMovements |> Map.containsKey validatedCommand.Nation
-                                match distance, hasPendingMovement with
-                                | 0, _ -> publish (MoveToActionSpaceRejected { GameId = validatedCommand.GameId |> Id.value; Nation = validatedCommand.Nation; Space = validatedCommand.Space |> Space.toString })
-                                | 1, true | 2, true | 3, true -> 
-                                    forfeitSupersedingUnpaidMovement validatedCommand.Nation
-                                    doFeeMovement validatedCommand.Nation validatedCommand.Space
-                                | 1, false | 2, false | 3, false -> 
-                                    doFeeMovement validatedCommand.Nation validatedCommand.Space
-                                | 4, true | 5, true | 6, true ->
-                                    forfeitSupersedingUnpaidMovement validatedCommand.Nation
-                                    createBillingAndCharge distance
-                                | 4, false | 5, false | 6, false ->
-                                    createBillingAndCharge distance
-                                | _ -> publish (MoveToActionSpaceRejected { GameId = validatedCommand.GameId |> Id.value; Nation = validatedCommand.Nation; Space = validatedCommand.Space |> Space.toString })
-                Ok ()
+                | None -> Resolve Rejected
+                | Some s -> Continue (s, validatedCommand)
+            let noMovesAllowedForNationNotInGame (rondelState : Dto.RondelState, validatedCommand) =
+                match rondelState.NationPositions |> Map.tryFind validatedCommand.Nation with
+                | None -> Resolve Rejected
+                | Some possibleNationPosition -> Continue (rondelState, validatedCommand, possibleNationPosition)
+            let firstMoveIsFreeToAnyPosition (rondelState : Dto.RondelState, validatedCommand, possibleNationPosition) =
+                match possibleNationPosition with
+                | None -> Resolve (Free validatedCommand.Space)
+                | Some currentNationPosition -> Continue (rondelState, validatedCommand, currentNationPosition)
+            let failIfPositionIsInvalid (rondelState, validatedCommand, currentNationPosition) =
+                match Space.fromString currentNationPosition with
+                | Ok space -> Continue (rondelState, validatedCommand, space)
+                | Error e -> failwith $"Invalid nation position in state. {e}"
+            let decideMovementOutcome (rondelState : Dto.RondelState, validatedCommand, currentNationPosition) =
+                let distance = Space.distance currentNationPosition validatedCommand.Space
+                let hasPendingMovement = rondelState.PendingMovements |> Map.containsKey validatedCommand.Nation
+                match distance, hasPendingMovement with
+                | 0, _ -> Rejected
+                | 1, true | 2, true | 3, true -> FreeWithSupersedingUnpaidMovement (validatedCommand.Space, validatedCommand.Nation)
+                | 1, false | 2, false | 3, false -> Free validatedCommand.Space
+                | 4, true | 5, true | 6, true -> PaidWithSupersedingUnpaidMovement (validatedCommand.Space, distance, validatedCommand.Nation)
+                | 4, false | 5, false | 6, false -> Paid (validatedCommand.Space, distance)
+                | _, _ -> Rejected
+
+            let handleMoveOutcome (state: Dto.RondelState option) outcome =
+                match outcome with
+                | Rejected ->
+                    publish (MoveToActionSpaceRejected { GameId = command.GameId; Nation = command.Nation; Space = command.Space })
+                | Free space ->
+                    let newState =
+                        match state with
+                        | Some (s: Dto.RondelState) -> { s with NationPositions = s.NationPositions |> Map.add command.Nation (Some (Space.toString space)) }
+                        | None -> failwith "Rondel state not initialized."
+                    save newState |> ignore
+                    publish (ActionDetermined { GameId = command.GameId; Nation = command.Nation; Action = space |> Space.toAction |> Action.toString})
+                | FreeWithSupersedingUnpaidMovement (space, nation) ->
+                    let supersedingPendingMovement = 
+                        match state with
+                        | Some s -> s.PendingMovements |> Map.find nation
+                        | None -> failwith "Rondel state not initialized."
+                    let newState = 
+                        match state with
+                        | Some s -> { s with NationPositions = s.NationPositions |> Map.add nation (Some (Space.toString space)); PendingMovements = s.PendingMovements |> Map.remove nation }
+                        | None -> failwith "Rondel state not initialized."
+                    save newState |> ignore
+                    publish (ActionDetermined { GameId = command.GameId; Nation = nation; Action = space |> Space.toAction |> Action.toString})
+                    let voidCommand = { GameId = command.GameId; BillingId = supersedingPendingMovement.BillingId } : VoidRondelChargeCommand
+                    voidCommand |> voidCharge |> ignore
+                    publish (MoveToActionSpaceRejected { GameId = command.GameId; Nation = nation; Space = supersedingPendingMovement.TargetSpace })
+                | Paid (space, distance) ->
+                    let billingId = Guid.NewGuid()
+                    let pendingMovement = { TargetSpace = Space.toString space; Nation = command.Nation; BillingId = billingId } : Dto.PendingMovement
+                    let newState = 
+                        match state with
+                        | Some s -> { s with PendingMovements = s.PendingMovements |> Map.add command.Nation pendingMovement }
+                        | None -> failwith "Rondel state not initialized."
+                    save newState |> ignore
+                    let amount = (distance - 3) * 2 |> Amount.create
+                    let chargeCommand amount = { GameId = command.GameId; Nation = command.Nation; Amount = amount; BillingId = billingId }
+                    amount 
+                    |> Result.map chargeCommand
+                    |> Result.bind chargeForMovement
+                    |> ignore
+                | PaidWithSupersedingUnpaidMovement (space, distance, nation) ->
+                    let supersedingPendingMovement = 
+                        match state with
+                        | Some s -> s.PendingMovements |> Map.find nation
+                        | None -> failwith "Rondel state not initialized."
+                    let newState = 
+                        match state with
+                        | Some s -> { s with NationPositions = s.NationPositions |> Map.add nation (Some (Space.toString space)); PendingMovements = s.PendingMovements |> Map.remove nation }
+                        | None -> failwith "Rondel state not initialized."
+                    save newState |> ignore
+                    let voidCommand = { GameId = command.GameId; BillingId = supersedingPendingMovement.BillingId } : VoidRondelChargeCommand
+                    voidCommand |> voidCharge |> ignore
+                    let billingId = Guid.NewGuid()
+                    let pendingMovement = { TargetSpace = Space.toString space; Nation = command.Nation; BillingId = billingId } : Dto.PendingMovement
+                    let newStateAfterCharge = 
+                        match state with
+                        | Some s -> { s with PendingMovements = s.PendingMovements |> Map.add command.Nation pendingMovement }
+                        | None -> failwith "Rondel state not initialized."
+                    save newStateAfterCharge |> ignore
+                    let amount = (distance - 3) * 2 |> Amount.create
+                    let chargeCommand amount = { GameId = command.GameId; Nation = command.Nation; Amount = amount; BillingId = billingId }
+                    amount 
+                    |> Result.map chargeCommand
+                    |> Result.bind chargeForMovement
+                    |> ignore   
+                    publish (MoveToActionSpaceRejected { GameId = command.GameId; Nation = nation; Space = supersedingPendingMovement.TargetSpace })    
 
             let state = load command.GameId
+            let execute (state : Dto.RondelState option) (command : Move)  =
+                noMovesAllowedIfNotInitialized (state, command)
+                |> Decision.bind noMovesAllowedForNationNotInGame
+                |> Decision.bind firstMoveIsFreeToAnyPosition
+                |> Decision.bind failIfPositionIsInvalid
+                |> Decision.resolve decideMovementOutcome
+                |> handleMoveOutcome state
             command
             |> Move.toDomain
-            |> Result.bind (execute state)
+            |> Result.bind (fun cmd -> Ok (execute state cmd))
+
 
     // Event handler: Process successful invoice payment from Accounting domain
     let onInvoicedPaid
