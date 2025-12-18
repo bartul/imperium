@@ -30,6 +30,12 @@ Last verified: 2025-12-15
 - Public APIs return `Result<unit, string>`; errors are plain strings.
 - Signature files define public shape first; implementations should not widen the surface in `.fs`.
 
+### Rondel Implementation Patterns
+- **MoveOutcome type**: Internal discriminated union with named fields carrying complete context (targetSpace, distance, nation, rejectedCommand). All cases encapsulate necessary data, eliminating closure dependencies on outer scope variables for cleaner functional design.
+- **Decision chain**: Validates moves through `Decision` monad (`noMovesAllowedIfNotInitialized` → `noMovesAllowedForNationNotInGame` → `firstMoveIsFreeToAnyPosition` → `failIfPositionIsInvalid` → `decideMovementOutcome`) producing `MoveOutcome`.
+- **Side-effect separation**: `handleMoveOutcome` transforms `MoveOutcome` to `(state, events, commands)` tuple; `handleSideEffects` sequences persistence, event publishing, and outbound command dispatch with `Result.bind` for error propagation (short-circuits on first error).
+- **Command dispatch**: Uses `List.fold` with `Result.bind` to sequence outbound commands (`ChargeNationForRondelMovement`, `VoidRondelCharge`), returning first error or `Ok ()`.
+
 ### Open Work (current)
 - Rondel `setToStartingPositions` handler is complete with validation, state persistence, and event publishing.
 - Rondel `move` handler is complete: clockwise distance calculation, 1-3 space free moves with immediate action determination, 4-6 space paid moves with charge dispatch and pending state storage (formula: (distance - 3) * 2M), rejects 0-space (stay put) and 7+ space (exceeds max) moves. Handler accepts `ChargeNationForRondelMovement` and `VoidRondelCharge` dependencies. When a nation initiates a new move while a previous move is pending payment, the handler automatically voids the old charge, rejects the old pending move, and proceeds with the new move.
