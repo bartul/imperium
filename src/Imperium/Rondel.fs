@@ -215,7 +215,8 @@ module Rondel =
                     None, [MoveToActionSpaceRejected { GameId = rejectedCommand.GameId |> Id.value; Nation = rejectedCommand.Nation; Space = rejectedCommand.Space |> Space.toString }], []
                 | Free (targetSpace, nation), Some state ->
                     let newState = { state with NationPositions = state.NationPositions |> Map.add nation (Some (Space.toString targetSpace)) }
-                    Some newState, [ActionDetermined { GameId = state.GameId; Nation = nation; Action = targetSpace |> Space.toAction |> Action.toString }], []
+                    let actionDeterminedEvent = ActionDetermined { GameId = state.GameId; Nation = nation; Action = targetSpace |> Space.toAction |> Action.toString }
+                    Some newState, [actionDeterminedEvent], []
                 | FreeWithSupersedingUnpaidMovement (targetSpace, nation), Some state ->
                     let supersededPendingMovement = state.PendingMovements |> Map.find nation
                     let newState = { state with NationPositions = state.NationPositions |> Map.add nation (Some (Space.toString targetSpace)); PendingMovements = state.PendingMovements |> Map.remove nation }
@@ -241,7 +242,7 @@ module Rondel =
                     let moveRejected = MoveToActionSpaceRejected { GameId = state.GameId; Nation = nation; Space = supersededPendingMovement.TargetSpace }
                     Some newState, [moveRejected], [VoidRondelCharge voidCommand; ChargeNationForRondelMovement chargeCommand]
                 | _, _ -> failwith "Unhandled move outcome."
-            let handleSideEffects state events commands =
+            let performIO state events commands =
                 let saveState state =
                     match state with
                     | Some s -> save s 
@@ -265,7 +266,7 @@ module Rondel =
                     |> Decision.bind failIfPositionIsInvalid
                     |> Decision.resolve decideMovementOutcome
                     |> handleMoveOutcome state
-                    |> fun (newState, events, commands) -> handleSideEffects newState events commands
+                    |> fun (newState, events, commands) -> performIO newState events commands
 
             command
             |> Move.toDomain
