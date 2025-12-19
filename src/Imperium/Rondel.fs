@@ -218,29 +218,29 @@ module Rondel =
                     let actionDeterminedEvent = ActionDetermined { GameId = state.GameId; Nation = nation; Action = targetSpace |> Space.toAction |> Action.toString }
                     Some newState, [actionDeterminedEvent], []
                 | FreeWithSupersedingUnpaidMovement (targetSpace, nation), Some state ->
-                    let supersededPendingMovement = state.PendingMovements |> Map.find nation
                     let newState = { state with NationPositions = state.NationPositions |> Map.add nation (Some (Space.toString targetSpace)); PendingMovements = state.PendingMovements |> Map.remove nation }
-                    let actionDetermined = ActionDetermined { GameId = state.GameId; Nation = nation; Action = targetSpace |> Space.toAction |> Action.toString }
-                    let voidCommand = { GameId = state.GameId; BillingId = supersededPendingMovement.BillingId } : VoidRondelChargeCommand
-                    let supersedingMovementRejected = MoveToActionSpaceRejected { GameId = state.GameId; Nation = nation; Space = supersededPendingMovement.TargetSpace }
-                    Some newState, [actionDetermined; supersedingMovementRejected], [VoidRondelCharge voidCommand]
+                    let actionDeterminedEvent = ActionDetermined { GameId = state.GameId; Nation = nation; Action = targetSpace |> Space.toAction |> Action.toString }
+                    let existingUnpaidMove = state.PendingMovements |> Map.find nation
+                    let existingUnpaidMoveRejectedEvent = MoveToActionSpaceRejected { GameId = state.GameId; Nation = nation; Space = existingUnpaidMove.TargetSpace }
+                    let voidChargeCommand = { GameId = state.GameId; BillingId = existingUnpaidMove.BillingId } : VoidRondelChargeCommand
+                    Some newState, [actionDeterminedEvent; existingUnpaidMoveRejectedEvent], [VoidRondelCharge voidChargeCommand]
                 | Paid (targetSpace, distance, nation), Some state ->
                     let billingId = Guid.NewGuid()
-                    let pendingMovement = { TargetSpace = Space.toString targetSpace; Nation = nation; BillingId = billingId } : Dto.PendingMovement
-                    let newState = { state with PendingMovements = state.PendingMovements |> Map.add nation pendingMovement }
+                    let newPendingMove = { TargetSpace = Space.toString targetSpace; Nation = nation; BillingId = billingId } : Dto.PendingMovement
+                    let newState = { state with PendingMovements = state.PendingMovements |> Map.add nation newPendingMove }
                     let amount = (distance - 3) * 2 |> Amount.unsafe
                     let chargeCommand = { GameId = state.GameId; Nation = nation; Amount = amount; BillingId = billingId }
                     Some newState, [], [ChargeNationForRondelMovement chargeCommand]
                 | PaidWithSupersedingUnpaidMovement (targetSpace, distance, nation), Some state ->
-                    let supersededPendingMovement = state.PendingMovements |> Map.find nation
-                    let voidCommand = { GameId = state.GameId; BillingId = supersededPendingMovement.BillingId } : VoidRondelChargeCommand
                     let billingId = Guid.NewGuid()
-                    let pendingMovement = { TargetSpace = Space.toString targetSpace; Nation = nation; BillingId = billingId } : Dto.PendingMovement
-                    let newState = { state with PendingMovements = state.PendingMovements |> Map.add nation pendingMovement }
+                    let newPendingMove = { TargetSpace = Space.toString targetSpace; Nation = nation; BillingId = billingId } : Dto.PendingMovement
+                    let newState = { state with PendingMovements = state.PendingMovements |> Map.add nation newPendingMove }
                     let amount = (distance - 3) * 2 |> Amount.unsafe
                     let chargeCommand = { GameId = state.GameId; Nation = nation; Amount = amount; BillingId = billingId }
-                    let moveRejected = MoveToActionSpaceRejected { GameId = state.GameId; Nation = nation; Space = supersededPendingMovement.TargetSpace }
-                    Some newState, [moveRejected], [VoidRondelCharge voidCommand; ChargeNationForRondelMovement chargeCommand]
+                    let existingUnpaidMove = state.PendingMovements |> Map.find nation
+                    let existingUnpaidMoveRejectedEvent = MoveToActionSpaceRejected { GameId = state.GameId; Nation = nation; Space = existingUnpaidMove.TargetSpace }
+                    let voidChargeCommand = { GameId = state.GameId; BillingId = existingUnpaidMove.BillingId } : VoidRondelChargeCommand
+                    Some newState, [existingUnpaidMoveRejectedEvent], [VoidRondelCharge voidChargeCommand; ChargeNationForRondelMovement chargeCommand]
                 | _, _ -> failwith "Unhandled move outcome."
             let performIO state events commands =
                 let saveState state =
@@ -258,7 +258,7 @@ module Rondel =
                 saveState state
                 |> Result.bind (fun () -> publishEvents events)
                 |> Result.bind (fun () -> executeOutboundCommands commands)
-                |> Result.defaultWith (fun e -> failwith $"Failed to handle side effects: {e}")
+                |> Result.defaultWith (fun e -> failwith $"Failed to perform IO side effects: {e}")
             let execute state command =
                     noMovesAllowedIfNotInitialized (state, command)
                     |> Decision.bind noMovesAllowedForNationNotInGame
@@ -266,12 +266,12 @@ module Rondel =
                     |> Decision.bind failIfPositionIsInvalid
                     |> Decision.resolve decideMovementOutcome
                     |> handleMoveOutcome state
-                    |> fun (newState, events, commands) -> performIO newState events commands
+                    |||>performIO 
 
             command
             |> Move.toDomain
             |> Result.map (fun cmd -> load (cmd.GameId |> Id.value), cmd)
-            |> Result.bind (fun (loadState, cmd) -> Ok (execute loadState cmd))
+            |> Result.bind (fun (loadedState, cmd) -> Ok (execute loadedState cmd))
 
 
     // Event handler: Process successful invoice payment from Accounting domain
