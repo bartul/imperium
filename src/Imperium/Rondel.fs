@@ -133,6 +133,7 @@ module Rondel =
     type SaveRondelState = Dto.RondelState -> Result<unit, string>
     type PublishRondelEvent = RondelEvent -> unit
 
+
     // Command: Initialize rondel state for a game
     let setToStartingPositions
         (load: LoadRondelState)
@@ -141,26 +142,45 @@ module Rondel =
         (command: SetToStartingPositionsCommand)
         : Result<unit, string> =
 
-        let validate unvalidatedCommand =
-            if Set.isEmpty unvalidatedCommand.Nations then Error "Cannot initialize rondel with zero nations." else Ok unvalidatedCommand
+        let canNotSetStartPositionsWithNoNations command =
+            if Set.isEmpty command.Nations then Error "Cannot initialize rondel with zero nations." else Ok command
 
-        let execute state (validatedCommand : SetToStartingPositions) =
+        let execute state (command : SetToStartingPositions) =
             match state with
-            | Some _ -> Ok () // Already initialized, no-op
+            | Some _ -> None, [], []// Already initialized, no-op
             | None ->
-                save { 
-                    GameId = validatedCommand.GameId |> Id.value 
-                    NationPositions = validatedCommand.Nations |> Set.toSeq |> Seq.map (fun n -> n, None) |> Map.ofSeq
-                    PendingMovements = Map.empty 
-                }
-                |> Result.map (fun () ->
-                     publish (PositionedAtStart { GameId = validatedCommand.GameId |> Id.value })) 
+                let newState : Dto.RondelState = {
+                    GameId = command.GameId |> Id.value
+                    NationPositions = command.Nations |> Set.toSeq |> Seq.map (fun n -> n, None) |> Map.ofSeq
+                    PendingMovements = Map.empty
+                } 
+                let positionedAtStartEvent = PositionedAtStart { GameId = command.GameId |> Id.value }
+                Some newState, [positionedAtStartEvent], []
 
-        let state = load command.GameId      
+        let performIO state events commands =
+            let saveState state =
+                match state with
+                | Some s -> save s 
+                | None -> Ok ()
+            let publishEvents events = events |> List.iter publish |> Ok
+            let executeOutboundCommands commands =
+                let executeCommand = function
+                    | ChargeNationForRondelMovement c -> Ok ()
+                    | VoidRondelCharge c -> Ok () 
+                (Ok (), commands)
+                ||> List.fold (fun state cmd ->
+                    state |> Result.bind (fun () -> executeCommand cmd))
+            saveState state
+            |> Result.bind (fun () -> publishEvents events)
+            |> Result.bind (fun () -> executeOutboundCommands commands)
+            |> Result.defaultWith (fun e -> failwith $"Failed to perform IO side effects: {e}")
+
         command 
         |> SetToStartingPositions.toDomain 
-        |> Result.bind validate 
-        |> Result.bind (execute state)
+        |> Result.bind canNotSetStartPositionsWithNoNations 
+        |> Result.map (fun cmd -> load (cmd.GameId |> Id.value), cmd)
+        |> Result.map (fun (state, cmd) -> execute state cmd)
+        |> Result.map (fun (state, events, commands) -> performIO state events commands)
 
     type MoveOutcome =
         | Rejected of rejectedCommand : Move
@@ -250,7 +270,7 @@ module Rondel =
                 let publishEvents events = events |> List.iter publish |> Ok
                 let executeOutboundCommands commands =
                     let executeCommand = function
-                        | ChargeNationForRondelMovement c -> chargeForMovement c
+                        | ChargeNationForRondelMovement c -> chargeForMovement c 
                         | VoidRondelCharge c -> voidCharge c
                     (Ok (), commands)
                     ||> List.fold (fun state cmd ->
@@ -259,6 +279,7 @@ module Rondel =
                 |> Result.bind (fun () -> publishEvents events)
                 |> Result.bind (fun () -> executeOutboundCommands commands)
                 |> Result.defaultWith (fun e -> failwith $"Failed to perform IO side effects: {e}")
+
             let execute state command =
                     noMovesAllowedIfNotInitialized (state, command)
                     |> Decision.bind noMovesAllowedForNationNotInGame

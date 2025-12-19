@@ -40,4 +40,5 @@ Reasoning: preserves IL shape, avoids unwanted module-load computation, and keep
 
 - F# defaults: 4-space indent, `PascalCase` for types/modules, `camelCase` for functions.
 - Favor expression-based, pattern-matching code; keep handlers small and injected dependencies explicit.
+- Record construction: Use `{ Field = value }` syntax with type annotation when needed: `let x : RecordType = { ... }`. Never use `RecordType { ... }` - that's not valid F# syntax.
 - Run `dotnet build`/`dotnet test` locally; format with `dotnet tool run fantomas` if available.

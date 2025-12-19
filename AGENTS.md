@@ -31,9 +31,11 @@ Last verified: 2025-12-15
 - Signature files define public shape first; implementations should not widen the surface in `.fs`.
 
 ### Rondel Implementation Patterns
+- **Handler pipeline pattern**: Both `setToStartingPositions` and `move` handlers follow a consistent pipeline: domain conversion → validation → state loading → execution → IO side effects. Use `Result.map` to thread tuples through the pipeline and unwrap for final execution.
+- **Record construction**: Use type annotation for DTO construction: `let newState : Dto.RondelState = { GameId = ...; NationPositions = ...; PendingMovements = ... }`. F# records use `{ }` syntax directly, not `TypeName { }`.
 - **MoveOutcome type**: Internal discriminated union with named fields carrying complete context (targetSpace, distance, nation, rejectedCommand). All cases encapsulate necessary data, eliminating closure dependencies on outer scope variables for cleaner functional design.
 - **Decision chain**: Validates moves through `Decision` monad (`noMovesAllowedIfNotInitialized` → `noMovesAllowedForNationNotInGame` → `firstMoveIsFreeToAnyPosition` → `failIfPositionIsInvalid` → `decideMovementOutcome`) producing `MoveOutcome`.
-- **Side-effect separation**: `handleMoveOutcome` transforms `MoveOutcome` to `(state, events, commands)` tuple; `handleSideEffects` sequences persistence, event publishing, and outbound command dispatch with `Result.bind` for error propagation (short-circuits on first error).
+- **Side-effect separation**: `handleMoveOutcome` transforms `MoveOutcome` to `(state, events, commands)` tuple; `performIO` sequences persistence, event publishing, and outbound command dispatch with `Result.bind` for error propagation (short-circuits on first error), then uses `Result.defaultWith` to unwrap and throw on IO failures.
 - **Command dispatch**: Uses `List.fold` with `Result.bind` to sequence outbound commands (`ChargeNationForRondelMovement`, `VoidRondelCharge`), returning first error or `Ok ()`.
 
 ### Open Work (current)
