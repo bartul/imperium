@@ -511,4 +511,71 @@ let tests =
                 Expect.contains publishedEvents (ActionDetermined { GameId = gameId; Nation = "Germany"; Action = "Factory" })
                     "free move should determine action immediately despite superseding"
         ]
+        testList "onInvoicePaid" [
+            testCase "onInvoicePaid: completes pending movement and publishes ActionDetermined event" <| fun _ ->
+                // Setup: create mocks
+                let load, save = createMockStore()
+                let publish, publishedEvents = createMockPublisher()
+                let chargeForMovement, dispatchedCommands = createMockCommandDispatcher()
+                let voidCharge, voidedCommands = createMockVoidCharge()
+
+                let gameId = Guid.NewGuid()
+                let nations = [|"Austria"|]
+
+                // Setup: initialize rondel
+                setToStartingPositions load save publish { GameId = gameId; Nations = nations } |> ignore
+                publishedEvents.Clear()
+
+                // Setup: establish starting position with first move (free to any space)
+                move load save publish chargeForMovement voidCharge
+                    { GameId = gameId; Nation = "Austria"; Space = "ManeuverOne" } |> ignore
+
+                Expect.contains publishedEvents (ActionDetermined { GameId = gameId; Nation = "Austria"; Action = "Maneuver" })
+                    "first move should complete immediately"
+                publishedEvents.Clear()
+                dispatchedCommands.Clear()
+
+                // Setup: initiate paid move (5 spaces: ManeuverOne to Investor) - creates pending movement
+                move load save publish chargeForMovement voidCharge
+                    { GameId = gameId; Nation = "Austria"; Space = "Investor" } |> ignore
+
+                Expect.hasLength dispatchedCommands 1 "paid move should dispatch charge command"
+                let billingId = dispatchedCommands.[0].BillingId
+                Expect.equal dispatchedCommands.[0].Amount (Imperium.Primitives.Amount.unsafe 4)
+                    "charge for 5 spaces should be 4M"
+
+                let actionEvents = publishedEvents |> Seq.filter (function | ActionDetermined _ -> true | _ -> false) |> Seq.toList
+                Expect.isEmpty actionEvents "no action should be determined until payment confirmed"
+
+                publishedEvents.Clear()
+                dispatchedCommands.Clear()
+
+                // Execute: process payment confirmation
+                let paymentEvent : Imperium.Contract.Accounting.RondelInvoicePaid = { GameId = gameId; BillingId = billingId }
+                let result = onInvoicedPaid load save publish paymentEvent
+
+                // Assert: operation succeeds
+                Expect.isOk result "payment confirmation should succeed"
+
+                // Assert: ActionDetermined event published for target space
+                Expect.contains publishedEvents (ActionDetermined { GameId = gameId; Nation = "Austria"; Action = "Investor" })
+                    "ActionDetermined event should be published after payment confirmation"
+
+                // Assert: only one event published
+                Expect.hasLength publishedEvents 1 "only ActionDetermined event should be published"
+
+                // Assert: no additional charges or voids
+                Expect.isEmpty dispatchedCommands "no new charges after payment confirmation"
+                Expect.isEmpty voidedCommands "no voids after successful payment"
+
+                // Assert: verify state updated - pending movement cleared, position updated
+                // Subsequent move from Investor (new position) should succeed
+                publishedEvents.Clear()
+
+                move load save publish chargeForMovement voidCharge
+                    { GameId = gameId; Nation = "Austria"; Space = "Import" } |> ignore
+
+                Expect.contains publishedEvents (ActionDetermined { GameId = gameId; Nation = "Austria"; Action = "Import" })
+                    "subsequent move from Investor to Import (1 space) should succeed, confirming position was updated"
+        ]
     ]
