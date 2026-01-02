@@ -329,10 +329,15 @@ module Rondel =
                 |> Option.map snd
             match pendingMovement with
             | None -> None, []
-            | Some pending -> 
+            | Some pending ->
+                let action =
+                    Space.fromString pending.TargetSpace
+                    |> Result.map (Space.toAction >> Action.toString)
+                    |> Result.defaultWith (fun parseError ->
+                        failwith $"State corruption: invalid TargetSpace '{pending.TargetSpace}' for pending movement. GameId: {state.GameId}, Nation: {pending.Nation}, Error: {parseError}")
                 let newNationPosition = Some pending.TargetSpace
                 let newState = { state with NationPositions = state.NationPositions |> Map.add pending.Nation newNationPosition; PendingMovements = state.PendingMovements |> Map.remove pending.Nation }
-                let actionDeterminedEvent = ActionDetermined { GameId = state.GameId; Nation = pending.Nation; Action = (Space.fromString pending.TargetSpace |> Result.map Space.toAction |> Result.map Action.toString |> Result.defaultValue "Unknown") }
+                let actionDeterminedEvent = ActionDetermined { GameId = state.GameId; Nation = pending.Nation; Action = action }
                 Some newState, [actionDeterminedEvent]
 
         let execute state event =
