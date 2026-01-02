@@ -79,9 +79,28 @@ Last verified: 2025-12-15
   - move: superseding pending paid move with free move voids charge and completes immediately (validates void command dispatched, old move rejected, no new charge, new move completes with ActionDetermined)
   - onInvoicePaid: completes pending movement and publishes ActionDetermined event (validates payment confirmation updates position, removes pending movement, publishes correct action, and allows subsequent moves from new position)
 
+## Branch Naming Guidelines
+
+Use branch name prefixes to categorize the type of work, following conventional commit conventions:
+
+- `feat/` - New features or functionality (e.g., `feat/implement-invoice-paid-handler`, `feat/add-nation-selection`)
+- `fix/` - Bug fixes (e.g., `fix/rondel-distance-calculation`, `fix/null-reference-in-payment`)
+- `refactor/` - Code refactoring without changing behavior (e.g., `refactor/extract-validation-pipeline`, `refactor/simplify-move-handler`)
+- `test/` - Adding or updating tests (e.g., `test/add-property-tests-for-moves`, `test/improve-coverage`)
+- `docs/` - Documentation updates (e.g., `docs/update-rondel-rules`, `docs/add-api-examples`)
+- `chore/` - Maintenance tasks: dependencies, build config, tooling (e.g., `chore/upgrade-dotnet-9`, `chore/update-fantomas`)
+- `perf/` - Performance improvements (e.g., `perf/optimize-state-loading`, `perf/cache-distance-calc`)
+- `style/` - Code style/formatting changes with no logic impact (e.g., `style/reformat-with-fantomas`)
+
+**Examples:**
+- Implementing payment handler: `feat/implement-invoice-paid-handler`
+- Fixing a movement bug: `fix/correct-7-space-rejection`
+- Adding property tests: `test/add-superseding-move-tests`
+- Refactoring validation: `refactor/use-decision-monad`
+
 ## Commit & Pull Request Guidelines
 
 - Follow the existing history: imperative, concise subject lines (`Update to dotnet 9`, `Add web`).
-- Keep commits scoped to one concern; describe “what” and “why” in the body when context is non-trivial.
+- Keep commits scoped to one concern; describe "what" and "why" in the body when context is non-trivial.
 - PRs should link relevant issues, outline test evidence (command outputs or screenshots), and call out any manual steps for deployment.
 - Request review from domain owners when altering core rule logic or public web endpoints.
