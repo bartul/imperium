@@ -322,13 +322,16 @@ module Rondel =
             | None -> failwith "Rondel not initialized for game."
         let registerPaymentAndCompleteMovement (state : Dto.RondelState, event : RondelInvoicePaid) =
             let billingId = event.BillingId
-            let pendingMovement = 
+            let pendingMovement =
                 state.PendingMovements
                 |> Map.toSeq
                 |> Seq.tryFind (fun (_, pm) -> pm.BillingId = billingId)
                 |> Option.map snd
             match pendingMovement with
-            | None -> None, []
+            | None ->
+                // No pending movement found for this BillingId - event is ignored for idempotency.
+                // This handles duplicate payment events or payments received after movement was already completed/voided.
+                None, []
             | Some pending ->
                 let action =
                     Space.fromString pending.TargetSpace
