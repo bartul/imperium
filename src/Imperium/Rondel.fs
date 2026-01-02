@@ -290,7 +290,7 @@ module Rondel =
                 |> Decision.bind failIfPositionIsInvalid
                 |> Decision.resolve decideMovementOutcome
                 |> handleMoveOutcome state
-                |||>performIO 
+                |||> performIO 
 
             command
             |> Move.toDomain
@@ -345,9 +345,8 @@ module Rondel =
             |> registerPaymentAndCompleteMovement
             ||> performIO
 
-        event
-        |> fun (event) -> (load (event.GameId), event)
-        |> fun (loadedState, event) -> Ok (execute loadedState event)
+        let loadedState = load (event.GameId)
+        Ok (execute loadedState event)
         
     // Event handler: Process failed invoice payment from Accounting domain
     let onInvoicePaymentFailed
