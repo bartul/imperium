@@ -1,0 +1,147 @@
+# Continuous Integration workflow for Imperium
+# Runs on all pushes to master and pull requests targeting master
+# Serves as the required quality gate for merging changes
+
+name: Continuous Integration
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+
+jobs:
+  build-and-test:
+    name: Build, Test & Verify
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: 10.0.x
+
+    - name: Cache NuGet packages
+      uses: actions/cache@v4
+      with:
+        path: ~/.nuget/packages
+        key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.fsproj') }}
+        restore-keys: |
+          ${{ runner.os }}-nuget-
+
+    - name: Restore .NET tools
+      run: dotnet tool restore
+
+    - name: Restore dependencies
+      run: dotnet restore Imperium.sln
+
+    - name: Build (warnings as errors)
+      id: build
+      run: dotnet build Imperium.sln --no-restore --configuration Release
+
+    - name: Run tests
+      id: test
+      run: |
+        dotnet test Imperium.sln \
+          --no-build \
+          --configuration Release \
+          --verbosity normal \
+          --logger "console;verbosity=detailed" \
+          --logger "trx;LogFileName=test-results.trx" \
+          --logger "GitHubActions;summary.includePassedTests=true;summary.includeSkippedTests=true" \
+          --results-directory ./TestResults
+      continue-on-error: true
+
+    - name: Upload test results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: test-results
+        path: ./TestResults/*.trx
+        retention-days: 30
+
+    - name: Check code formatting
+      id: format
+      run: |
+        echo "Checking code formatting with Fantomas..."
+        dotnet fantomas --check .
+      continue-on-error: true
+
+    - name: Parse test results
+      if: always()
+      id: test_results
+      run: |
+        if [ -f ./TestResults/test-results.trx ]; then
+          # Extract test counts from TRX file
+          TOTAL=$(grep -oP 'total="\K[0-9]+' ./TestResults/test-results.trx | head -1 || echo "0")
+          PASSED=$(grep -oP 'passed="\K[0-9]+' ./TestResults/test-results.trx | head -1 || echo "0")
+          FAILED=$(grep -oP 'failed="\K[0-9]+' ./TestResults/test-results.trx | head -1 || echo "0")
+
+          echo "total=$TOTAL" >> $GITHUB_OUTPUT
+          echo "passed=$PASSED" >> $GITHUB_OUTPUT
+          echo "failed=$FAILED" >> $GITHUB_OUTPUT
+        else
+          echo "total=0" >> $GITHUB_OUTPUT
+          echo "passed=0" >> $GITHUB_OUTPUT
+          echo "failed=0" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Generate job summary
+      if: always()
+      run: |
+        echo "## 🚀 CI Results" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+
+        # Build status
+        if [ "${{ steps.build.outcome }}" == "success" ]; then
+          echo "### ✅ Build: Passed" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "### ❌ Build: Failed" >> $GITHUB_STEP_SUMMARY
+        fi
+        echo "" >> $GITHUB_STEP_SUMMARY
+
+        # Test results table
+        echo "### 🧪 Test Results" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "| Metric | Count |" >> $GITHUB_STEP_SUMMARY
+        echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
+        echo "| **Total Tests** | ${{ steps.test_results.outputs.total }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| ✅ Passed | ${{ steps.test_results.outputs.passed }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| ❌ Failed | ${{ steps.test_results.outputs.failed }} |" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+
+        # Test status
+        if [ "${{ steps.test.outcome }}" == "success" ]; then
+          echo "**Status:** ✅ All tests passed" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "**Status:** ❌ Some tests failed" >> $GITHUB_STEP_SUMMARY
+        fi
+        echo "" >> $GITHUB_STEP_SUMMARY
+
+        # Formatting status
+        echo "### 🎨 Code Formatting" >> $GITHUB_STEP_SUMMARY
+        if [ "${{ steps.format.outcome }}" == "success" ]; then
+          echo "✅ Code is properly formatted" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "⚠️ Code formatting issues detected (run \`dotnet fantomas .\` locally)" >> $GITHUB_STEP_SUMMARY
+        fi
+        echo "" >> $GITHUB_STEP_SUMMARY
+
+        # Overall status
+        echo "---" >> $GITHUB_STEP_SUMMARY
+        if [ "${{ steps.build.outcome }}" == "success" ] && [ "${{ steps.test.outcome }}" == "success" ]; then
+          echo "### ✅ All checks passed! Ready to merge." >> $GITHUB_STEP_SUMMARY
+        else
+          echo "### ❌ Some checks failed. Please review the errors above." >> $GITHUB_STEP_SUMMARY
+        fi
+
+    - name: Fail if tests failed
+      if: steps.test.outcome != 'success'
+      run: exit 1
+
+    - name: Fail if build failed
+      if: steps.build.outcome != 'success'
+      run: exit 1
