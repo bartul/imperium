@@ -113,7 +113,10 @@ module Rondel =
             Id.create command.GameId
             |> Result.bind (fun id -> Space.fromString command.Space |> Result.map (fun space -> id, space))
             |> Result.map (fun (id, space) -> { GameId = id; Nation = command.Nation; Space = space })
-    
+
+    type RondelInboundEvent =
+        | RondelInvoicePaid of RondelInvoicePaid
+        | RondelInvoicePaymentFailed of RondelInvoicePaymentFailed
     type RondelOutboundCommand =
         | ChargeNationForRondelMovement of ChargeNationForRondelMovementCommand
         | VoidRondelCharge of VoidRondelChargeCommand
@@ -281,13 +284,13 @@ module Rondel =
                 |> Result.defaultWith (fun e -> failwith $"Failed to perform IO side effects: {e}")
 
             let execute state command =
-                    noMovesAllowedIfNotInitialized (state, command)
-                    |> Decision.bind noMovesAllowedForNationNotInGame
-                    |> Decision.bind firstMoveIsFreeToAnyPosition
-                    |> Decision.bind failIfPositionIsInvalid
-                    |> Decision.resolve decideMovementOutcome
-                    |> handleMoveOutcome state
-                    |||>performIO 
+                noMovesAllowedIfNotInitialized (state, command)
+                |> Decision.bind noMovesAllowedForNationNotInGame
+                |> Decision.bind firstMoveIsFreeToAnyPosition
+                |> Decision.bind failIfPositionIsInvalid
+                |> Decision.resolve decideMovementOutcome
+                |> handleMoveOutcome state
+                |||> performIO 
 
             command
             |> Move.toDomain
@@ -302,8 +305,52 @@ module Rondel =
         (publish: PublishRondelEvent)
         (event: RondelInvoicePaid)
         : Result<unit, string> =
-        invalidOp "Not implemented: onInvoicedPaid"
 
+        let performIO state events =
+            let saveState state =
+                match state with
+                | Some s -> save s 
+                | None -> Ok ()
+            let publishEvents events = events |> List.iter publish |> Ok
+            saveState state
+            |> Result.bind (fun () -> publishEvents events)
+            |> Result.defaultWith (fun e -> failwith $"Failed to perform IO side effects: {e}")
+
+        let failIfNotInitialized (state : Dto.RondelState option, event : RondelInvoicePaid) =
+            match state with
+            | Some s -> (s, event)
+            | None -> failwith "Rondel not initialized for game."
+        let registerPaymentAndCompleteMovement (state : Dto.RondelState, event : RondelInvoicePaid) =
+            let billingId = event.BillingId
+            let pendingMovement =
+                state.PendingMovements
+                |> Map.toSeq
+                |> Seq.tryFind (fun (_, pm) -> pm.BillingId = billingId)
+                |> Option.map snd
+            match pendingMovement with
+            | None ->
+                // No pending movement found for this BillingId - event is ignored for idempotency.
+                // This handles duplicate payment events or payments received after movement was already completed/voided.
+                None, []
+            | Some pending ->
+                let action =
+                    Space.fromString pending.TargetSpace
+                    |> Result.map (Space.toAction >> Action.toString)
+                    |> Result.defaultWith (fun parseError ->
+                        failwith $"State corruption: invalid TargetSpace '{pending.TargetSpace}' for pending movement. GameId: {state.GameId}, Nation: {pending.Nation}, Error: {parseError}")
+                let newNationPosition = Some pending.TargetSpace
+                let newState = { state with NationPositions = state.NationPositions |> Map.add pending.Nation newNationPosition; PendingMovements = state.PendingMovements |> Map.remove pending.Nation }
+                let actionDeterminedEvent = ActionDetermined { GameId = state.GameId; Nation = pending.Nation; Action = action }
+                Some newState, [actionDeterminedEvent]
+
+        let execute state event =
+            failIfNotInitialized (state, event)
+            |> registerPaymentAndCompleteMovement
+            ||> performIO
+
+        let loadedState = load (event.GameId)
+        Ok (execute loadedState event)
+        
     // Event handler: Process failed invoice payment from Accounting domain
     let onInvoicePaymentFailed
         (load: LoadRondelState)

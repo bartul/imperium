@@ -45,6 +45,7 @@ module Rondel =
 
     /// Event handler: Processes invoice payment confirmation from Accounting domain.
     /// Completes the nation's movement and publishes ActionDetermined integration event.
+    /// If no pending movement exists for the BillingId, the event is ignored (idempotent behavior).
     val onInvoicedPaid: LoadRondelState -> SaveRondelState -> PublishRondelEvent -> RondelInvoicePaid -> Result<unit, string>
 
     /// Event handler: Processes invoice payment failure from Accounting domain.
