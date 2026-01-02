@@ -98,9 +98,69 @@ Use branch name prefixes to categorize the type of work, following conventional 
 - Adding property tests: `test/add-superseding-move-tests`
 - Refactoring validation: `refactor/use-decision-monad`
 
+## Pull Request Workflow
+
+All changes must go through pull requests to maintain code quality and enable proper review. Direct pushes to `master` are discouraged (see Branch Protection below).
+
+### Standard Workflow
+
+1. **Create branch** - Use appropriate prefix from Branch Naming Guidelines
+   ```bash
+   git checkout -b feat/your-feature-name
+   ```
+
+2. **Make changes** - Implement your changes following the three-phase module development process
+   - Write tests first when adding new functionality
+   - Keep commits focused and well-described
+
+3. **Verify locally** - Ensure all checks pass before pushing
+   ```bash
+   dotnet build Imperium.sln --configuration Release
+   dotnet test Imperium.sln --configuration Release
+   ```
+
+4. **Push and create PR** - Push your branch and open a pull request
+   ```bash
+   git push -u origin feat/your-feature-name
+   gh pr create --fill  # or use GitHub web UI
+   ```
+
+5. **CI must pass** - The "Continuous Integration" workflow serves as the required quality gate
+   - Build must succeed with no warnings
+   - All tests must pass
+   - If CI fails, fix issues and push updates
+
+6. **Code review** - Wait for review approval
+   - Address review comments
+   - Push additional commits as needed
+
+7. **Merge** - Once approved and CI passes, merge to master
+   - Use "Squash and merge" for clean history (preferred)
+   - Use "Merge commit" to preserve detailed commit history
+   - Delete branch after merging
+
+### Branch Protection (Workaround)
+
+GitHub branch protection rules require GitHub Pro for private repositories. Until upgraded:
+
+- **Team Agreement**: Never push directly to `master` except for emergencies
+- **CI as Quality Gate**: The "Continuous Integration" workflow provides automated quality checks
+- **Self-Review**: Before merging your own PR, verify:
+  - CI passes (green checkmark)
+  - Code follows project conventions
+  - Tests provide adequate coverage
+  - Documentation is updated if needed
+
+**Future**: When GitHub Pro is enabled, configure these branch protection rules:
+- Require pull request before merging
+- Require status checks to pass (Continuous Integration workflow)
+- Require conversation resolution before merging
+- Do not allow bypassing the above settings
+
 ## Commit & Pull Request Guidelines
 
 - Follow the existing history: imperative, concise subject lines (`Update to dotnet 9`, `Add web`).
 - Keep commits scoped to one concern; describe "what" and "why" in the body when context is non-trivial.
 - PRs should link relevant issues, outline test evidence (command outputs or screenshots), and call out any manual steps for deployment.
+- Use the PR template (`.github/PULL_REQUEST_TEMPLATE.md`) to structure your PR description.
 - Request review from domain owners when altering core rule logic or public web endpoints.
