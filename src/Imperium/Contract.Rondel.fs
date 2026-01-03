@@ -8,6 +8,7 @@ module Rondel =
 
     // Commands
     type SetToStartingPositionsCommand = { GameId: Guid; Nations: string array }
+
     and MoveCommand =
         { GameId: Guid
           Nation: string

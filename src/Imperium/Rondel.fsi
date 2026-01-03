@@ -45,12 +45,12 @@ module Rondel =
 
     // Commands
 
-    type RondelCommand = 
+    type RondelCommand =
         | SetToStartingPositions of SetToStartingPositionsCommand
         | Move of MoveCommand
-    and SetToStartingPositionsCommand =
-        { GameId: Id
-          Nations: Set<string> }
+
+    and SetToStartingPositionsCommand = { GameId: Id; Nations: Set<string> }
+
     and MoveCommand =
         { GameId: Id
           Nation: string
@@ -73,7 +73,8 @@ module Rondel =
     /// Command: Initialize rondel for the specified game with the given nations.
     /// All nations are positioned at their starting positions.
     /// Publishes PositionedAtStart integration event. Fails if nation set is empty.
-    val setToStartingPositions: LoadRondelState -> SaveRondelState -> PublishRondelEvent -> SetToStartingPositionsCommand -> unit
+    val setToStartingPositions:
+        LoadRondelState -> SaveRondelState -> PublishRondelEvent -> SetToStartingPositionsCommand -> unit
 
     /// Command: Move a nation to the specified space on the rondel.
     /// Determines movement cost and charges via injected Accounting dependency.
@@ -84,7 +85,8 @@ module Rondel =
         PublishRondelEvent ->
         ChargeNationForRondelMovement ->
         VoidRondelCharge ->
-            MoveCommand -> unit
+        MoveCommand ->
+            unit
 
     // Event handlers
 

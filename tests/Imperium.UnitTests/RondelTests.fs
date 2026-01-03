@@ -233,9 +233,11 @@ let tests =
                     let voidCharge, voidedCommands = createMockVoidCharge ()
 
                     let contractInitCommand = { GameId = gameId; Nations = nations }
+
                     let domainInitCommand =
                         SetToStartingPositionsCommand.toDomain contractInitCommand
                         |> Result.defaultWith failwith
+
                     setToStartingPositions load save publish domainInitCommand
                     publishedEvents.Clear()
 
@@ -318,9 +320,11 @@ let tests =
                     let voidCharge, voidedCommands = createMockVoidCharge ()
 
                     let contractInitCommand = { GameId = gameId; Nations = nations }
+
                     let domainInitCommand =
                         SetToStartingPositionsCommand.toDomain contractInitCommand
                         |> Result.defaultWith failwith
+
                     setToStartingPositions load save publish domainInitCommand
                     publishedEvents.Clear()
 
@@ -437,9 +441,11 @@ let tests =
                     let voidCharge, voidedCommands = createMockVoidCharge ()
 
                     let contractInitCommand = { GameId = gameId; Nations = nations }
+
                     let domainInitCommand =
                         SetToStartingPositionsCommand.toDomain contractInitCommand
                         |> Result.defaultWith failwith
+
                     setToStartingPositions load save publish domainInitCommand
                     publishedEvents.Clear()
 
@@ -566,9 +572,11 @@ let tests =
                     let voidCharge, voidedCommands = createMockVoidCharge ()
 
                     let contractInitCommand = { GameId = gameId; Nations = nations }
+
                     let domainInitCommand =
                         SetToStartingPositionsCommand.toDomain contractInitCommand
                         |> Result.defaultWith failwith
+
                     setToStartingPositions load save publish domainInitCommand
                     publishedEvents.Clear()
 
@@ -675,9 +683,11 @@ let tests =
                     let voidCharge, voidedCommands = createMockVoidCharge ()
 
                     let contractInitCommand = { GameId = gameId; Nations = nations }
+
                     let domainInitCommand =
                         SetToStartingPositionsCommand.toDomain contractInitCommand
                         |> Result.defaultWith failwith
+
                     setToStartingPositions load save publish domainInitCommand
                     publishedEvents.Clear()
 
@@ -708,7 +718,10 @@ let tests =
                           Space = targetSpace }
 
                     let transformResult2 = MoveCommand.toDomain contractMoveCommand2
-                    Expect.isOk transformResult2 (sprintf "move of %d spaces should be accepted (payment required)" dist)
+
+                    Expect.isOk
+                        transformResult2
+                        (sprintf "move of %d spaces should be accepted (payment required)" dist)
 
                     let domainMoveCommand2 = Result.defaultWith failwith transformResult2
 
@@ -754,8 +767,7 @@ let tests =
 
                     Expect.isEmpty rejectedEvents "move requiring payment should not be rejected"
 
-                testCase
-                    "superseding pending paid move with another paid move voids old charge and rejects old move"
+                testCase "superseding pending paid move with another paid move voids old charge and rejects old move"
                 <| fun _ ->
                     // Setup
                     let load, save = createMockStore ()
@@ -770,6 +782,7 @@ let tests =
                     let domainInitCmd =
                         SetToStartingPositionsCommand.toDomain { GameId = gameId; Nations = nations }
                         |> Result.defaultWith failwith
+
                     setToStartingPositions load save publish domainInitCmd
 
                     publishedEvents.Clear()
@@ -893,6 +906,7 @@ let tests =
                     let domainInitCmd =
                         SetToStartingPositionsCommand.toDomain { GameId = gameId; Nations = nations }
                         |> Result.defaultWith failwith
+
                     setToStartingPositions load save publish domainInitCmd
 
                     publishedEvents.Clear()
@@ -1009,6 +1023,7 @@ let tests =
                     let domainInitCmd =
                         SetToStartingPositionsCommand.toDomain { GameId = gameId; Nations = nations }
                         |> Result.defaultWith failwith
+
                     setToStartingPositions load save publish domainInitCmd
 
                     publishedEvents.Clear()

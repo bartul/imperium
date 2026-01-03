@@ -132,22 +132,24 @@ module Rondel =
     type SaveRondelState = Dto.RondelState -> Result<unit, string>
     type PublishRondelEvent = RondelEvent -> unit
 
-    type RondelCommand = 
+    type RondelCommand =
         | SetToStartingPositions of SetToStartingPositionsCommand
         | Move of MoveCommand
-    and SetToStartingPositionsCommand =
-        { GameId: Id
-          Nations: Set<string> }
+
+    and SetToStartingPositionsCommand = { GameId: Id; Nations: Set<string> }
+
     and MoveCommand =
         { GameId: Id
           Nation: string
           Space: Space }
+
     module SetToStartingPositionsCommand =
         let toDomain (command: Contract.Rondel.SetToStartingPositionsCommand) =
             Id.create command.GameId
             |> Result.map (fun id ->
                 { GameId = id
                   Nations = Set.ofArray command.Nations })
+
     module MoveCommand =
         let toDomain (command: Contract.Rondel.MoveCommand) =
             Id.create command.GameId
@@ -210,8 +212,8 @@ module Rondel =
         command
         |> canNotSetStartPositionsWithNoNations
         |> (fun cmd -> load (cmd.GameId |> Id.value), cmd)
-        ||> execute 
-        |||> performIO 
+        ||> execute
+        |||> performIO
 
     type MoveOutcome =
         | Rejected of rejectedCommand: MoveCommand
@@ -417,9 +419,7 @@ module Rondel =
             |> handleMoveOutcome state
             |||> performIO
 
-        command
-        |> (fun cmd -> load (cmd.GameId |> Id.value), cmd)
-        ||> execute
+        command |> (fun cmd -> load (cmd.GameId |> Id.value), cmd) ||> execute
 
 
     // Event handler: Process successful invoice payment from Accounting domain
