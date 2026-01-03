@@ -1,5 +1,5 @@
 # Repository Guidelines
-Last verified: 2025-12-15
+Last verified: 2026-01-03
 
 ## Project Structure & Module Organization
 - `Imperium.sln` stitches together the core F# library, ASP.NET Core web host, and unit test project.
@@ -57,7 +57,7 @@ Last verified: 2025-12-15
 - Use the default F# formatting (4-space indentation, modules and types in `PascalCase`, functions and values in `camelCase`).
 - Group related functions into modules that mirror file names (`Rondel`, `MonetarySystem`); expose a minimal public surface.
 - Prefer expression-based code and pattern matching over mutable branches.
-- Before committing, run `dotnet tool run fantomas` if the formatter is configured; otherwise keep diffs tidy and minimal.
+- Before committing, run `dotnet fantomas .` to format code (configured via `.config/dotnet-tools.json`); keep diffs tidy and minimal.
 
 ## Testing Guidelines
 - Unit tests live in `tests/Imperium.UnitTests` using Expecto 10.2.3 with FsCheck integration for property-based testing.
@@ -165,3 +165,67 @@ GitHub branch protection rules require GitHub Pro for private repositories. Unti
 - PRs should link relevant issues, outline test evidence (command outputs or screenshots), and call out any manual steps for deployment.
 - Use the PR template (`.github/PULL_REQUEST_TEMPLATE.md`) to structure your PR description.
 - Request review from domain owners when altering core rule logic or public web endpoints.
+
+## Continuous Integration
+
+The project uses GitHub Actions for automated quality checks on all pull requests and pushes to master.
+
+### CI Workflow (`.github/workflows/ci.yml`)
+
+**Workflow name:** "Continuous Integration"
+
+**Triggers:**
+- Push to `master` branch
+- Pull requests targeting `master` branch
+
+**Build Steps:**
+1. **Restore tools**: `dotnet tool restore` (Fantomas from `.config/dotnet-tools.json`)
+2. **Cache NuGet packages**: Speeds up builds by ~30%
+3. **Restore dependencies**: `dotnet restore Imperium.sln`
+4. **Build**: `dotnet build --configuration Release` (warnings as errors)
+5. **Test**: `dotnet test` with multiple loggers:
+   - Console logger for CI output
+   - TRX logger for test results file
+   - GitHubActionsTestLogger for automatic annotations
+6. **Format check**: `dotnet fantomas --check .` (continues on error)
+7. **Upload artifacts**: Test results preserved for 30 days
+
+**Test Reporting:**
+- Failed tests create **GitHub annotations** in PR Files Changed view
+- Job summary displays test results table (Total, Passed, Failed)
+- TRX files uploaded as downloadable artifacts
+- Formatting issues reported with actionable messages
+
+**Job Summary Output:**
+- ✅/❌ Build status
+- 🧪 Test results table
+- 🎨 Code formatting status
+- Overall pass/fail indicator
+
+**Required for merge:**
+- Build must succeed
+- All tests must pass
+- Formatting check is informational only (continues on error)
+
+### GitHub Repository Settings
+
+**Auto-delete branches**: Enabled
+- Merged PR branches are automatically deleted
+- Keeps repository clean without manual cleanup
+- Configure at: Repository Settings → General → Pull Requests
+
+### Local Development Tools
+
+**.config/dotnet-tools.json** contains:
+- `fantomas` (7.0.5): F# code formatter
+
+**Restore tools locally:**
+```bash
+dotnet tool restore
+```
+
+**Format code:**
+```bash
+dotnet fantomas .          # Format all files
+dotnet fantomas --check .  # Check without modifying
+```

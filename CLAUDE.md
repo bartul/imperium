@@ -1,14 +1,14 @@
 # CLAUDE.md
 
 This file guides Claude Code (claude.ai/code) for this repository. For shared repo facts, module summaries, and commands, see `AGENTS.md`.
-Last verified: 2025-12-15
+Last verified: 2026-01-03
 
 ## Quick Status (last verified: current)
 
-- Rondel handlers: `setToStartingPositions` (complete), `move` (complete - handles 1-3 space free moves, 4-6 space paid moves with charge dispatch and pending state, rejects 0 and 7+ space moves; accepts ChargeNationForRondelMovement and VoidRondelCharge dependencies; automatically voids old charges and rejects old pending moves when a nation initiates a new move before previous payment completes; PendingMovements map keyed by nation for efficient lookups), `onInvoicedPaid`, `onInvoicePaymentFailed` (stubbed).
+- Rondel handlers: `setToStartingPositions` (complete), `move` (complete - handles 1-3 space free moves, 4-6 space paid moves with charge dispatch and pending state, rejects 0 and 7+ space moves; accepts ChargeNationForRondelMovement and VoidRondelCharge dependencies; automatically voids old charges and rejects old pending moves when a nation initiates a new move before previous payment completes; PendingMovements map keyed by nation for efficient lookups), `onInvoicedPaid` (complete - idempotent payment confirmation handler; ignores duplicate payment events; fails fast on state corruption), `onInvoicePaymentFailed` (stubbed).
 - Accounting contract: ChargeNationForRondelMovement (command for charging rondel movement fees), VoidRondelCharge (command for voiding previously initiated charges before payment completion).
 - Gameplay and Accounting modules expose no public API yet.
-- Tests cover Rondel starting positions validation/signaling, `move` first-move-to-any-space (property test with 15 iterations), rejection of moves to current position (property test with 15 iterations), multiple consecutive moves of 1-3 spaces (property test with 15 iterations), rejection of 7-space moves as exceeding maximum distance (property test with 15 iterations), moves of 4-6 spaces requiring payment with correct amount formula (property test with 15 iterations), superseding pending paid move with another paid move (voids old charge, rejects old move, creates new charge), superseding pending paid move with free move (voids charge, completes immediately), and `onInvoicePaid` happy path (completes pending movement, publishes ActionDetermined, updates position). Test mocks track both charge and void command history. Total: 15 passing, 1 failing (onInvoicePaid not yet implemented).
+- Tests cover Rondel starting positions validation/signaling, `move` first-move-to-any-space (property test with 15 iterations), rejection of moves to current position (property test with 15 iterations), multiple consecutive moves of 1-3 spaces (property test with 15 iterations), rejection of 7-space moves as exceeding maximum distance (property test with 15 iterations), moves of 4-6 spaces requiring payment with correct amount formula (property test with 15 iterations), superseding pending paid move with another paid move (voids old charge, rejects old move, creates new charge), superseding pending paid move with free move (voids charge, completes immediately), and `onInvoicePaid` happy path (completes pending movement, publishes ActionDetermined, updates position). Test mocks track both charge and void command history. Total: 16 passing, 0 failing.
 
 ## Agent Priorities
 
@@ -41,4 +41,4 @@ Reasoning: preserves IL shape, avoids unwanted module-load computation, and keep
 - F# defaults: 4-space indent, `PascalCase` for types/modules, `camelCase` for functions.
 - Favor expression-based, pattern-matching code; keep handlers small and injected dependencies explicit.
 - Record construction: Use `{ Field = value }` syntax with type annotation when needed: `let x : RecordType = { ... }`. Never use `RecordType { ... }` - that's not valid F# syntax.
-- Run `dotnet build`/`dotnet test` locally; format with `dotnet tool run fantomas` if available.
+- Run `dotnet build`/`dotnet test` locally; format with `dotnet fantomas .` (always available via `.config/dotnet-tools.json`).
