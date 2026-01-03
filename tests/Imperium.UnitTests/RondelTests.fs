@@ -65,7 +65,7 @@ let tests =
           // Tests for public Rondel API
           testList
               "starting positions"
-              [ testCase "starting positions: requires a game id"
+              [ testCase "requires a game id"
                 <| fun _ ->
                     let load, save = createMockStore ()
                     let publish, _ = createMockPublisher ()
@@ -76,7 +76,7 @@ let tests =
 
                     let result = setToStartingPositions load save publish command
                     Expect.isError result "starting positions cannot be chosen without a game id"
-                testCase "starting positions: requires at least one nation"
+                testCase "requires at least one nation"
                 <| fun _ ->
                     let load, save = createMockStore ()
                     let publish, _ = createMockPublisher ()
@@ -87,7 +87,7 @@ let tests =
 
                     let result = setToStartingPositions load save publish command
                     Expect.isError result "starting positions require at least one nation"
-                testCase "starting positions: ignores duplicate nations"
+                testCase "ignores duplicate nations"
                 <| fun _ ->
                     let load, save = createMockStore ()
                     let publish, publishedEvents = createMockPublisher ()
@@ -104,7 +104,7 @@ let tests =
                         publishedEvents
                         (PositionedAtStart { GameId = command.GameId })
                         "the rondel should signal that starting positions are set"
-                testCase "starting positions: signals setup for the roster"
+                testCase "signals setup for the roster"
                 <| fun _ ->
                     let load, save = createMockStore ()
                     let publish, publishedEvents = createMockPublisher ()
@@ -121,7 +121,7 @@ let tests =
                         publishedEvents
                         (PositionedAtStart { GameId = command.GameId })
                         "the rondel should signal that starting positions are set"
-                testCase "starting positions: setting twice does not signal again"
+                testCase "setting twice does not signal again"
                 <| fun _ ->
                     let load, save = createMockStore ()
                     let publish, publishedEvents = createMockPublisher ()
@@ -149,7 +149,7 @@ let tests =
                         "setting starting positions twice should not signal starting positions again" ]
           testList
               "move"
-              [ testCase "move: cannot begin before starting positions are chosen"
+              [ testCase "cannot begin before starting positions are chosen"
                 <| fun _ ->
                     let load, save = createMockStore ()
                     let publish, publishedEvents = createMockPublisher ()
@@ -178,7 +178,7 @@ let tests =
                 testPropertyWithConfig
                     { FsCheckConfig.defaultConfig with
                         maxTest = 15 }
-                    "move: nation’s first move may choose any rondel space (free)"
+                    "nation's first move may choose any rondel space (free)"
                 <| fun (gameId: Guid) (nationIndex: int) (spaceIndex: int) ->
 
                     let nations = [| "Austria"; "Britain"; "France"; "Germany"; "Italy"; "Russia" |]
@@ -231,7 +231,7 @@ let tests =
                     // Assert: No charge commands dispatched (first move is free)
                     Expect.isEmpty dispatchedCommands "first move is free (no movement fee)"
 
-                testCase "move: rejects an unknown rondel space"
+                testCase "rejects an unknown rondel space"
                 <| fun _ ->
                     let load, save = createMockStore ()
                     let publish, publishedEvents = createMockPublisher ()
@@ -265,7 +265,7 @@ let tests =
                     // Assert: No charge commands dispatched
                     Expect.isEmpty dispatchedCommands "no movement fee is due for an invalid move"
 
-                testCase "move: requires a game id"
+                testCase "requires a game id"
                 <| fun _ ->
                     let load, save = createMockStore ()
                     let publish, publishedEvents = createMockPublisher ()
@@ -292,7 +292,7 @@ let tests =
                 testPropertyWithConfig
                     { FsCheckConfig.defaultConfig with
                         maxTest = 15 }
-                    "move: rejects move to nation's current position repeatedly"
+                    "rejects move to nation's current position repeatedly"
                 <| fun (gameId: Guid) (nationIndex: int) (spaceIndex: int) ->
 
                     let nations = [| "Austria"; "Britain"; "France"; "Germany"; "Italy"; "Russia" |]
@@ -407,7 +407,7 @@ let tests =
                 testPropertyWithConfig
                     { FsCheckConfig.defaultConfig with
                         maxTest = 15 }
-                    "move: multiple consecutive moves of 1-3 spaces are free"
+                    "multiple consecutive moves of 1-3 spaces are free"
                 <| fun (gameId: Guid) (nationIndex: int) (startSpaceIndex: int) (distance1: int) (distance2: int) ->
 
                     let nations = [| "Austria"; "Britain"; "France"; "Germany"; "Italy"; "Russia" |]
@@ -526,7 +526,7 @@ let tests =
                 testPropertyWithConfig
                     { FsCheckConfig.defaultConfig with
                         maxTest = 15 }
-                    "move: rejects moves of 7 spaces as exceeding maximum distance"
+                    "rejects moves of 7 spaces as exceeding maximum distance"
                 <| fun (gameId: Guid) (nationIndex: int) (startSpaceIndex: int) ->
 
                     let nations = [| "Austria"; "Britain"; "France"; "Germany"; "Italy"; "Russia" |]
@@ -624,7 +624,7 @@ let tests =
                 testPropertyWithConfig
                     { FsCheckConfig.defaultConfig with
                         maxTest = 15 }
-                    "move: moves of 4-6 spaces require payment (2M per additional space beyond 3)"
+                    "moves of 4-6 spaces require payment (2M per additional space beyond 3)"
                 <| fun (gameId: Guid) (nationIndex: int) (startSpaceIndex: int) (distanceRaw: int) ->
 
                     let nations = [| "Austria"; "Britain"; "France"; "Germany"; "Italy"; "Russia" |]
@@ -721,7 +721,7 @@ let tests =
                     Expect.isEmpty rejectedEvents "move requiring payment should not be rejected"
 
                 testCase
-                    "move: superseding pending paid move with another paid move voids old charge and rejects old move"
+                    "superseding pending paid move with another paid move voids old charge and rejects old move"
                 <| fun _ ->
                     // Setup
                     let load, save = createMockStore ()
@@ -842,7 +842,7 @@ let tests =
 
                     Expect.isEmpty actionEvents2 "no action should be determined for new pending move"
 
-                testCase "move: superseding pending paid move with free move voids charge and completes immediately"
+                testCase "superseding pending paid move with free move voids charge and completes immediately"
                 <| fun _ ->
                     // Setup
                     let load, save = createMockStore ()
@@ -953,7 +953,7 @@ let tests =
                         "free move should determine action immediately despite superseding" ]
           testList
               "onInvoicePaid"
-              [ testCase "onInvoicePaid: completes pending movement and publishes ActionDetermined event"
+              [ testCase "completes pending movement and publishes ActionDetermined event"
                 <| fun _ ->
                     // Setup: create mocks
                     let load, save = createMockStore ()
