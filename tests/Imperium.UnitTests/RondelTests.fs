@@ -76,23 +76,13 @@ let tests =
                     Expect.isError transformResult "starting positions cannot be chosen without a game id"
                 testCase "requires at least one nation"
                 <| fun _ ->
-                    let load, save = createMockStore ()
-                    let publish, _ = createMockPublisher ()
-
                     let contractCommand =
                         { GameId = Guid.NewGuid()
                           Nations = [||] }
 
-                    // Transformation should succeed (valid inputs)
+                    // Transformation should reject empty roster
                     let transformResult = SetToStartingPositionsCommand.toDomain contractCommand
-                    Expect.isOk transformResult "transformation should succeed with valid inputs"
-
-                    let domainCommand = Result.defaultWith failwith transformResult
-
-                    // Handler should throw when Nations is empty
-                    Expect.throws
-                        (fun () -> setToStartingPositions load save publish domainCommand)
-                        "starting positions require at least one nation"
+                    Expect.isError transformResult "starting positions require at least one nation"
                 testCase "ignores duplicate nations"
                 <| fun _ ->
                     let load, save = createMockStore ()

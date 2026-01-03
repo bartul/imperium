@@ -146,9 +146,13 @@ module Rondel =
     module SetToStartingPositionsCommand =
         let toDomain (command: Contract.Rondel.SetToStartingPositionsCommand) =
             Id.create command.GameId
-            |> Result.map (fun id ->
-                { GameId = id
-                  Nations = Set.ofArray command.Nations })
+            |> Result.bind (fun id ->
+                let nations = Set.ofArray command.Nations
+
+                if Set.isEmpty nations then
+                    Error "Starting positions require at least one nation."
+                else
+                    Ok { GameId = id; Nations = nations })
 
     module MoveCommand =
         let toDomain (command: Contract.Rondel.MoveCommand) =
