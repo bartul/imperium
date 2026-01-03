@@ -3,22 +3,26 @@ Last verified: 2026-01-03
 
 ## Project Structure & Module Organization
 - `Imperium.sln` stitches together the core F# library, ASP.NET Core web host, and unit test project.
-- `src/Imperium` contains domain modules (build order: `Primitives.fs`, `Contract.fs`, `Gameplay.fs/.fsi`, `Accounting.fs/.fsi`, `Rondel.fs/.fsi`).
+- `src/Imperium` contains domain modules (build order: `Primitives.fs`, `Contract.fs`, `Contract.Rondel.fs`, `Gameplay.fs/.fsi`, `Accounting.fs/.fsi`, `Rondel.fs/.fsi`).
 - `tests/Imperium.UnitTests` contains Expecto-based unit tests; test modules mirror source structure (e.g., `RondelTests.fs` tests `Rondel.fs`).
 - **Primitives module:** Foundational types with no `.fsi` file (intentionally public)
   - `Id` - Struct wrapping `Guid` with validation; provides `create`, `newId`, `value`, `toString`, `tryParse`, and mapper helpers
   - `Amount` - Measured struct wrapper (`int<M>`) with guarded construction; errors are plain strings; includes `tryParse`
-- **Contract module:** Cross-bounded-context communication types; no `.fsi` file (intentionally public)
-  - `Contract.Rondel`: SetToStartingPositionsCommand, MoveCommand, RondelEvent (PositionedAtStart, ActionDetermined, MoveToActionSpaceRejected)
-  - `Contract.Accounting`: ChargeNationForRondelMovementCommand, VoidRondelChargeCommand, AccountingEvent (RondelInvoicePaid, RondelInvoicePaymentFailed)
+- **Contract modules:** Cross-bounded-context communication types; no `.fsi` files (intentionally public); organized by bounded context
+  - `Contract.Rondel` (Contract.Rondel.fs): SetToStartingPositionsCommand, MoveCommand, RondelEvent (PositionedAtStart, ActionDetermined, MoveToActionSpaceRejected)
+  - `Contract.Accounting` (Contract.fs): ChargeNationForRondelMovementCommand, VoidRondelChargeCommand, AccountingEvent (RondelInvoicePaid, RondelInvoicePaymentFailed)
+  - `Contract.Gameplay` (Contract.fs): Placeholder for future game-level coordination types
   - Function types for dependency injection (e.g., `ChargeNationForRondelMovement = ChargeNationForRondelMovementCommand -> Result<unit, string>`, `VoidRondelCharge = VoidRondelChargeCommand -> Result<unit, string>`)
   - Events use record types (e.g., `RondelEvent = | PositionedAtStart of PositionedAtStart` where `PositionedAtStart = { GameId: Guid }`)
 - **Domain modules:** CQRS bounded contexts with `.fsi` files defining public APIs
-  - Internal types (GameId, NationId, RondelBillingId, Space, Action, Bank, Investor) hidden from public APIs
-  - Public APIs expose only command handlers and event handlers accepting contract types
-  - All handlers take `PublishRondelEvent` (event publisher) as first parameter for explicit dependency injection
+  - Internal types (GameId, NationId, RondelBillingId, Action, Bank, Investor) hidden from public APIs; Space is exposed as public discriminated union
+  - **Two-layer architecture:** Transformation modules (accept Contract types, return `Result<DomainType, string>`) + Command/Event handlers (accept Domain types, return `unit` or `Result`)
+  - Transformation modules: Named after domain command types (e.g., `SetToStartingPositionsCommand.toDomain`, `MoveCommand.toDomain`) to match the domain types they produce
+  - Command handlers: Accept domain types directly, throw exceptions for business rule violations, return `unit`
+  - Event handlers: Accept Contract event types, return `Result<unit, string>` (maintain Result pattern for event processing)
+  - All handlers take dependency injections explicitly (e.g., `load`, `save`, `publish`, specialized services)
   - `Gameplay` and `Accounting` have no public API currently (placeholder values only)
-  - `Rondel` exposes: PublishRondelEvent type, setToStartingPositions (implemented), move (implemented), onInvoicedPaid (implemented), onInvoicePaymentFailed (stubbed)
+  - `Rondel` exposes: transformation modules (SetToStartingPositionsCommand, MoveCommand), domain command types (SetToStartingPositionsCommand with `Set<string>` Nations, MoveCommand with Space), Space type, PublishRondelEvent type, setToStartingPositions (implemented), move (implemented), onInvoicedPaid (implemented), onInvoicePaymentFailed (stubbed)
   - `Rondel.Dto.RondelState`: GameId, NationPositions (Map<string, string option>), PendingMovements (Map<string, PendingMovement> keyed by nation name for O(log n) lookups)
 - `src/Imperium.Web` bootstraps the HTTP layer (`Program.fs`). Reference the core project via the existing project reference instead of duplicating logic.
 - `docs/` stores reference rulebooks; official rule PDFs live in `docs/official_rules/`. Leave build artefacts inside each project's `bin/` and `obj/` directories untouched.
@@ -26,12 +30,16 @@ Last verified: 2026-01-03
 - Rondel rules source: mechanic follows the boardgame "rondel" described in `docs/Imperial_English_Rules.pdf`. Keep only a quick cheat sheet here; see the PDF for full details. Key movement: clockwise, cannot stay put; 1–3 spaces free, 4–6 cost 2M per additional space beyond the first 3 free spaces (4 spaces = 2M, 5 spaces = 4M, 6 spaces = 6M; max distance 6), first turn may start anywhere. Actions: Factory (build own city for 5M, no hostile upright armies), Production (each unoccupied home factory produces 1 unit), Import (buy up to 3 units for 1M each in home provinces), Maneuver (fleets adjacent sea; armies adjacent land or via fleets; rail within home; 3 armies can destroy a factory; place flags in newly occupied regions), Investor (pay bond interest; investor card gets 2M and may invest; Swiss bank owners may also invest; passing executes investor steps 2–3), Taxation (tax: 2M per unoccupied factory, 1M per flag; dividend if tax track increases; add power points; treasury collects tax minus 1M per army/fleet). Game ends at 25 power points; score = bond interest x nation factor + personal cash.
 
 ### Handler Signature Pattern
-- Commands and event handlers take dependencies explicitly, with `PublishRondelEvent` (or equivalent) as the first parameter, followed by persistence loaders/savers, then other services (e.g., accounting charging).
-- Public APIs return `Result<unit, string>`; errors are plain strings.
+- **Transformation modules** (`SetToStartingPositionsCommand.toDomain`, `MoveCommand.toDomain`): Modules named after domain command types; accept Contract types, validate inputs, return `Result<DomainType, string>` with plain string errors
+- **Command handlers** (`setToStartingPositions`, `move`): Accept domain types directly, take dependencies explicitly (load, save, publish, services), throw exceptions for business rule violations, return `unit`
+- **Event handlers** (`onInvoicedPaid`, `onInvoicePaymentFailed`): Accept Contract event types, return `Result<unit, string>` for error propagation
+- Dependency injection order: persistence (load, save), publish, then specialized services (e.g., accounting charge/void)
 - Signature files define public shape first; implementations should not widen the surface in `.fs`.
 
 ### Rondel Implementation Patterns
-- **Handler pipeline pattern**: Both `setToStartingPositions` and `move` handlers follow a consistent pipeline: domain conversion → validation → state loading → execution → IO side effects. Use `Result.map` to thread tuples through the pipeline and unwrap for final execution.
+- **Two-layer architecture**: Transformation layer (validates inputs, returns `Result`) + Handler layer (validates business rules, throws exceptions, returns `unit`)
+- **Transformation modules** (`SetToStartingPositionsCommand`, `MoveCommand`): Named after domain command types; use `Result` monad to validate Contract inputs (GameId, Space names) and construct domain types
+- **Handler pipeline pattern**: Handlers accept domain types, follow consistent pipeline using simple forward pipes (`|>`, `||>`, `|||>`): validation → state loading → execution → IO side effects. Business rule violations throw exceptions via `failwith`.
 - **Record construction**: Use type annotation for DTO construction: `let newState : Dto.RondelState = { GameId = ...; NationPositions = ...; PendingMovements = ... }`. F# records use `{ }` syntax directly, not `TypeName { }`.
 - **MoveOutcome type**: Internal discriminated union with named fields carrying complete context (targetSpace, distance, nation, rejectedCommand). All cases encapsulate necessary data, eliminating closure dependencies on outer scope variables for cleaner functional design.
 - **Decision chain**: Validates moves through `Decision` monad (`noMovesAllowedIfNotInitialized` → `noMovesAllowedForNationNotInGame` → `firstMoveIsFreeToAnyPosition` → `failIfPositionIsInvalid` → `decideMovementOutcome`) producing `MoveOutcome`.
@@ -67,7 +75,10 @@ Last verified: 2026-01-03
 - Test organization: group related tests with `testList`, use descriptive test names in lowercase ("accepts valid GUID", not "AcceptsValidGuid").
 - Cover edge cases: null inputs, empty strings, invalid formats, boundary conditions.
 - Follow three-phase module development process documented in `docs/module_design_process.md`: define interface, write tests, implement functionality.
-- **Testing approach:** Tests target public handler APIs using contract types and injected publishers/dispatchers to verify the rondel signals the right outcomes and charges the right costs.
+- **Testing approach:**
+  - **Input validation tests**: Use transformation modules (`SetToStartingPositionsCommand.toDomain`, `MoveCommand.toDomain`) with Contract types to verify input validation returns appropriate errors
+  - **Business logic tests**: Transform Contract → Domain, then call handlers with domain types and injected dependencies to verify correct outcomes, events, and charges
+  - **Exception testing**: Use `Expect.throws` for business rule violations (e.g., empty nations, invalid moves)
 - Current test coverage:
   - starting positions: rejects missing game id; rejects empty roster; ignores duplicate nations; rondel signals that starting positions are set
   - move: before starting positions are chosen, the move is denied and no movement fee is due

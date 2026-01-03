@@ -1,6 +1,7 @@
 namespace Imperium
 
 open System
+open Imperium.Primitives
 open Imperium.Contract.Accounting
 open Imperium.Contract.Rondel
 
@@ -31,12 +32,49 @@ module Rondel =
     /// Publishes Rondel integration events to the event bus.
     type PublishRondelEvent = RondelEvent -> unit
 
+    [<RequireQualifiedAccess>]
+    type Space =
+        | Investor
+        | Import
+        | ProductionOne
+        | ManeuverOne
+        | Taxation
+        | Factory
+        | ProductionTwo
+        | ManeuverTwo
+
     // Commands
+
+    type RondelCommand =
+        | SetToStartingPositions of SetToStartingPositionsCommand
+        | Move of MoveCommand
+
+    and SetToStartingPositionsCommand = { GameId: Id; Nations: Set<string> }
+
+    and MoveCommand =
+        { GameId: Id
+          Nation: string
+          Space: Space }
+
+    // Transformation modules: Contract → Domain
+
+    /// Transforms Contract types to Domain types for SetToStartingPositions
+    module SetToStartingPositionsCommand =
+        /// Transform Contract SetToStartingPositionsCommand to Domain SetToStartingPositionsCommand.
+        /// Returns Error if GameId is invalid (Guid.Empty).
+        val toDomain: Contract.Rondel.SetToStartingPositionsCommand -> Result<SetToStartingPositionsCommand, string>
+
+    /// Transforms Contract types to Domain types for Move
+    module MoveCommand =
+        /// Transform Contract MoveCommand to Domain MoveCommand.
+        /// Returns Error if GameId is invalid or Space name is unknown.
+        val toDomain: Contract.Rondel.MoveCommand -> Result<MoveCommand, string>
 
     /// Command: Initialize rondel for the specified game with the given nations.
     /// All nations are positioned at their starting positions.
     /// Publishes PositionedAtStart integration event. Fails if nation set is empty.
-    val setToStartingPositions: LoadRondelState -> SaveRondelState -> PublishRondelEvent -> SetToStartingPositions
+    val setToStartingPositions:
+        LoadRondelState -> SaveRondelState -> PublishRondelEvent -> SetToStartingPositionsCommand -> unit
 
     /// Command: Move a nation to the specified space on the rondel.
     /// Determines movement cost and charges via injected Accounting dependency.
@@ -47,7 +85,8 @@ module Rondel =
         PublishRondelEvent ->
         ChargeNationForRondelMovement ->
         VoidRondelCharge ->
-            Move
+        MoveCommand ->
+            unit
 
     // Event handlers
 

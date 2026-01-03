@@ -106,33 +106,6 @@ module Rondel =
             | Space.Factory -> Action.Factory
 
 
-    type RondelCommand =
-        | StartingPositions of SetToStartingPositions
-        | Move of Move
-
-    and SetToStartingPositions = { GameId: Id; Nations: Set<string> }
-
-    and Move =
-        { GameId: Id
-          Nation: string
-          Space: Space }
-
-    module SetToStartingPositions =
-        let toDomain (command: SetToStartingPositionsCommand) =
-            Id.create command.GameId
-            |> Result.map (fun id ->
-                { GameId = id
-                  Nations = Set.ofArray command.Nations })
-
-    module Move =
-        let toDomain (command: MoveCommand) =
-            Id.create command.GameId
-            |> Result.bind (fun id -> Space.fromString command.Space |> Result.map (fun space -> id, space))
-            |> Result.map (fun (id, space) ->
-                { GameId = id
-                  Nation = command.Nation
-                  Space = space })
-
     type RondelInboundEvent =
         | RondelInvoicePaid of RondelInvoicePaid
         | RondelInvoicePaymentFailed of RondelInvoicePaymentFailed
@@ -159,6 +132,36 @@ module Rondel =
     type SaveRondelState = Dto.RondelState -> Result<unit, string>
     type PublishRondelEvent = RondelEvent -> unit
 
+    type RondelCommand =
+        | SetToStartingPositions of SetToStartingPositionsCommand
+        | Move of MoveCommand
+
+    and SetToStartingPositionsCommand = { GameId: Id; Nations: Set<string> }
+
+    and MoveCommand =
+        { GameId: Id
+          Nation: string
+          Space: Space }
+
+    module SetToStartingPositionsCommand =
+        let toDomain (command: Contract.Rondel.SetToStartingPositionsCommand) =
+            Id.create command.GameId
+            |> Result.bind (fun id ->
+                let nations = Set.ofArray command.Nations
+
+                if Set.isEmpty nations then
+                    Error "Starting positions require at least one nation."
+                else
+                    Ok { GameId = id; Nations = nations })
+
+    module MoveCommand =
+        let toDomain (command: Contract.Rondel.MoveCommand) =
+            Id.create command.GameId
+            |> Result.bind (fun id -> Space.fromString command.Space |> Result.map (fun space -> id, space))
+            |> Result.map (fun (id, space) ->
+                { GameId = id
+                  Nation = command.Nation
+                  Space = space })
 
     // Command: Initialize rondel state for a game
     let setToStartingPositions
@@ -166,15 +169,15 @@ module Rondel =
         (save: SaveRondelState)
         (publish: PublishRondelEvent)
         (command: SetToStartingPositionsCommand)
-        : Result<unit, string> =
+        : unit =
 
         let canNotSetStartPositionsWithNoNations command =
             if Set.isEmpty command.Nations then
-                Error "Cannot initialize rondel with zero nations."
+                failwith "Cannot initialize rondel with zero nations."
             else
-                Ok command
+                command
 
-        let execute state (command: SetToStartingPositions) =
+        let execute state (command: SetToStartingPositionsCommand) =
             match state with
             | Some _ -> None, [], [] // Already initialized, no-op
             | None ->
@@ -211,14 +214,13 @@ module Rondel =
             |> Result.defaultWith (fun e -> failwith $"Failed to perform IO side effects: {e}")
 
         command
-        |> SetToStartingPositions.toDomain
-        |> Result.bind canNotSetStartPositionsWithNoNations
-        |> Result.map (fun cmd -> load (cmd.GameId |> Id.value), cmd)
-        |> Result.map (fun (state, cmd) -> execute state cmd)
-        |> Result.map (fun (state, events, commands) -> performIO state events commands)
+        |> canNotSetStartPositionsWithNoNations
+        |> (fun cmd -> load (cmd.GameId |> Id.value), cmd)
+        ||> execute
+        |||> performIO
 
     type MoveOutcome =
-        | Rejected of rejectedCommand: Move
+        | Rejected of rejectedCommand: MoveCommand
         | Free of targetSpace: Space * nation: string
         | FreeWithSupersedingUnpaidMovement of targetSpace: Space * nation: string
         | Paid of targetSpace: Space * distance: int * nation: string
@@ -231,7 +233,7 @@ module Rondel =
         (chargeForMovement: ChargeNationForRondelMovement)
         (voidCharge: VoidRondelCharge)
         (command: MoveCommand)
-        : Result<unit, string> =
+        : unit =
         let noMovesAllowedIfNotInitialized (state, validatedCommand) =
             match state with
             | None -> Resolve(Rejected validatedCommand)
@@ -421,10 +423,7 @@ module Rondel =
             |> handleMoveOutcome state
             |||> performIO
 
-        command
-        |> Move.toDomain
-        |> Result.map (fun cmd -> load (cmd.GameId |> Id.value), cmd)
-        |> Result.bind (fun (loadedState, cmd) -> Ok(execute loadedState cmd))
+        command |> (fun cmd -> load (cmd.GameId |> Id.value), cmd) ||> execute
 
 
     // Event handler: Process successful invoice payment from Accounting domain

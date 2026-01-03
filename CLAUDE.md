@@ -19,7 +19,7 @@ Last verified: 2026-01-03
 ## CQRS & Contract Patterns (anchor details in AGENTS.md)
 
 - Contracts live in `Imperium.Contract`; commands/events are records/DUs; function types for DI return `Result<unit, string>` with plain-string errors.
-- Domain modules hide internal IDs and state; public handlers accept contract types plus injected dependencies.
+- Domain modules hide internal IDs and state; use two-layer architecture: transformation modules validate Contract → Domain (return `Result`), handlers accept domain types plus injected dependencies.
 - Rondel spaces and rules: use `AGENTS.md` and `docs/official_rules/Imperial_English_Rules.pdf` for full detail; keep tests aligned to contracts.
 
 ## Signature Files: Function vs Value
