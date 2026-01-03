@@ -9,7 +9,7 @@ module Id =
         if guid = Guid.Empty then
             Error "Id cannot be Guid.Empty."
         else
-            Ok (Id guid)
+            Ok(Id guid)
 
     let createMap mapper guid = create guid |> Result.map mapper
 
@@ -35,14 +35,13 @@ type Amount = private Amount of int<M>
 
 module Amount =
     [<RequireQualifiedAccess>]
-    type Error =
-        | NegativeAmount of string
+    type Error = NegativeAmount of string
 
     let create (millions: int) =
         if millions < 0 then
             Error "Amount cannot be negative (millions)."
         else
-            Ok (Amount(millions * 1<M>))
+            Ok(Amount(millions * 1<M>))
 
     let unsafe (millions: int) = Amount(millions * 1<M>)
     let value (Amount v) = int v
@@ -73,7 +72,7 @@ module Decision =
     let map (f: 'a -> 'b) (pipeline: Decision<'a, 'outcome>) =
         match pipeline with
         | Resolve outcome -> Resolve outcome
-        | Continue state -> Continue (f state)
+        | Continue state -> Continue(f state)
 
     /// Merge both cases when they contain the same type
     let resolve (continueToOutcome: 'a -> 'outcome) (decision: Decision<'a, 'outcome>) : 'outcome =

@@ -9,14 +9,16 @@ module Rondel =
     // State DTOs for persistence
     module Dto =
         /// A movement pending payment confirmation from Accounting domain.
-
         /// Rondel state for a game - tracks nation positions and pending movements.
-        type RondelState = {
-            GameId: Guid
-            NationPositions: Map<string, string option>
-            PendingMovements: Map<string, PendingMovement>
-        }
-        and PendingMovement = { Nation: string; TargetSpace: string; BillingId: Guid }
+        type RondelState =
+            { GameId: Guid
+              NationPositions: Map<string, string option>
+              PendingMovements: Map<string, PendingMovement> }
+
+        and PendingMovement =
+            { Nation: string
+              TargetSpace: string
+              BillingId: Guid }
 
     // Dependency function types
 
@@ -39,15 +41,23 @@ module Rondel =
     /// Command: Move a nation to the specified space on the rondel.
     /// Determines movement cost and charges via injected Accounting dependency.
     /// Integration event ActionDetermined published based on payment requirement.
-    val move: LoadRondelState -> SaveRondelState -> PublishRondelEvent -> ChargeNationForRondelMovement -> VoidRondelCharge -> Move
+    val move:
+        LoadRondelState ->
+        SaveRondelState ->
+        PublishRondelEvent ->
+        ChargeNationForRondelMovement ->
+        VoidRondelCharge ->
+            Move
 
     // Event handlers
 
     /// Event handler: Processes invoice payment confirmation from Accounting domain.
     /// Completes the nation's movement and publishes ActionDetermined integration event.
     /// If no pending movement exists for the BillingId, the event is ignored (idempotent behavior).
-    val onInvoicedPaid: LoadRondelState -> SaveRondelState -> PublishRondelEvent -> RondelInvoicePaid -> Result<unit, string>
+    val onInvoicedPaid:
+        LoadRondelState -> SaveRondelState -> PublishRondelEvent -> RondelInvoicePaid -> Result<unit, string>
 
     /// Event handler: Processes invoice payment failure from Accounting domain.
     /// Rejects the movement and publishes MoveToActionSpaceRejected integration event.
-    val onInvoicePaymentFailed: LoadRondelState -> SaveRondelState -> PublishRondelEvent -> RondelInvoicePaymentFailed -> Result<unit, string>
+    val onInvoicePaymentFailed:
+        LoadRondelState -> SaveRondelState -> PublishRondelEvent -> RondelInvoicePaymentFailed -> Result<unit, string>
