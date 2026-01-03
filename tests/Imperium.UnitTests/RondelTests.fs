@@ -771,7 +771,6 @@ let tests =
                         SetToStartingPositionsCommand.toDomain { GameId = gameId; Nations = nations }
                         |> Result.defaultWith failwith
                     setToStartingPositions load save publish domainInitCmd
-                    |> ignore
 
                     publishedEvents.Clear()
 
@@ -787,7 +786,6 @@ let tests =
                               Nation = "France"
                               Space = "ProductionOne" }
                          |> Result.defaultWith failwith)
-                    |> ignore
 
                     Expect.contains
                         publishedEvents
@@ -896,7 +894,6 @@ let tests =
                         SetToStartingPositionsCommand.toDomain { GameId = gameId; Nations = nations }
                         |> Result.defaultWith failwith
                     setToStartingPositions load save publish domainInitCmd
-                    |> ignore
 
                     publishedEvents.Clear()
 
@@ -1013,7 +1010,6 @@ let tests =
                         SetToStartingPositionsCommand.toDomain { GameId = gameId; Nations = nations }
                         |> Result.defaultWith failwith
                     setToStartingPositions load save publish domainInitCmd
-                    |> ignore
 
                     publishedEvents.Clear()
 
@@ -1053,7 +1049,6 @@ let tests =
                               Nation = "Austria"
                               Space = "Investor" }
                          |> Result.defaultWith failwith)
-                    |> ignore
 
                     Expect.hasLength dispatchedCommands 1 "paid move should dispatch charge command"
                     let billingId = dispatchedCommands.[0].BillingId
