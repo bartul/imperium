@@ -142,13 +142,13 @@ module Rondel =
         { GameId: Id
           Nation: string
           Space: Space }
-    module SetToStartingPositions =
+    module SetToStartingPositionsCommand =
         let toDomain (command: Contract.Rondel.SetToStartingPositionsCommand) =
             Id.create command.GameId
             |> Result.map (fun id ->
                 { GameId = id
                   Nations = Set.ofArray command.Nations })
-    module Move =
+    module MoveCommand =
         let toDomain (command: Contract.Rondel.MoveCommand) =
             Id.create command.GameId
             |> Result.bind (fun id -> Space.fromString command.Space |> Result.map (fun space -> id, space))

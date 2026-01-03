@@ -59,13 +59,13 @@ module Rondel =
     // Transformation modules: Contract → Domain
 
     /// Transforms Contract types to Domain types for SetToStartingPositions
-    module SetToStartingPositions =
+    module SetToStartingPositionsCommand =
         /// Transform Contract SetToStartingPositionsCommand to Domain SetToStartingPositionsCommand.
         /// Returns Error if GameId is invalid (Guid.Empty).
         val toDomain: Contract.Rondel.SetToStartingPositionsCommand -> Result<SetToStartingPositionsCommand, string>
 
     /// Transforms Contract types to Domain types for Move
-    module Move =
+    module MoveCommand =
         /// Transform Contract MoveCommand to Domain MoveCommand.
         /// Returns Error if GameId is invalid or Space name is unknown.
         val toDomain: Contract.Rondel.MoveCommand -> Result<MoveCommand, string>

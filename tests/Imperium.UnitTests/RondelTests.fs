@@ -72,7 +72,7 @@ let tests =
                           Nations = [| "France" |] }
 
                     // Transformation should fail with Guid.Empty
-                    let transformResult = SetToStartingPositions.toDomain contractCommand
+                    let transformResult = SetToStartingPositionsCommand.toDomain contractCommand
                     Expect.isError transformResult "starting positions cannot be chosen without a game id"
                 testCase "requires at least one nation"
                 <| fun _ ->
@@ -84,7 +84,7 @@ let tests =
                           Nations = [||] }
 
                     // Transformation should succeed (valid inputs)
-                    let transformResult = SetToStartingPositions.toDomain contractCommand
+                    let transformResult = SetToStartingPositionsCommand.toDomain contractCommand
                     Expect.isOk transformResult "transformation should succeed with valid inputs"
 
                     let domainCommand = Result.defaultWith failwith transformResult
@@ -103,7 +103,7 @@ let tests =
                           Nations = [| "France"; "France" |] }
 
                     // Transformation should succeed (Set automatically deduplicates)
-                    let transformResult = SetToStartingPositions.toDomain contractCommand
+                    let transformResult = SetToStartingPositionsCommand.toDomain contractCommand
                     Expect.isOk transformResult "starting positions accept the roster (duplicates ignored)"
 
                     let domainCommand = Result.defaultWith failwith transformResult
@@ -126,7 +126,7 @@ let tests =
                           Nations = [| "France"; "Germany" |] }
 
                     // Transformation should succeed
-                    let transformResult = SetToStartingPositions.toDomain contractCommand
+                    let transformResult = SetToStartingPositionsCommand.toDomain contractCommand
                     Expect.isOk transformResult "starting positions should be accepted"
 
                     let domainCommand = Result.defaultWith failwith transformResult
@@ -149,7 +149,7 @@ let tests =
                           Nations = [| "France"; "Germany" |] }
 
                     // Transformation should succeed
-                    let transformResult = SetToStartingPositions.toDomain contractCommand
+                    let transformResult = SetToStartingPositionsCommand.toDomain contractCommand
                     Expect.isOk transformResult "starting positions should be accepted"
 
                     let domainCommand = Result.defaultWith failwith transformResult
@@ -186,7 +186,7 @@ let tests =
                           Space = "Factory" }
 
                     // Transform Contract → Domain
-                    let transformResult = Move.toDomain contractMoveCommand
+                    let transformResult = MoveCommand.toDomain contractMoveCommand
                     Expect.isOk transformResult "transformation should succeed with valid inputs"
 
                     let domainMoveCommand = Result.defaultWith failwith transformResult
@@ -234,7 +234,7 @@ let tests =
 
                     let contractInitCommand = { GameId = gameId; Nations = nations }
                     let domainInitCommand =
-                        SetToStartingPositions.toDomain contractInitCommand
+                        SetToStartingPositionsCommand.toDomain contractInitCommand
                         |> Result.defaultWith failwith
                     setToStartingPositions load save publish domainInitCommand
                     publishedEvents.Clear()
@@ -245,7 +245,7 @@ let tests =
                           Nation = nation
                           Space = space }
 
-                    let transformResult = Move.toDomain contractMoveCommand
+                    let transformResult = MoveCommand.toDomain contractMoveCommand
                     Expect.isOk transformResult "first move should allow choosing any rondel space"
 
                     let domainMoveCommand = Result.defaultWith failwith transformResult
@@ -275,7 +275,7 @@ let tests =
                           Space = "InvalidSpace" }
 
                     // Transformation should fail for unknown space
-                    let transformResult = Move.toDomain contractMoveCommand
+                    let transformResult = MoveCommand.toDomain contractMoveCommand
                     Expect.isError transformResult "unknown rondel space is not allowed"
 
                 testCase "requires a game id"
@@ -287,7 +287,7 @@ let tests =
                           Space = "Factory" }
 
                     // Transformation should fail for invalid GameId
-                    let transformResult = Move.toDomain contractMoveCommand
+                    let transformResult = MoveCommand.toDomain contractMoveCommand
                     Expect.isError transformResult "a move cannot be taken without a game id"
 
                 testPropertyWithConfig
@@ -319,7 +319,7 @@ let tests =
 
                     let contractInitCommand = { GameId = gameId; Nations = nations }
                     let domainInitCommand =
-                        SetToStartingPositions.toDomain contractInitCommand
+                        SetToStartingPositionsCommand.toDomain contractInitCommand
                         |> Result.defaultWith failwith
                     setToStartingPositions load save publish domainInitCommand
                     publishedEvents.Clear()
@@ -330,7 +330,7 @@ let tests =
                           Nation = nation
                           Space = space }
 
-                    let transformResult = Move.toDomain contractMoveCommand
+                    let transformResult = MoveCommand.toDomain contractMoveCommand
                     Expect.isOk transformResult "first move should succeed"
 
                     let domainMoveCommand = Result.defaultWith failwith transformResult
@@ -438,7 +438,7 @@ let tests =
 
                     let contractInitCommand = { GameId = gameId; Nations = nations }
                     let domainInitCommand =
-                        SetToStartingPositions.toDomain contractInitCommand
+                        SetToStartingPositionsCommand.toDomain contractInitCommand
                         |> Result.defaultWith failwith
                     setToStartingPositions load save publish domainInitCommand
                     publishedEvents.Clear()
@@ -451,7 +451,7 @@ let tests =
                           Nation = nation
                           Space = startSpace }
 
-                    let transformResult1 = Move.toDomain contractMoveCommand1
+                    let transformResult1 = MoveCommand.toDomain contractMoveCommand1
                     Expect.isOk transformResult1 "first move should succeed"
 
                     let domainMoveCommand1 = Result.defaultWith failwith transformResult1
@@ -479,7 +479,7 @@ let tests =
                           Nation = nation
                           Space = secondSpace }
 
-                    let transformResult2 = Move.toDomain contractMoveCommand2
+                    let transformResult2 = MoveCommand.toDomain contractMoveCommand2
                     Expect.isOk transformResult2 (sprintf "second move (distance %d) should succeed" dist1)
 
                     let domainMoveCommand2 = Result.defaultWith failwith transformResult2
@@ -514,7 +514,7 @@ let tests =
                           Nation = nation
                           Space = thirdSpace }
 
-                    let transformResult3 = Move.toDomain contractMoveCommand3
+                    let transformResult3 = MoveCommand.toDomain contractMoveCommand3
                     Expect.isOk transformResult3 (sprintf "third move (distance %d) should succeed" dist2)
 
                     let domainMoveCommand3 = Result.defaultWith failwith transformResult3
@@ -567,7 +567,7 @@ let tests =
 
                     let contractInitCommand = { GameId = gameId; Nations = nations }
                     let domainInitCommand =
-                        SetToStartingPositions.toDomain contractInitCommand
+                        SetToStartingPositionsCommand.toDomain contractInitCommand
                         |> Result.defaultWith failwith
                     setToStartingPositions load save publish domainInitCommand
                     publishedEvents.Clear()
@@ -580,7 +580,7 @@ let tests =
                           Nation = nation
                           Space = startSpace }
 
-                    let transformResult1 = Move.toDomain contractMoveCommand1
+                    let transformResult1 = MoveCommand.toDomain contractMoveCommand1
                     Expect.isOk transformResult1 "first move should succeed"
 
                     let domainMoveCommand1 = Result.defaultWith failwith transformResult1
@@ -608,7 +608,7 @@ let tests =
                           Nation = nation
                           Space = targetSpace }
 
-                    let transformResult2 = Move.toDomain contractMoveCommand2
+                    let transformResult2 = MoveCommand.toDomain contractMoveCommand2
                     Expect.isOk transformResult2 "transformation should succeed"
 
                     let domainMoveCommand2 = Result.defaultWith failwith transformResult2
@@ -676,7 +676,7 @@ let tests =
 
                     let contractInitCommand = { GameId = gameId; Nations = nations }
                     let domainInitCommand =
-                        SetToStartingPositions.toDomain contractInitCommand
+                        SetToStartingPositionsCommand.toDomain contractInitCommand
                         |> Result.defaultWith failwith
                     setToStartingPositions load save publish domainInitCommand
                     publishedEvents.Clear()
@@ -689,7 +689,7 @@ let tests =
                           Nation = nation
                           Space = startSpace }
 
-                    let transformResult1 = Move.toDomain contractMoveCommand1
+                    let transformResult1 = MoveCommand.toDomain contractMoveCommand1
                     Expect.isOk transformResult1 "first move should succeed"
 
                     let domainMoveCommand1 = Result.defaultWith failwith transformResult1
@@ -707,7 +707,7 @@ let tests =
                           Nation = nation
                           Space = targetSpace }
 
-                    let transformResult2 = Move.toDomain contractMoveCommand2
+                    let transformResult2 = MoveCommand.toDomain contractMoveCommand2
                     Expect.isOk transformResult2 (sprintf "move of %d spaces should be accepted (payment required)" dist)
 
                     let domainMoveCommand2 = Result.defaultWith failwith transformResult2
@@ -768,7 +768,7 @@ let tests =
 
                     // Initialize rondel
                     let domainInitCmd =
-                        SetToStartingPositions.toDomain { GameId = gameId; Nations = nations }
+                        SetToStartingPositionsCommand.toDomain { GameId = gameId; Nations = nations }
                         |> Result.defaultWith failwith
                     setToStartingPositions load save publish domainInitCmd
                     |> ignore
@@ -782,7 +782,7 @@ let tests =
                         publish
                         chargeForMovement
                         voidCharge
-                        (Move.toDomain
+                        (MoveCommand.toDomain
                             { Imperium.Contract.Rondel.MoveCommand.GameId = gameId
                               Nation = "France"
                               Space = "ProductionOne" }
@@ -802,7 +802,7 @@ let tests =
 
                     // Second move: 4 spaces (pending payment) - ProductionOne to ProductionTwo
                     let secondMove =
-                        Move.toDomain
+                        MoveCommand.toDomain
                             { Imperium.Contract.Rondel.MoveCommand.GameId = gameId
                               Nation = "France"
                               Space = "ProductionTwo" }
@@ -837,7 +837,7 @@ let tests =
                         publish
                         chargeForMovement
                         voidCharge
-                        (Move.toDomain
+                        (MoveCommand.toDomain
                             { Imperium.Contract.Rondel.MoveCommand.GameId = gameId
                               Nation = "France"
                               Space = "ManeuverTwo" }
@@ -893,7 +893,7 @@ let tests =
 
                     // Initialize rondel
                     let domainInitCmd =
-                        SetToStartingPositions.toDomain { GameId = gameId; Nations = nations }
+                        SetToStartingPositionsCommand.toDomain { GameId = gameId; Nations = nations }
                         |> Result.defaultWith failwith
                     setToStartingPositions load save publish domainInitCmd
                     |> ignore
@@ -907,7 +907,7 @@ let tests =
                         publish
                         chargeForMovement
                         voidCharge
-                        (Move.toDomain
+                        (MoveCommand.toDomain
                             { Imperium.Contract.Rondel.MoveCommand.GameId = gameId
                               Nation = "Germany"
                               Space = "ManeuverOne" }
@@ -931,7 +931,7 @@ let tests =
                         publish
                         chargeForMovement
                         voidCharge
-                        (Move.toDomain
+                        (MoveCommand.toDomain
                             { Imperium.Contract.Rondel.MoveCommand.GameId = gameId
                               Nation = "Germany"
                               Space = "Investor" }
@@ -964,7 +964,7 @@ let tests =
                         publish
                         chargeForMovement
                         voidCharge
-                        (Move.toDomain
+                        (MoveCommand.toDomain
                             { Imperium.Contract.Rondel.MoveCommand.GameId = gameId
                               Nation = "Germany"
                               Space = "Factory" }
@@ -1010,7 +1010,7 @@ let tests =
 
                     // Setup: initialize rondel
                     let domainInitCmd =
-                        SetToStartingPositions.toDomain { GameId = gameId; Nations = nations }
+                        SetToStartingPositionsCommand.toDomain { GameId = gameId; Nations = nations }
                         |> Result.defaultWith failwith
                     setToStartingPositions load save publish domainInitCmd
                     |> ignore
@@ -1024,7 +1024,7 @@ let tests =
                         publish
                         chargeForMovement
                         voidCharge
-                        (Move.toDomain
+                        (MoveCommand.toDomain
                             { Imperium.Contract.Rondel.MoveCommand.GameId = gameId
                               Nation = "Austria"
                               Space = "ManeuverOne" }
@@ -1048,7 +1048,7 @@ let tests =
                         publish
                         chargeForMovement
                         voidCharge
-                        (Move.toDomain
+                        (MoveCommand.toDomain
                             { Imperium.Contract.Rondel.MoveCommand.GameId = gameId
                               Nation = "Austria"
                               Space = "Investor" }
@@ -1111,7 +1111,7 @@ let tests =
                         publish
                         chargeForMovement
                         voidCharge
-                        (Move.toDomain
+                        (MoveCommand.toDomain
                             { Imperium.Contract.Rondel.MoveCommand.GameId = gameId
                               Nation = "Austria"
                               Space = "Import" }
