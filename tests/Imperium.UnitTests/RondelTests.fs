@@ -45,17 +45,20 @@ let createMockVoidCharge () =
 
     voidCharge, voidedCommands
 
-let spaceToAction (space: string) : string =
-    match space with
-    | "Investor" -> "Investor"
-    | "Factory" -> "Factory"
-    | "Import" -> "Import"
-    | "Taxation" -> "Taxation"
+// Independent reference implementation for test verification
+// This provides an alternate path to verify Space -> Action mapping
+// without using the production Space.toAction function
+let spaceNameToExpectedAction (spaceName: string) : Imperium.Rondel.Action =
+    match spaceName with
+    | "Investor" -> Imperium.Rondel.Action.Investor
+    | "Factory" -> Imperium.Rondel.Action.Factory
+    | "Import" -> Imperium.Rondel.Action.Import
+    | "Taxation" -> Imperium.Rondel.Action.Taxation
     | "ProductionOne"
-    | "ProductionTwo" -> "Production"
+    | "ProductionTwo" -> Imperium.Rondel.Action.Production
     | "ManeuverOne"
-    | "ManeuverTwo" -> "Maneuver"
-    | _ -> failwith $"Unknown rondel space: {space}"
+    | "ManeuverTwo" -> Imperium.Rondel.Action.Maneuver
+    | _ -> failwith $"Unknown rondel space: {spaceName}"
 
 [<Tests>]
 let tests =
@@ -245,7 +248,8 @@ let tests =
                     move load save publish chargeForMovement voidCharge domainMoveCommand
 
                     // Assert: ActionDetermined event published with correct action
-                    let expectedAction = Space.toAction domainMoveCommand.Space
+                    // Using independent reference implementation to avoid testing transformation with itself
+                    let expectedAction = spaceNameToExpectedAction space
 
                     Expect.contains
                         publishedEvents
@@ -332,7 +336,8 @@ let tests =
                     move load save publish chargeForMovement voidCharge domainMoveCommand
 
                     // Assert: first move succeeds
-                    let expectedAction = Imperium.Rondel.Space.toAction domainMoveCommand.Space
+                    // Using independent reference implementation to avoid testing transformation with itself
+                    let expectedAction = spaceNameToExpectedAction space
 
                     Expect.contains
                         publishedEvents
@@ -453,7 +458,8 @@ let tests =
                     let domainMoveCommand1 = Result.defaultWith failwith transformResult1
 
                     move load save publish chargeForMovement voidCharge domainMoveCommand1
-                    let expectedAction1 = Imperium.Rondel.Space.toAction domainMoveCommand1.Space
+                    // Using independent reference implementation to avoid testing transformation with itself
+                    let expectedAction1 = spaceNameToExpectedAction startSpace
 
                     Expect.contains
                         publishedEvents
@@ -481,7 +487,8 @@ let tests =
                     let domainMoveCommand2 = Result.defaultWith failwith transformResult2
 
                     move load save publish chargeForMovement voidCharge domainMoveCommand2
-                    let expectedAction2 = Imperium.Rondel.Space.toAction domainMoveCommand2.Space
+                    // Using independent reference implementation to avoid testing transformation with itself
+                    let expectedAction2 = spaceNameToExpectedAction secondSpace
 
                     Expect.contains
                         publishedEvents
@@ -516,7 +523,8 @@ let tests =
                     let domainMoveCommand3 = Result.defaultWith failwith transformResult3
 
                     move load save publish chargeForMovement voidCharge domainMoveCommand3
-                    let expectedAction3 = Imperium.Rondel.Space.toAction domainMoveCommand3.Space
+                    // Using independent reference implementation to avoid testing transformation with itself
+                    let expectedAction3 = spaceNameToExpectedAction thirdSpace
 
                     Expect.contains
                         publishedEvents
@@ -584,7 +592,8 @@ let tests =
                     let domainMoveCommand1 = Result.defaultWith failwith transformResult1
 
                     move load save publish chargeForMovement voidCharge domainMoveCommand1
-                    let expectedAction1 = Imperium.Rondel.Space.toAction domainMoveCommand1.Space
+                    // Using independent reference implementation to avoid testing transformation with itself
+                    let expectedAction1 = spaceNameToExpectedAction startSpace
 
                     Expect.contains
                         publishedEvents
@@ -629,7 +638,8 @@ let tests =
                             targetSpace)
 
                     // Assert: No action determined for invalid distance
-                    let expectedAction2 = Imperium.Rondel.Space.toAction domainMoveCommand2.Space
+                    // Using independent reference implementation to avoid testing transformation with itself
+                    let expectedAction2 = spaceNameToExpectedAction targetSpace
 
                     Expect.isFalse
                         (publishedEvents
@@ -792,7 +802,7 @@ let tests =
                         (Imperium.Rondel.RondelEvent.ActionDetermined
                             { GameId = firstMoveCmd.GameId
                               Nation = "France"
-                              Action = Imperium.Rondel.Space.toAction firstMoveCmd.Space })
+                              Action = Imperium.Rondel.Action.Production })
                         "first move should determine action"
 
                     publishedEvents.Clear()
@@ -913,7 +923,7 @@ let tests =
                         (Imperium.Rondel.RondelEvent.ActionDetermined
                             { GameId = firstMoveCmd.GameId
                               Nation = "Germany"
-                              Action = Imperium.Rondel.Space.toAction firstMoveCmd.Space })
+                              Action = Imperium.Rondel.Action.Maneuver })
                         "first move should determine action"
 
                     publishedEvents.Clear()
@@ -982,7 +992,7 @@ let tests =
                         (Imperium.Rondel.RondelEvent.ActionDetermined
                             { GameId = thirdMove.GameId
                               Nation = "Germany"
-                              Action = Imperium.Rondel.Space.toAction thirdMove.Space })
+                              Action = Imperium.Rondel.Action.Factory })
                         "free move should determine action immediately despite superseding" ]
           testList
               "onInvoicePaid"
@@ -1021,7 +1031,7 @@ let tests =
                         (Imperium.Rondel.RondelEvent.ActionDetermined
                             { GameId = firstMoveCmd.GameId
                               Nation = "Austria"
-                              Action = Imperium.Rondel.Space.toAction firstMoveCmd.Space })
+                              Action = Imperium.Rondel.Action.Maneuver })
                         "first move should complete immediately"
 
                     publishedEvents.Clear()
@@ -1073,7 +1083,7 @@ let tests =
                         (Imperium.Rondel.RondelEvent.ActionDetermined
                             { GameId = secondMoveCmd.GameId
                               Nation = "Austria"
-                              Action = Imperium.Rondel.Space.toAction secondMoveCmd.Space })
+                              Action = Imperium.Rondel.Action.Investor })
                         "ActionDetermined event should be published after payment confirmation"
 
                     // Assert: only one event published
@@ -1101,5 +1111,5 @@ let tests =
                         (Imperium.Rondel.RondelEvent.ActionDetermined
                             { GameId = thirdMoveCmd.GameId
                               Nation = "Austria"
-                              Action = Imperium.Rondel.Space.toAction thirdMoveCmd.Space })
+                              Action = Imperium.Rondel.Action.Import })
                         "subsequent move from Investor to Import (1 space) should succeed, confirming position was updated" ] ]
