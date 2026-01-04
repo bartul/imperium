@@ -1,5 +1,5 @@
 # Repository Guidelines
-Last verified: 2026-01-03
+Last verified: 2026-01-04
 
 ## Project Structure & Module Organization
 - `Imperium.sln` stitches together the core F# library, ASP.NET Core web host, and unit test project.
@@ -67,6 +67,62 @@ Last verified: 2026-01-03
 - Group related functions into modules that mirror file names (`Rondel`, `MonetarySystem`); expose a minimal public surface.
 - Prefer expression-based code and pattern matching over mutable branches.
 - Before committing, run `dotnet fantomas .` to format code (configured via `.config/dotnet-tools.json`); keep diffs tidy and minimal.
+
+### Module File Organization
+
+Domain modules (`.fsi` and `.fs` pairs) follow a consistent sectioned structure. Use visual dividers and XML doc comments for clarity.
+
+**Section Divider Pattern:**
+```fsharp
+// ──────────────────────────────────────────────────────────────────────────
+// Section Name
+// ──────────────────────────────────────────────────────────────────────────
+```
+
+**Section Order (both `.fsi` and `.fs`):**
+
+| # | Section | Contents |
+|---|---------|----------|
+| 1 | **Value Types & Enumerations** | Struct wrappers (`RondelBillingId`), DUs (`Action`, `Space`), companion modules |
+| 2 | **Domain State** | Persistent state records (`RondelState`, `PendingMovement`) |
+| 3 | **Commands** | Command DU and individual command records |
+| 4 | **Events** | Event DU and individual event records |
+| 5 | **Dependencies** | Function types for DI (`LoadState`, `SaveState`, `PublishEvent`) |
+| 6 | **Transformations** | Modules with `toDomain`, `toContract`, `fromContract` functions |
+| 7 | **Handlers (Internal Types)** | `.fs` only: internal DUs for routing/outcomes (`MoveOutcome`) |
+| 8 | **Handlers** | Command handlers, then event handlers |
+
+**XML Documentation Comments:**
+- All public types and functions require `///` doc comments
+- Module-level comment explains the module's transformation purpose
+- Function-level comments describe behavior, parameters, and return semantics
+- Inline field comments for record fields with non-obvious semantics:
+  ```fsharp
+  type RondelState =
+      { GameId: Id
+        /// Maps nation name to current position. None indicates starting position.
+        NationPositions: Map<string, Space option>
+        /// Maps nation name to pending paid movement awaiting payment.
+        PendingMovements: Map<string, PendingMovement> }
+  ```
+
+**Internal Types in `.fs`:**
+- Mark handler-internal types with `type internal`:
+  ```fsharp
+  type internal MoveOutcome =
+      | Rejected of rejectedCommand: MoveCommand
+      | Free of targetSpace: Space * nation: string
+  ```
+
+**Type Inference Gotcha:**
+- When two record types share identical field names/types (e.g., `MoveCommand` and `MoveToActionSpaceRejectedEvent` both have `GameId`, `Nation`, `Space`), F# infers the last-defined type
+- Add explicit type annotations to avoid ambiguity:
+  ```fsharp
+  let toDomain (cmd: Contract.MoveCommand) : Result<MoveCommand, string> = ...
+  let decideOutcome (state: RondelState, cmd: MoveCommand, pos) = ...
+  ```
+
+**Reference Implementation:** See `Rondel.fsi` and `Rondel.fs` for the canonical example.
 
 ## Testing Guidelines
 - Unit tests live in `tests/Imperium.UnitTests` using Expecto 10.2.3 with FsCheck integration for property-based testing.

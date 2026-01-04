@@ -7,9 +7,17 @@ open Imperium.Contract.Rondel
 
 module Rondel =
 
+    // ──────────────────────────────────────────────────────────────────────────
+    // Value Types & Enumerations
+    // ──────────────────────────────────────────────────────────────────────────
+
+    /// Opaque identifier linking a rondel movement to its accounting charge.
+    /// Used to correlate payment confirmations with pending movements.
     [<Struct>]
     type RondelBillingId = private RondelBillingId of Id
 
+    /// The six distinct actions a nation can perform on the rondel.
+    /// Each action corresponds to one or two spaces on the circular track.
     [<RequireQualifiedAccess>]
     type Action =
         | Investor
@@ -19,6 +27,8 @@ module Rondel =
         | Taxation
         | Factory
 
+    /// The eight spaces on the rondel wheel, arranged clockwise.
+    /// Production and Maneuver each appear twice on the track.
     [<RequireQualifiedAccess>]
     type Space =
         | Investor
@@ -31,105 +41,134 @@ module Rondel =
         | ManeuverTwo
 
     module Space =
-        /// Maps a rondel space to its corresponding action
+        /// Maps a rondel space to its corresponding action.
         val toAction: Space -> Action
 
-    // Domain state
+    // ──────────────────────────────────────────────────────────────────────────
+    // Domain State
+    // ──────────────────────────────────────────────────────────────────────────
+
+    /// Persistent state for a game's rondel, tracking nation positions and pending movements.
     type RondelState =
         { GameId: Id
+          /// Maps nation name to current position. None indicates starting position (not yet moved).
           NationPositions: Map<string, Space option>
+          /// Maps nation name to pending paid movement awaiting payment confirmation.
           PendingMovements: Map<string, PendingMovement> }
 
+    /// A movement awaiting payment confirmation from the Accounting domain.
     and PendingMovement =
         { Nation: string
           TargetSpace: Space
           BillingId: RondelBillingId }
 
-    // Dependency function types
-
-    /// Load Rondel state by GameId. Returns None if game not initialized.
-    type LoadRondelState = Id -> RondelState option
-
-    /// Save Rondel state. Returns Error if persistence fails.
-    type SaveRondelState = RondelState -> Result<unit, string>
-
-    // Domain Events
-
-    type RondelEvent =
-        | PositionedAtStart of PositionedAtStartEvent
-        | ActionDetermined of ActionDeterminedEvent
-        | MoveToActionSpaceRejected of MoveToActionSpaceRejectedEvent
-
-    and PositionedAtStartEvent = { GameId: Id }
-
-    and ActionDeterminedEvent =
-        { GameId: Id
-          Nation: string
-          Action: Action }
-
-    and MoveToActionSpaceRejectedEvent =
-        { GameId: Id
-          Nation: string
-          Space: Space }
-
-    /// Publishes Rondel domain events to the event bus.
-    type PublishRondelEvent = RondelEvent -> unit
-
+    // ──────────────────────────────────────────────────────────────────────────
     // Commands
+    // ──────────────────────────────────────────────────────────────────────────
 
+    /// Union of all rondel commands for routing and dispatch.
     type RondelCommand =
         | SetToStartingPositions of SetToStartingPositionsCommand
         | Move of MoveCommand
 
+    /// Initialize rondel for a game with the participating nations.
     and SetToStartingPositionsCommand = { GameId: Id; Nations: Set<string> }
 
+    /// Request to move a nation to a specific space on the rondel.
     and MoveCommand =
         { GameId: Id
           Nation: string
           Space: Space }
 
-    // Transformation modules: Contract → Domain
+    // ──────────────────────────────────────────────────────────────────────────
+    // Events
+    // ──────────────────────────────────────────────────────────────────────────
 
-    /// Transforms Contract types to Domain types for SetToStartingPositions
+    /// Integration events published by the Rondel domain to notify other bounded contexts.
+    type RondelEvent =
+        | PositionedAtStart of PositionedAtStartEvent
+        | ActionDetermined of ActionDeterminedEvent
+        | MoveToActionSpaceRejected of MoveToActionSpaceRejectedEvent
+
+    /// Published when nations are positioned at their starting positions, rondel ready for play.
+    and PositionedAtStartEvent = { GameId: Id }
+
+    /// Published when a nation successfully completes a move and an action is determined.
+    and ActionDeterminedEvent =
+        { GameId: Id
+          Nation: string
+          Action: Action }
+
+    /// Published when a nation's movement is rejected (invalid move or payment failure).
+    and MoveToActionSpaceRejectedEvent =
+        { GameId: Id
+          Nation: string
+          Space: Space }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // Dependencies
+    // ──────────────────────────────────────────────────────────────────────────
+
+    /// Load rondel state by GameId. Returns None if game not initialized.
+    type LoadRondelState = Id -> RondelState option
+
+    /// Save rondel state. Returns Error if persistence fails.
+    type SaveRondelState = RondelState -> Result<unit, string>
+
+    /// Publish rondel domain events to the event bus.
+    type PublishRondelEvent = RondelEvent -> unit
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // Transformations (Contract <-> Domain)
+    // ──────────────────────────────────────────────────────────────────────────
+
+    /// Transforms Contract SetToStartingPositionsCommand to Domain type.
     module SetToStartingPositionsCommand =
-        /// Transform Contract SetToStartingPositionsCommand to Domain SetToStartingPositionsCommand.
+        /// Validate and transform Contract command to Domain command.
         /// Returns Error if GameId is invalid (Guid.Empty).
         val toDomain: Contract.Rondel.SetToStartingPositionsCommand -> Result<SetToStartingPositionsCommand, string>
 
-    /// Transforms Contract types to Domain types for Move
+    /// Transforms Contract MoveCommand to Domain type.
     module MoveCommand =
-        /// Transform Contract MoveCommand to Domain MoveCommand.
+        /// Validate and transform Contract command to Domain command.
         /// Returns Error if GameId is invalid or Space name is unknown.
         val toDomain: Contract.Rondel.MoveCommand -> Result<MoveCommand, string>
 
-    // Transformation modules: Domain → Contract
-
-    /// Transforms Domain types to Contract types for Events
+    /// Transforms Domain RondelEvent to Contract type for publication.
     module RondelEvent =
-        /// Transform Domain RondelEvent to Contract RondelEvent for publication.
+        /// Transform Domain event to Contract event for cross-boundary communication.
         val toContract: RondelEvent -> Contract.Rondel.RondelEvent
 
-    // Transformation modules: Domain ↔ Contract
-
-    /// Transforms Domain RondelState to Contract RondelState for persistence.
+    /// Transforms Domain RondelState to/from Contract type for persistence.
     module RondelState =
+        /// Convert domain state to serializable contract representation.
         val toContract: RondelState -> Contract.Rondel.RondelState
+        /// Reconstruct domain state from contract representation.
+        /// Returns Error if Space names or BillingIds are invalid.
         val fromContract: Contract.Rondel.RondelState -> Result<RondelState, string>
 
-    /// Transforms Domain PendingMovement to Contract PendingMovement for persistence.
+    /// Transforms Domain PendingMovement to/from Contract type for persistence.
     module PendingMovement =
+        /// Convert domain pending movement to serializable contract representation.
         val toContract: PendingMovement -> Contract.Rondel.PendingMovement
+        /// Reconstruct domain pending movement from contract representation.
+        /// Returns Error if Space name or BillingId is invalid.
         val fromContract: Contract.Rondel.PendingMovement -> Result<PendingMovement, string>
 
-    /// Command: Initialize rondel for the specified game with the given nations.
+    // ──────────────────────────────────────────────────────────────────────────
+    // Handlers
+    // ──────────────────────────────────────────────────────────────────────────
+
+    /// Initialize rondel for the specified game with the given nations.
     /// All nations are positioned at their starting positions.
-    /// Publishes PositionedAtStart integration event. Fails if nation set is empty.
+    /// Publishes PositionedAtStart event. Throws if nation set is empty.
     val setToStartingPositions:
         LoadRondelState -> SaveRondelState -> PublishRondelEvent -> SetToStartingPositionsCommand -> unit
 
-    /// Command: Move a nation to the specified space on the rondel.
-    /// Determines movement cost and charges via injected Accounting dependency.
-    /// Integration event ActionDetermined published based on payment requirement.
+    /// Move a nation to the specified space on the rondel.
+    /// Free moves (1-3 spaces) complete immediately with ActionDetermined event.
+    /// Paid moves (4-6 spaces) dispatch charge and await payment confirmation.
+    /// Throws for invalid moves (0 spaces, 7+ spaces, uninitialized game).
     val move:
         LoadRondelState ->
         SaveRondelState ->
@@ -139,15 +178,13 @@ module Rondel =
         MoveCommand ->
             unit
 
-    // Event handlers
-
-    /// Event handler: Processes invoice payment confirmation from Accounting domain.
-    /// Completes the nation's movement and publishes ActionDetermined integration event.
-    /// If no pending movement exists for the BillingId, the event is ignored (idempotent behavior).
+    /// Process invoice payment confirmation from Accounting domain.
+    /// Completes pending movement and publishes ActionDetermined event.
+    /// Idempotent: ignores events for non-existent pending movements.
     val onInvoicedPaid:
         LoadRondelState -> SaveRondelState -> PublishRondelEvent -> RondelInvoicePaid -> Result<unit, string>
 
-    /// Event handler: Processes invoice payment failure from Accounting domain.
-    /// Rejects the movement and publishes MoveToActionSpaceRejected integration event.
+    /// Process invoice payment failure from Accounting domain.
+    /// Rejects movement and publishes MoveToActionSpaceRejected event.
     val onInvoicePaymentFailed:
         LoadRondelState -> SaveRondelState -> PublishRondelEvent -> RondelInvoicePaymentFailed -> Result<unit, string>
