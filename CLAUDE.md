@@ -14,7 +14,7 @@ Last verified: 2026-01-03
 ## Agent Priorities
 
 - Follow the three-phase process in `docs/module_design_process.md`: define `.fsi`, write tests, then implement.
-- Keep dependency order consistent: publisher first, then persistence, then external services (e.g., accounting).
+- Keep dependency order consistent: persistence first, then publisher, then external services (e.g., accounting).
 - Prefer minimal public surface; align `.fs` to `.fsi` without widening the API.
 
 ## CQRS & Contract Patterns (anchor details in AGENTS.md)
