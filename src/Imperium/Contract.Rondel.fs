@@ -35,3 +35,15 @@ module Rondel =
         { GameId: Guid
           Nation: string
           Space: string }
+
+    // State for persistence
+
+    type RondelState =
+        { GameId: Guid
+          NationPositions: Map<string, string option>
+          PendingMovements: Map<string, PendingMovement> }
+
+    and PendingMovement =
+        { Nation: string
+          TargetSpace: string
+          BillingId: Guid }

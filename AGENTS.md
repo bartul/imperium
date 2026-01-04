@@ -9,7 +9,7 @@ Last verified: 2026-01-03
   - `Id` - Struct wrapping `Guid` with validation; provides `create`, `newId`, `value`, `toString`, `tryParse`, and mapper helpers
   - `Amount` - Measured struct wrapper (`int<M>`) with guarded construction; errors are plain strings; includes `tryParse`
 - **Contract modules:** Cross-bounded-context communication types; no `.fsi` files (intentionally public); organized by bounded context
-  - `Contract.Rondel` (Contract.Rondel.fs): SetToStartingPositionsCommand, MoveCommand, RondelEvent (PositionedAtStart, ActionDetermined, MoveToActionSpaceRejected)
+  - `Contract.Rondel` (Contract.Rondel.fs): SetToStartingPositionsCommand, MoveCommand, RondelEvent (PositionedAtStart, ActionDetermined, MoveToActionSpaceRejected), RondelState, PendingMovement
   - `Contract.Accounting` (Contract.fs): ChargeNationForRondelMovementCommand, VoidRondelChargeCommand, AccountingEvent (RondelInvoicePaid, RondelInvoicePaymentFailed)
   - `Contract.Gameplay` (Contract.fs): Placeholder for future game-level coordination types
   - Function types for dependency injection (e.g., `ChargeNationForRondelMovement = ChargeNationForRondelMovementCommand -> Result<unit, string>`, `VoidRondelCharge = VoidRondelChargeCommand -> Result<unit, string>`)
@@ -23,7 +23,8 @@ Last verified: 2026-01-03
   - All handlers take dependency injections explicitly (e.g., `load`, `save`, `publish`, specialized services)
   - `Gameplay` and `Accounting` have no public API currently (placeholder values only)
   - `Rondel` exposes: transformation modules (SetToStartingPositionsCommand, MoveCommand), domain command types (SetToStartingPositionsCommand with `Set<string>` Nations, MoveCommand with Space), Space type, PublishRondelEvent type, setToStartingPositions (implemented), move (implemented), onInvoicedPaid (implemented), onInvoicePaymentFailed (stubbed)
-  - `Rondel.Dto.RondelState`: GameId, NationPositions (Map<string, string option>), PendingMovements (Map<string, PendingMovement> keyed by nation name for O(log n) lookups)
+  - `Contract.Rondel.RondelState`: Serializable DTOs (Guid/string) for persistence. NationPositions is `Map<string, string option>` at the serialization boundary and PendingMovements is keyed by nation name for O(log n) lookups.
+  - `Rondel.RondelState`: Domain state uses strong types (`Id`, `Space option`, `RondelBillingId`). NationPositions is `Map<string, Space option>` and PendingMovement uses `Space` TargetSpace + `RondelBillingId` BillingId. Transformations live in `Rondel.fs` (`RondelState.toContract/fromContract`), not in a separate adapter.
 - `src/Imperium.Web` bootstraps the HTTP layer (`Program.fs`). Reference the core project via the existing project reference instead of duplicating logic.
 - `docs/` stores reference rulebooks; official rule PDFs live in `docs/official_rules/`. Leave build artefacts inside each project's `bin/` and `obj/` directories untouched.
 - Rondel spaces (board order): `Investor`, `Import`, `ProductionOne`, `ManeuverOne`, `Taxation`, `Factory`, `ProductionTwo`, `ManeuverTwo`.
@@ -33,14 +34,14 @@ Last verified: 2026-01-03
 - **Transformation modules** (`SetToStartingPositionsCommand.toDomain`, `MoveCommand.toDomain`): Modules named after domain command types; accept Contract types, validate inputs, return `Result<DomainType, string>` with plain string errors
 - **Command handlers** (`setToStartingPositions`, `move`): Accept domain types directly, take dependencies explicitly (load, save, publish, services), throw exceptions for business rule violations, return `unit`
 - **Event handlers** (`onInvoicedPaid`, `onInvoicePaymentFailed`): Accept Contract event types, return `Result<unit, string>` for error propagation
-- Dependency injection order: persistence (load, save), publish, then specialized services (e.g., accounting charge/void)
+- Dependency injection order: persistence (load, save), publish, then specialized services (e.g., accounting charge/void). Load/save use domain `RondelState` and `Id`; persistence adapters map to/from `Contract.Rondel.RondelState`.
 - Signature files define public shape first; implementations should not widen the surface in `.fs`.
 
 ### Rondel Implementation Patterns
 - **Two-layer architecture**: Transformation layer (validates inputs, returns `Result`) + Handler layer (validates business rules, throws exceptions, returns `unit`)
 - **Transformation modules** (`SetToStartingPositionsCommand`, `MoveCommand`): Named after domain command types; use `Result` monad to validate Contract inputs (GameId, Space names) and construct domain types
 - **Handler pipeline pattern**: Handlers accept domain types, follow consistent pipeline using simple forward pipes (`|>`, `||>`, `|||>`): validation → state loading → execution → IO side effects. Business rule violations throw exceptions via `failwith`.
-- **Record construction**: Use type annotation for DTO construction: `let newState : Dto.RondelState = { GameId = ...; NationPositions = ...; PendingMovements = ... }`. F# records use `{ }` syntax directly, not `TypeName { }`.
+- **Record construction**: Use type annotation for contract state construction: `let newState : Contract.Rondel.RondelState = { GameId = ...; NationPositions = ...; PendingMovements = ... }`. F# records use `{ }` syntax directly, not `TypeName { }`.
 - **MoveOutcome type**: Internal discriminated union with named fields carrying complete context (targetSpace, distance, nation, rejectedCommand). All cases encapsulate necessary data, eliminating closure dependencies on outer scope variables for cleaner functional design.
 - **Decision chain**: Validates moves through `Decision` monad (`noMovesAllowedIfNotInitialized` → `noMovesAllowedForNationNotInGame` → `firstMoveIsFreeToAnyPosition` → `failIfPositionIsInvalid` → `decideMovementOutcome`) producing `MoveOutcome`.
 - **Side-effect separation**: `handleMoveOutcome` transforms `MoveOutcome` to `(state, events, commands)` tuple; `performIO` sequences persistence, event publishing, and outbound command dispatch with `Result.bind` for error propagation (short-circuits on first error), then uses `Result.defaultWith` to unwrap and throw on IO failures.

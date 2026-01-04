@@ -7,27 +7,8 @@ open Imperium.Contract.Rondel
 
 module Rondel =
 
-    // State DTOs for persistence
-    module Dto =
-        /// A movement pending payment confirmation from Accounting domain.
-        /// Rondel state for a game - tracks nation positions and pending movements.
-        type RondelState =
-            { GameId: Guid
-              NationPositions: Map<string, string option>
-              PendingMovements: Map<string, PendingMovement> }
-
-        and PendingMovement =
-            { Nation: string
-              TargetSpace: string
-              BillingId: Guid }
-
-    // Dependency function types
-
-    /// Load Rondel state by GameId. Returns None if game not initialized.
-    type LoadRondelState = Guid -> Dto.RondelState option
-
-    /// Save Rondel state. Returns Error if persistence fails.
-    type SaveRondelState = Dto.RondelState -> Result<unit, string>
+    [<Struct>]
+    type RondelBillingId = private RondelBillingId of Id
 
     [<RequireQualifiedAccess>]
     type Action =
@@ -52,6 +33,25 @@ module Rondel =
     module Space =
         /// Maps a rondel space to its corresponding action
         val toAction: Space -> Action
+
+    // Domain state
+    type RondelState =
+        { GameId: Id
+          NationPositions: Map<string, Space option>
+          PendingMovements: Map<string, PendingMovement> }
+
+    and PendingMovement =
+        { Nation: string
+          TargetSpace: Space
+          BillingId: RondelBillingId }
+
+    // Dependency function types
+
+    /// Load Rondel state by GameId. Returns None if game not initialized.
+    type LoadRondelState = Id -> RondelState option
+
+    /// Save Rondel state. Returns Error if persistence fails.
+    type SaveRondelState = RondelState -> Result<unit, string>
 
     // Domain Events
 
@@ -108,6 +108,18 @@ module Rondel =
     module RondelEvent =
         /// Transform Domain RondelEvent to Contract RondelEvent for publication.
         val toContract: RondelEvent -> Contract.Rondel.RondelEvent
+
+    // Transformation modules: Domain ↔ Contract
+
+    /// Transforms Domain RondelState to Contract RondelState for persistence.
+    module RondelState =
+        val toContract: RondelState -> Contract.Rondel.RondelState
+        val fromContract: Contract.Rondel.RondelState -> Result<RondelState, string>
+
+    /// Transforms Domain PendingMovement to Contract PendingMovement for persistence.
+    module PendingMovement =
+        val toContract: PendingMovement -> Contract.Rondel.PendingMovement
+        val fromContract: Contract.Rondel.PendingMovement -> Result<PendingMovement, string>
 
     /// Command: Initialize rondel for the specified game with the given nations.
     /// All nations are positioned at their starting positions.
