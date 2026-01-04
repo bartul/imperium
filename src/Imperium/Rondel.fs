@@ -127,8 +127,7 @@ module Rondel =
     module RondelEvent =
         let toContract (event: RondelEvent) : Contract.Rondel.RondelEvent =
             match event with
-            | PositionedAtStart e ->
-                Contract.Rondel.PositionedAtStart { GameId = Id.value e.GameId }
+            | PositionedAtStart e -> Contract.Rondel.PositionedAtStart { GameId = Id.value e.GameId }
             | ActionDetermined e ->
                 Contract.Rondel.ActionDetermined
                     { GameId = Id.value e.GameId
@@ -221,8 +220,7 @@ module Rondel =
                       NationPositions = command.Nations |> Set.toSeq |> Seq.map (fun n -> n, None) |> Map.ofSeq
                       PendingMovements = Map.empty }
 
-                let positionedAtStartEvent =
-                    PositionedAtStart { GameId = command.GameId }
+                let positionedAtStartEvent = PositionedAtStart { GameId = command.GameId }
 
                 Some newState, [ positionedAtStartEvent ], []
 
@@ -330,7 +328,9 @@ module Rondel =
                     { state with
                         NationPositions = state.NationPositions |> Map.add nation (Some(Space.toString targetSpace)) }
 
-                let gameId = Id.create state.GameId |> Result.defaultWith (fun e -> failwith $"Invalid GameId in state: {e}")
+                let gameId =
+                    Id.create state.GameId
+                    |> Result.defaultWith (fun e -> failwith $"Invalid GameId in state: {e}")
 
                 let actionDeterminedEvent =
                     ActionDetermined
@@ -345,7 +345,9 @@ module Rondel =
                         NationPositions = state.NationPositions |> Map.add nation (Some(Space.toString targetSpace))
                         PendingMovements = state.PendingMovements |> Map.remove nation }
 
-                let gameId = Id.create state.GameId |> Result.defaultWith (fun e -> failwith $"Invalid GameId in state: {e}")
+                let gameId =
+                    Id.create state.GameId
+                    |> Result.defaultWith (fun e -> failwith $"Invalid GameId in state: {e}")
 
                 let actionDeterminedEvent =
                     ActionDetermined
@@ -418,7 +420,9 @@ module Rondel =
 
                 let existingUnpaidMove = state.PendingMovements |> Map.find nation
 
-                let gameId = Id.create state.GameId |> Result.defaultWith (fun e -> failwith $"Invalid GameId in state: {e}")
+                let gameId =
+                    Id.create state.GameId
+                    |> Result.defaultWith (fun e -> failwith $"Invalid GameId in state: {e}")
 
                 let targetSpaceFromPending =
                     Space.fromString existingUnpaidMove.TargetSpace
