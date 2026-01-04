@@ -34,7 +34,7 @@ Last verified: 2026-01-03
 - **Transformation modules** (`SetToStartingPositionsCommand.toDomain`, `MoveCommand.toDomain`): Modules named after domain command types; accept Contract types, validate inputs, return `Result<DomainType, string>` with plain string errors
 - **Command handlers** (`setToStartingPositions`, `move`): Accept domain types directly, take dependencies explicitly (load, save, publish, services), throw exceptions for business rule violations, return `unit`
 - **Event handlers** (`onInvoicedPaid`, `onInvoicePaymentFailed`): Accept Contract event types, return `Result<unit, string>` for error propagation
-- Dependency injection order: persistence (load, save), publish, then specialized services (e.g., accounting charge/void)
+- Dependency injection order: persistence (load, save), publish, then specialized services (e.g., accounting charge/void). Load/save use domain `RondelState` and `Id`; persistence adapters map to/from `Contract.Rondel.RondelState`.
 - Signature files define public shape first; implementations should not widen the surface in `.fs`.
 
 ### Rondel Implementation Patterns

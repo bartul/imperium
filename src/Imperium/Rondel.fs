@@ -226,8 +226,8 @@ module Rondel =
         | VoidRondelCharge of VoidRondelChargeCommand
 
     // Public API types
-    type LoadRondelState = Guid -> Contract.Rondel.RondelState option
-    type SaveRondelState = Contract.Rondel.RondelState -> Result<unit, string>
+    type LoadRondelState = Id -> RondelState option
+    type SaveRondelState = RondelState -> Result<unit, string>
 
     type RondelCommand =
         | SetToStartingPositions of SetToStartingPositionsCommand
@@ -290,7 +290,7 @@ module Rondel =
         let performIO state events commands =
             let saveState state =
                 match state with
-                | Some s -> save (RondelState.toContract s)
+                | Some s -> save s
                 | None -> Ok()
 
             let publishEvents events = events |> List.iter publish |> Ok
@@ -311,14 +311,7 @@ module Rondel =
 
         command
         |> canNotSetStartPositionsWithNoNations
-        |> (fun cmd ->
-            let loadedState =
-                load (cmd.GameId |> Id.value)
-                |> Option.map (fun state ->
-                    RondelState.fromContract state
-                    |> Result.defaultWith (fun e -> failwith $"Invalid persisted rondel state: {e}"))
-
-            loadedState, cmd)
+        |> (fun cmd -> load cmd.GameId, cmd)
         ||> execute
         |||> performIO
 
@@ -491,7 +484,7 @@ module Rondel =
         let performIO state events commands =
             let saveState state =
                 match state with
-                | Some s -> save (RondelState.toContract s)
+                | Some s -> save s
                 | None -> Ok()
 
             let publishEvents events = events |> List.iter publish |> Ok
@@ -518,12 +511,7 @@ module Rondel =
             |> handleMoveOutcome state
             |||> performIO
 
-        let loadedState =
-            load (command.GameId |> Id.value)
-            |> Option.map (fun state ->
-                RondelState.fromContract state
-                |> Result.defaultWith (fun e -> failwith $"Invalid persisted rondel state: {e}"))
-
+        let loadedState = load command.GameId
         execute loadedState command
 
 
@@ -538,7 +526,7 @@ module Rondel =
         let performIO state events =
             let saveState state =
                 match state with
-                | Some s -> save (RondelState.toContract s)
+                | Some s -> save s
                 | None -> Ok()
 
             let publishEvents events = events |> List.iter publish |> Ok
@@ -591,12 +579,11 @@ module Rondel =
             |> registerPaymentAndCompleteMovement
             ||> performIO
 
-        let loadedState =
-            load (event.GameId)
-            |> Option.map (fun state ->
-                RondelState.fromContract state
-                |> Result.defaultWith (fun e -> failwith $"Invalid persisted rondel state: {e}"))
+        let gameId =
+            Id.create event.GameId
+            |> Result.defaultWith (fun e -> failwith $"Invalid GameId in event: {e}")
 
+        let loadedState = load gameId
         Ok(execute loadedState event)
 
     // Event handler: Process failed invoice payment from Accounting domain

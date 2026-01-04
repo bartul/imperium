@@ -10,14 +10,6 @@ module Rondel =
     [<Struct>]
     type RondelBillingId = private RondelBillingId of Id
 
-    // Dependency function types
-
-    /// Load Rondel state by GameId. Returns None if game not initialized.
-    type LoadRondelState = Guid -> Contract.Rondel.RondelState option
-
-    /// Save Rondel state. Returns Error if persistence fails.
-    type SaveRondelState = Contract.Rondel.RondelState -> Result<unit, string>
-
     [<RequireQualifiedAccess>]
     type Action =
         | Investor
@@ -52,6 +44,14 @@ module Rondel =
         { Nation: string
           TargetSpace: Space
           BillingId: RondelBillingId }
+
+    // Dependency function types
+
+    /// Load Rondel state by GameId. Returns None if game not initialized.
+    type LoadRondelState = Id -> RondelState option
+
+    /// Save Rondel state. Returns Error if persistence fails.
+    type SaveRondelState = RondelState -> Result<unit, string>
 
     // Domain Events
 
