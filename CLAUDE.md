@@ -1,7 +1,7 @@
 # CLAUDE.md
 
 This file guides Claude Code (claude.ai/code) for this repository. For shared repo facts, module summaries, and commands, see `AGENTS.md`.
-Last verified: 2026-01-03
+Last verified: 2026-01-04
 
 ## Quick Status (last verified: current)
 
@@ -42,4 +42,6 @@ Reasoning: preserves IL shape, avoids unwanted module-load computation, and keep
 - F# defaults: 4-space indent, `PascalCase` for types/modules, `camelCase` for functions.
 - Favor expression-based, pattern-matching code; keep handlers small and injected dependencies explicit.
 - Record construction: Use `{ Field = value }` syntax with type annotation when needed: `let x : RecordType = { ... }`. Never use `RecordType { ... }` - that's not valid F# syntax.
+- Module file organization: Follow the 8-section structure in `AGENTS.md` → "Module File Organization" (Value Types → State → Commands → Events → Dependencies → Transformations → Internal Types → Handlers). Use `// ────...` dividers and `///` XML doc comments.
+- Type inference pitfall: When records share identical fields (e.g., `MoveCommand` and `MoveToActionSpaceRejectedEvent`), F# picks the last-defined type. Add explicit type annotations: `let fn (cmd: MoveCommand) : Result<MoveCommand, string> = ...`
 - Run `dotnet build`/`dotnet test` locally; format with `dotnet fantomas .` (always available via `.config/dotnet-tools.json`).
