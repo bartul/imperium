@@ -21,7 +21,7 @@ let createMockStore () =
     load, save
 
 let createMockPublisher () =
-    let publishedEvents = ResizeArray<RondelEvent>()
+    let publishedEvents = ResizeArray<Imperium.Rondel.RondelEvent>()
     let publish event = publishedEvents.Add event
     publish, publishedEvents
 
@@ -45,17 +45,20 @@ let createMockVoidCharge () =
 
     voidCharge, voidedCommands
 
-let spaceToAction (space: string) : string =
-    match space with
-    | "Investor" -> "Investor"
-    | "Factory" -> "Factory"
-    | "Import" -> "Import"
-    | "Taxation" -> "Taxation"
+// Independent reference implementation for test verification
+// This provides an alternate path to verify Space -> Action mapping
+// without using the production Space.toAction function
+let spaceNameToExpectedAction (spaceName: string) : Imperium.Rondel.Action =
+    match spaceName with
+    | "Investor" -> Imperium.Rondel.Action.Investor
+    | "Factory" -> Imperium.Rondel.Action.Factory
+    | "Import" -> Imperium.Rondel.Action.Import
+    | "Taxation" -> Imperium.Rondel.Action.Taxation
     | "ProductionOne"
-    | "ProductionTwo" -> "Production"
+    | "ProductionTwo" -> Imperium.Rondel.Action.Production
     | "ManeuverOne"
-    | "ManeuverTwo" -> "Maneuver"
-    | _ -> failwith $"Unknown rondel space: {space}"
+    | "ManeuverTwo" -> Imperium.Rondel.Action.Maneuver
+    | _ -> failwith $"Unknown rondel space: {spaceName}"
 
 [<Tests>]
 let tests =
@@ -104,7 +107,7 @@ let tests =
 
                     Expect.contains
                         publishedEvents
-                        (PositionedAtStart { GameId = contractCommand.GameId })
+                        (Imperium.Rondel.RondelEvent.PositionedAtStart { GameId = domainCommand.GameId })
                         "the rondel should signal that starting positions are set"
                 testCase "signals setup for the roster"
                 <| fun _ ->
@@ -127,7 +130,7 @@ let tests =
 
                     Expect.contains
                         publishedEvents
-                        (PositionedAtStart { GameId = contractCommand.GameId })
+                        (Imperium.Rondel.RondelEvent.PositionedAtStart { GameId = domainCommand.GameId })
                         "the rondel should signal that starting positions are set"
                 testCase "setting twice does not signal again"
                 <| fun _ ->
@@ -153,7 +156,7 @@ let tests =
                     let positionedAtStartPublishedEvents =
                         publishedEvents
                         |> Seq.filter (function
-                            | PositionedAtStart _ -> true
+                            | Imperium.Rondel.RondelEvent.PositionedAtStart _ -> true
                             | _ -> false)
                         |> Seq.toList
 
@@ -187,10 +190,10 @@ let tests =
 
                     Expect.contains
                         publishedEvents
-                        (MoveToActionSpaceRejected
-                            { GameId = contractMoveCommand.GameId
-                              Nation = contractMoveCommand.Nation
-                              Space = contractMoveCommand.Space })
+                        (Imperium.Rondel.RondelEvent.MoveToActionSpaceRejected
+                            { GameId = domainMoveCommand.GameId
+                              Nation = domainMoveCommand.Nation
+                              Space = domainMoveCommand.Space })
                         "the rondel should signal that the move was denied"
 
                     Expect.isEmpty dispatchedCommands "no movement fee is due when the move is denied"
@@ -245,15 +248,16 @@ let tests =
                     move load save publish chargeForMovement voidCharge domainMoveCommand
 
                     // Assert: ActionDetermined event published with correct action
-                    let expectedAction = spaceToAction space
+                    // Using independent reference implementation to avoid testing transformation with itself
+                    let expectedAction = spaceNameToExpectedAction space
 
                     Expect.contains
                         publishedEvents
-                        (ActionDetermined
-                            { GameId = gameId
+                        (Imperium.Rondel.RondelEvent.ActionDetermined
+                            { GameId = domainMoveCommand.GameId
                               Nation = nation
                               Action = expectedAction })
-                        (sprintf "the rondel space %s determines %s's action: %s" space nation expectedAction)
+                        (sprintf "the rondel space %s determines %s's action: %A" space nation expectedAction)
 
                     // Assert: No charge commands dispatched (first move is free)
                     Expect.isEmpty dispatchedCommands "first move is free (no movement fee)"
@@ -332,15 +336,16 @@ let tests =
                     move load save publish chargeForMovement voidCharge domainMoveCommand
 
                     // Assert: first move succeeds
-                    let expectedAction = spaceToAction space
+                    // Using independent reference implementation to avoid testing transformation with itself
+                    let expectedAction = spaceNameToExpectedAction space
 
                     Expect.contains
                         publishedEvents
-                        (ActionDetermined
-                            { GameId = gameId
+                        (Imperium.Rondel.RondelEvent.ActionDetermined
+                            { GameId = domainMoveCommand.GameId
                               Nation = nation
                               Action = expectedAction })
-                        (sprintf "the rondel space %s determines %s's action: %s" space nation expectedAction)
+                        (sprintf "the rondel space %s determines %s's action: %A" space nation expectedAction)
 
                     publishedEvents.Clear()
                     dispatchedCommands.Clear()
@@ -353,17 +358,17 @@ let tests =
 
                     Expect.contains
                         publishedEvents
-                        (MoveToActionSpaceRejected
-                            { GameId = gameId
+                        (Imperium.Rondel.RondelEvent.MoveToActionSpaceRejected
+                            { GameId = domainMoveCommand.GameId
                               Nation = nation
-                              Space = space })
+                              Space = domainMoveCommand.Space })
                         (sprintf "%s's move to current position %s should be rejected" nation space)
 
                     Expect.isFalse
                         (publishedEvents
                          |> Seq.contains (
-                             ActionDetermined
-                                 { GameId = gameId
+                             Imperium.Rondel.RondelEvent.ActionDetermined
+                                 { GameId = domainMoveCommand.GameId
                                    Nation = nation
                                    Action = expectedAction }
                          ))
@@ -381,17 +386,17 @@ let tests =
 
                     Expect.contains
                         publishedEvents
-                        (MoveToActionSpaceRejected
-                            { GameId = gameId
+                        (Imperium.Rondel.RondelEvent.MoveToActionSpaceRejected
+                            { GameId = domainMoveCommand.GameId
                               Nation = nation
-                              Space = space })
+                              Space = domainMoveCommand.Space })
                         (sprintf "%s's repeated move to current position %s should be rejected" nation space)
 
                     Expect.isFalse
                         (publishedEvents
                          |> Seq.contains (
-                             ActionDetermined
-                                 { GameId = gameId
+                             Imperium.Rondel.RondelEvent.ActionDetermined
+                                 { GameId = domainMoveCommand.GameId
                                    Nation = nation
                                    Action = expectedAction }
                          ))
@@ -453,15 +458,16 @@ let tests =
                     let domainMoveCommand1 = Result.defaultWith failwith transformResult1
 
                     move load save publish chargeForMovement voidCharge domainMoveCommand1
-                    let expectedAction1 = spaceToAction startSpace
+                    // Using independent reference implementation to avoid testing transformation with itself
+                    let expectedAction1 = spaceNameToExpectedAction startSpace
 
                     Expect.contains
                         publishedEvents
-                        (ActionDetermined
-                            { GameId = gameId
+                        (Imperium.Rondel.RondelEvent.ActionDetermined
+                            { GameId = domainMoveCommand1.GameId
                               Nation = nation
                               Action = expectedAction1 })
-                        (sprintf "%s's first move to %s should determine action %s" nation startSpace expectedAction1)
+                        (sprintf "%s's first move to %s should determine action %A" nation startSpace expectedAction1)
 
                     publishedEvents.Clear()
                     dispatchedCommands.Clear()
@@ -481,16 +487,17 @@ let tests =
                     let domainMoveCommand2 = Result.defaultWith failwith transformResult2
 
                     move load save publish chargeForMovement voidCharge domainMoveCommand2
-                    let expectedAction2 = spaceToAction secondSpace
+                    // Using independent reference implementation to avoid testing transformation with itself
+                    let expectedAction2 = spaceNameToExpectedAction secondSpace
 
                     Expect.contains
                         publishedEvents
-                        (ActionDetermined
-                            { GameId = gameId
+                        (Imperium.Rondel.RondelEvent.ActionDetermined
+                            { GameId = domainMoveCommand2.GameId
                               Nation = nation
                               Action = expectedAction2 })
                         (sprintf
-                            "%s's move from %s to %s (distance %d) should determine action %s"
+                            "%s's move from %s to %s (distance %d) should determine action %A"
                             nation
                             startSpace
                             secondSpace
@@ -516,16 +523,17 @@ let tests =
                     let domainMoveCommand3 = Result.defaultWith failwith transformResult3
 
                     move load save publish chargeForMovement voidCharge domainMoveCommand3
-                    let expectedAction3 = spaceToAction thirdSpace
+                    // Using independent reference implementation to avoid testing transformation with itself
+                    let expectedAction3 = spaceNameToExpectedAction thirdSpace
 
                     Expect.contains
                         publishedEvents
-                        (ActionDetermined
-                            { GameId = gameId
+                        (Imperium.Rondel.RondelEvent.ActionDetermined
+                            { GameId = domainMoveCommand3.GameId
                               Nation = nation
                               Action = expectedAction3 })
                         (sprintf
-                            "%s's move from %s to %s (distance %d) should determine action %s"
+                            "%s's move from %s to %s (distance %d) should determine action %A"
                             nation
                             secondSpace
                             thirdSpace
@@ -584,12 +592,13 @@ let tests =
                     let domainMoveCommand1 = Result.defaultWith failwith transformResult1
 
                     move load save publish chargeForMovement voidCharge domainMoveCommand1
-                    let expectedAction1 = spaceToAction startSpace
+                    // Using independent reference implementation to avoid testing transformation with itself
+                    let expectedAction1 = spaceNameToExpectedAction startSpace
 
                     Expect.contains
                         publishedEvents
-                        (ActionDetermined
-                            { GameId = gameId
+                        (Imperium.Rondel.RondelEvent.ActionDetermined
+                            { GameId = domainMoveCommand1.GameId
                               Nation = nation
                               Action = expectedAction1 })
                         (sprintf "%s's first move to %s should succeed" nation startSpace)
@@ -618,10 +627,10 @@ let tests =
 
                     Expect.contains
                         publishedEvents
-                        (MoveToActionSpaceRejected
-                            { GameId = gameId
+                        (Imperium.Rondel.RondelEvent.MoveToActionSpaceRejected
+                            { GameId = domainMoveCommand2.GameId
                               Nation = nation
-                              Space = targetSpace })
+                              Space = domainMoveCommand2.Space })
                         (sprintf
                             "%s's move from %s to %s (7 spaces) should be rejected as exceeding maximum distance"
                             nation
@@ -629,13 +638,14 @@ let tests =
                             targetSpace)
 
                     // Assert: No action determined for invalid distance
-                    let expectedAction2 = spaceToAction targetSpace
+                    // Using independent reference implementation to avoid testing transformation with itself
+                    let expectedAction2 = spaceNameToExpectedAction targetSpace
 
                     Expect.isFalse
                         (publishedEvents
                          |> Seq.contains (
-                             ActionDetermined
-                                 { GameId = gameId
+                             Imperium.Rondel.RondelEvent.ActionDetermined
+                                 { GameId = domainMoveCommand2.GameId
                                    Nation = nation
                                    Action = expectedAction2 }
                          ))
@@ -741,7 +751,7 @@ let tests =
                     let actionDeterminedEvents =
                         publishedEvents
                         |> Seq.filter (function
-                            | ActionDetermined _ -> true
+                            | Imperium.Rondel.RondelEvent.ActionDetermined _ -> true
                             | _ -> false)
                         |> Seq.toList
 
@@ -751,7 +761,7 @@ let tests =
                     let rejectedEvents =
                         publishedEvents
                         |> Seq.filter (function
-                            | MoveToActionSpaceRejected _ -> true
+                            | Imperium.Rondel.RondelEvent.MoveToActionSpaceRejected _ -> true
                             | _ -> false)
                         |> Seq.toList
 
@@ -778,24 +788,21 @@ let tests =
                     publishedEvents.Clear()
 
                     // First move: Establish starting position (2 spaces, free)
-                    move
-                        load
-                        save
-                        publish
-                        chargeForMovement
-                        voidCharge
-                        (MoveCommand.toDomain
+                    let firstMoveCmd =
+                        MoveCommand.toDomain
                             { Imperium.Contract.Rondel.MoveCommand.GameId = gameId
                               Nation = "France"
                               Space = "ProductionOne" }
-                         |> Result.defaultWith failwith)
+                        |> Result.defaultWith failwith
+
+                    move load save publish chargeForMovement voidCharge firstMoveCmd
 
                     Expect.contains
                         publishedEvents
-                        (ActionDetermined
-                            { GameId = gameId
+                        (Imperium.Rondel.RondelEvent.ActionDetermined
+                            { GameId = firstMoveCmd.GameId
                               Nation = "France"
-                              Action = "Production" })
+                              Action = Imperium.Rondel.Action.Production })
                         "first move should determine action"
 
                     publishedEvents.Clear()
@@ -822,7 +829,7 @@ let tests =
                     let actionEvents1 =
                         publishedEvents
                         |> Seq.filter (function
-                            | ActionDetermined _ -> true
+                            | Imperium.Rondel.RondelEvent.ActionDetermined _ -> true
                             | _ -> false)
                         |> Seq.toList
 
@@ -852,10 +859,10 @@ let tests =
                     // Assert: old move rejected
                     Expect.contains
                         publishedEvents
-                        (MoveToActionSpaceRejected
-                            { GameId = gameId
+                        (Imperium.Rondel.RondelEvent.MoveToActionSpaceRejected
+                            { GameId = secondMove.GameId
                               Nation = "France"
-                              Space = "ProductionTwo" })
+                              Space = secondMove.Space })
                         "first pending move should be rejected"
 
                     // Assert: new charge created
@@ -875,7 +882,7 @@ let tests =
                     let actionEvents2 =
                         publishedEvents
                         |> Seq.filter (function
-                            | ActionDetermined _ -> true
+                            | Imperium.Rondel.RondelEvent.ActionDetermined _ -> true
                             | _ -> false)
                         |> Seq.toList
 
@@ -902,41 +909,35 @@ let tests =
                     publishedEvents.Clear()
 
                     // First move: Establish starting position (3 spaces, free)
-                    move
-                        load
-                        save
-                        publish
-                        chargeForMovement
-                        voidCharge
-                        (MoveCommand.toDomain
+                    let firstMoveCmd =
+                        MoveCommand.toDomain
                             { Imperium.Contract.Rondel.MoveCommand.GameId = gameId
                               Nation = "Germany"
                               Space = "ManeuverOne" }
-                         |> Result.defaultWith failwith)
+                        |> Result.defaultWith failwith
+
+                    move load save publish chargeForMovement voidCharge firstMoveCmd
 
                     Expect.contains
                         publishedEvents
-                        (ActionDetermined
-                            { GameId = gameId
+                        (Imperium.Rondel.RondelEvent.ActionDetermined
+                            { GameId = firstMoveCmd.GameId
                               Nation = "Germany"
-                              Action = "Maneuver" })
+                              Action = Imperium.Rondel.Action.Maneuver })
                         "first move should determine action"
 
                     publishedEvents.Clear()
                     dispatchedCommands.Clear()
 
                     // Second move: 5 spaces (pending payment) - ManeuverOne to Investor
-                    move
-                        load
-                        save
-                        publish
-                        chargeForMovement
-                        voidCharge
-                        (MoveCommand.toDomain
+                    let secondMove =
+                        MoveCommand.toDomain
                             { Imperium.Contract.Rondel.MoveCommand.GameId = gameId
                               Nation = "Germany"
                               Space = "Investor" }
-                         |> Result.defaultWith failwith)
+                        |> Result.defaultWith failwith
+
+                    move load save publish chargeForMovement voidCharge secondMove
 
                     Expect.hasLength dispatchedCommands 1 "first pending move should dispatch charge"
                     let firstBillingId = dispatchedCommands.[0].BillingId
@@ -949,7 +950,7 @@ let tests =
                     let actionEvents1 =
                         publishedEvents
                         |> Seq.filter (function
-                            | ActionDetermined _ -> true
+                            | Imperium.Rondel.RondelEvent.ActionDetermined _ -> true
                             | _ -> false)
                         |> Seq.toList
 
@@ -959,17 +960,14 @@ let tests =
                     dispatchedCommands.Clear()
 
                     // Third move: 2 spaces (free, should supersede and complete immediately) - ManeuverOne to Factory
-                    move
-                        load
-                        save
-                        publish
-                        chargeForMovement
-                        voidCharge
-                        (MoveCommand.toDomain
+                    let thirdMove =
+                        MoveCommand.toDomain
                             { Imperium.Contract.Rondel.MoveCommand.GameId = gameId
                               Nation = "Germany"
                               Space = "Factory" }
-                         |> Result.defaultWith failwith)
+                        |> Result.defaultWith failwith
+
+                    move load save publish chargeForMovement voidCharge thirdMove
 
                     // Assert: old charge voided
                     Expect.hasLength voidedCommands 1 "exactly one void command should be dispatched"
@@ -979,10 +977,10 @@ let tests =
                     // Assert: old move rejected
                     Expect.contains
                         publishedEvents
-                        (MoveToActionSpaceRejected
-                            { GameId = gameId
+                        (Imperium.Rondel.RondelEvent.MoveToActionSpaceRejected
+                            { GameId = secondMove.GameId
                               Nation = "Germany"
-                              Space = "Investor" })
+                              Space = secondMove.Space })
                         "first pending move should be rejected"
 
                     // Assert: no new charge (free move)
@@ -991,10 +989,10 @@ let tests =
                     // Assert: action determined for new move (free move completes immediately)
                     Expect.contains
                         publishedEvents
-                        (ActionDetermined
-                            { GameId = gameId
+                        (Imperium.Rondel.RondelEvent.ActionDetermined
+                            { GameId = thirdMove.GameId
                               Nation = "Germany"
-                              Action = "Factory" })
+                              Action = Imperium.Rondel.Action.Factory })
                         "free move should determine action immediately despite superseding" ]
           testList
               "onInvoicePaid"
@@ -1019,41 +1017,35 @@ let tests =
                     publishedEvents.Clear()
 
                     // Setup: establish starting position with first move (free to any space)
-                    move
-                        load
-                        save
-                        publish
-                        chargeForMovement
-                        voidCharge
-                        (MoveCommand.toDomain
+                    let firstMoveCmd =
+                        MoveCommand.toDomain
                             { Imperium.Contract.Rondel.MoveCommand.GameId = gameId
                               Nation = "Austria"
                               Space = "ManeuverOne" }
-                         |> Result.defaultWith failwith)
+                        |> Result.defaultWith failwith
+
+                    move load save publish chargeForMovement voidCharge firstMoveCmd
 
                     Expect.contains
                         publishedEvents
-                        (ActionDetermined
-                            { GameId = gameId
+                        (Imperium.Rondel.RondelEvent.ActionDetermined
+                            { GameId = firstMoveCmd.GameId
                               Nation = "Austria"
-                              Action = "Maneuver" })
+                              Action = Imperium.Rondel.Action.Maneuver })
                         "first move should complete immediately"
 
                     publishedEvents.Clear()
                     dispatchedCommands.Clear()
 
                     // Setup: initiate paid move (5 spaces: ManeuverOne to Investor) - creates pending movement
-                    move
-                        load
-                        save
-                        publish
-                        chargeForMovement
-                        voidCharge
-                        (MoveCommand.toDomain
+                    let secondMoveCmd =
+                        MoveCommand.toDomain
                             { Imperium.Contract.Rondel.MoveCommand.GameId = gameId
                               Nation = "Austria"
                               Space = "Investor" }
-                         |> Result.defaultWith failwith)
+                        |> Result.defaultWith failwith
+
+                    move load save publish chargeForMovement voidCharge secondMoveCmd
 
                     Expect.hasLength dispatchedCommands 1 "paid move should dispatch charge command"
                     let billingId = dispatchedCommands.[0].BillingId
@@ -1066,7 +1058,7 @@ let tests =
                     let actionEvents =
                         publishedEvents
                         |> Seq.filter (function
-                            | ActionDetermined _ -> true
+                            | Imperium.Rondel.RondelEvent.ActionDetermined _ -> true
                             | _ -> false)
                         |> Seq.toList
 
@@ -1088,10 +1080,10 @@ let tests =
                     // Assert: ActionDetermined event published for target space
                     Expect.contains
                         publishedEvents
-                        (ActionDetermined
-                            { GameId = gameId
+                        (Imperium.Rondel.RondelEvent.ActionDetermined
+                            { GameId = secondMoveCmd.GameId
                               Nation = "Austria"
-                              Action = "Investor" })
+                              Action = Imperium.Rondel.Action.Investor })
                         "ActionDetermined event should be published after payment confirmation"
 
                     // Assert: only one event published
@@ -1105,22 +1097,19 @@ let tests =
                     // Subsequent move from Investor (new position) should succeed
                     publishedEvents.Clear()
 
-                    move
-                        load
-                        save
-                        publish
-                        chargeForMovement
-                        voidCharge
-                        (MoveCommand.toDomain
+                    let thirdMoveCmd =
+                        MoveCommand.toDomain
                             { Imperium.Contract.Rondel.MoveCommand.GameId = gameId
                               Nation = "Austria"
                               Space = "Import" }
-                         |> Result.defaultWith failwith)
+                        |> Result.defaultWith failwith
+
+                    move load save publish chargeForMovement voidCharge thirdMoveCmd
 
                     Expect.contains
                         publishedEvents
-                        (ActionDetermined
-                            { GameId = gameId
+                        (Imperium.Rondel.RondelEvent.ActionDetermined
+                            { GameId = thirdMoveCmd.GameId
                               Nation = "Austria"
-                              Action = "Import" })
+                              Action = Imperium.Rondel.Action.Import })
                         "subsequent move from Investor to Import (1 space) should succeed, confirming position was updated" ] ]

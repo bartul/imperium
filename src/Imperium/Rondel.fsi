@@ -29,8 +29,14 @@ module Rondel =
     /// Save Rondel state. Returns Error if persistence fails.
     type SaveRondelState = Dto.RondelState -> Result<unit, string>
 
-    /// Publishes Rondel integration events to the event bus.
-    type PublishRondelEvent = RondelEvent -> unit
+    [<RequireQualifiedAccess>]
+    type Action =
+        | Investor
+        | Import
+        | Production
+        | Maneuver
+        | Taxation
+        | Factory
 
     [<RequireQualifiedAccess>]
     type Space =
@@ -42,6 +48,32 @@ module Rondel =
         | Factory
         | ProductionTwo
         | ManeuverTwo
+
+    module Space =
+        /// Maps a rondel space to its corresponding action
+        val toAction: Space -> Action
+
+    // Domain Events
+
+    type RondelEvent =
+        | PositionedAtStart of PositionedAtStartEvent
+        | ActionDetermined of ActionDeterminedEvent
+        | MoveToActionSpaceRejected of MoveToActionSpaceRejectedEvent
+
+    and PositionedAtStartEvent = { GameId: Id }
+
+    and ActionDeterminedEvent =
+        { GameId: Id
+          Nation: string
+          Action: Action }
+
+    and MoveToActionSpaceRejectedEvent =
+        { GameId: Id
+          Nation: string
+          Space: Space }
+
+    /// Publishes Rondel domain events to the event bus.
+    type PublishRondelEvent = RondelEvent -> unit
 
     // Commands
 
@@ -69,6 +101,13 @@ module Rondel =
         /// Transform Contract MoveCommand to Domain MoveCommand.
         /// Returns Error if GameId is invalid or Space name is unknown.
         val toDomain: Contract.Rondel.MoveCommand -> Result<MoveCommand, string>
+
+    // Transformation modules: Domain → Contract
+
+    /// Transforms Domain types to Contract types for Events
+    module RondelEvent =
+        /// Transform Domain RondelEvent to Contract RondelEvent for publication.
+        val toContract: RondelEvent -> Contract.Rondel.RondelEvent
 
     /// Command: Initialize rondel for the specified game with the given nations.
     /// All nations are positioned at their starting positions.

@@ -105,6 +105,41 @@ module Rondel =
             | Space.Taxation -> Action.Taxation
             | Space.Factory -> Action.Factory
 
+    // Domain Events
+
+    type RondelEvent =
+        | PositionedAtStart of PositionedAtStartEvent
+        | ActionDetermined of ActionDeterminedEvent
+        | MoveToActionSpaceRejected of MoveToActionSpaceRejectedEvent
+
+    and PositionedAtStartEvent = { GameId: Id }
+
+    and ActionDeterminedEvent =
+        { GameId: Id
+          Nation: string
+          Action: Action }
+
+    and MoveToActionSpaceRejectedEvent =
+        { GameId: Id
+          Nation: string
+          Space: Space }
+
+    module RondelEvent =
+        let toContract (event: RondelEvent) : Contract.Rondel.RondelEvent =
+            match event with
+            | PositionedAtStart e -> Contract.Rondel.PositionedAtStart { GameId = Id.value e.GameId }
+            | ActionDetermined e ->
+                Contract.Rondel.ActionDetermined
+                    { GameId = Id.value e.GameId
+                      Nation = e.Nation
+                      Action = Action.toString e.Action }
+            | MoveToActionSpaceRejected e ->
+                Contract.Rondel.MoveToActionSpaceRejected
+                    { GameId = Id.value e.GameId
+                      Nation = e.Nation
+                      Space = Space.toString e.Space }
+
+    type PublishRondelEvent = RondelEvent -> unit
 
     type RondelInboundEvent =
         | RondelInvoicePaid of RondelInvoicePaid
@@ -130,7 +165,6 @@ module Rondel =
     // Public API types
     type LoadRondelState = Guid -> Dto.RondelState option
     type SaveRondelState = Dto.RondelState -> Result<unit, string>
-    type PublishRondelEvent = RondelEvent -> unit
 
     type RondelCommand =
         | SetToStartingPositions of SetToStartingPositionsCommand
@@ -186,8 +220,7 @@ module Rondel =
                       NationPositions = command.Nations |> Set.toSeq |> Seq.map (fun n -> n, None) |> Map.ofSeq
                       PendingMovements = Map.empty }
 
-                let positionedAtStartEvent =
-                    PositionedAtStart { GameId = command.GameId |> Id.value }
+                let positionedAtStartEvent = PositionedAtStart { GameId = command.GameId }
 
                 Some newState, [ positionedAtStartEvent ], []
 
@@ -286,20 +319,24 @@ module Rondel =
             | Rejected rejectedCommand, _ ->
                 None,
                 [ MoveToActionSpaceRejected
-                      { GameId = rejectedCommand.GameId |> Id.value
+                      { GameId = rejectedCommand.GameId
                         Nation = rejectedCommand.Nation
-                        Space = rejectedCommand.Space |> Space.toString } ],
+                        Space = rejectedCommand.Space } ],
                 []
             | Free(targetSpace, nation), Some state ->
                 let newState =
                     { state with
                         NationPositions = state.NationPositions |> Map.add nation (Some(Space.toString targetSpace)) }
 
+                let gameId =
+                    Id.create state.GameId
+                    |> Result.defaultWith (fun e -> failwith $"Invalid GameId in state: {e}")
+
                 let actionDeterminedEvent =
                     ActionDetermined
-                        { GameId = state.GameId
+                        { GameId = gameId
                           Nation = nation
-                          Action = targetSpace |> Space.toAction |> Action.toString }
+                          Action = targetSpace |> Space.toAction }
 
                 Some newState, [ actionDeterminedEvent ], []
             | FreeWithSupersedingUnpaidMovement(targetSpace, nation), Some state ->
@@ -308,19 +345,27 @@ module Rondel =
                         NationPositions = state.NationPositions |> Map.add nation (Some(Space.toString targetSpace))
                         PendingMovements = state.PendingMovements |> Map.remove nation }
 
+                let gameId =
+                    Id.create state.GameId
+                    |> Result.defaultWith (fun e -> failwith $"Invalid GameId in state: {e}")
+
                 let actionDeterminedEvent =
                     ActionDetermined
-                        { GameId = state.GameId
+                        { GameId = gameId
                           Nation = nation
-                          Action = targetSpace |> Space.toAction |> Action.toString }
+                          Action = targetSpace |> Space.toAction }
 
                 let existingUnpaidMove = state.PendingMovements |> Map.find nation
 
+                let targetSpaceFromPending =
+                    Space.fromString existingUnpaidMove.TargetSpace
+                    |> Result.defaultWith (fun e -> failwith $"Invalid TargetSpace in pending movement: {e}")
+
                 let existingUnpaidMoveRejectedEvent =
                     MoveToActionSpaceRejected
-                        { GameId = state.GameId
+                        { GameId = gameId
                           Nation = nation
-                          Space = existingUnpaidMove.TargetSpace }
+                          Space = targetSpaceFromPending }
 
                 let voidChargeCommand =
                     { GameId = state.GameId
@@ -375,11 +420,19 @@ module Rondel =
 
                 let existingUnpaidMove = state.PendingMovements |> Map.find nation
 
+                let gameId =
+                    Id.create state.GameId
+                    |> Result.defaultWith (fun e -> failwith $"Invalid GameId in state: {e}")
+
+                let targetSpaceFromPending =
+                    Space.fromString existingUnpaidMove.TargetSpace
+                    |> Result.defaultWith (fun e -> failwith $"Invalid TargetSpace in pending movement: {e}")
+
                 let existingUnpaidMoveRejectedEvent =
                     MoveToActionSpaceRejected
-                        { GameId = state.GameId
+                        { GameId = gameId
                           Nation = nation
-                          Space = existingUnpaidMove.TargetSpace }
+                          Space = targetSpaceFromPending }
 
                 let voidChargeCommand =
                     { GameId = state.GameId
@@ -466,12 +519,17 @@ module Rondel =
                 // This handles duplicate payment events or payments received after movement was already completed/voided.
                 None, []
             | Some pending ->
-                let action =
+                let targetSpace =
                     Space.fromString pending.TargetSpace
-                    |> Result.map (Space.toAction >> Action.toString)
                     |> Result.defaultWith (fun parseError ->
                         failwith
                             $"State corruption: invalid TargetSpace '{pending.TargetSpace}' for pending movement. GameId: {state.GameId}, Nation: {pending.Nation}, Error: {parseError}")
+
+                let gameId =
+                    Id.create state.GameId
+                    |> Result.defaultWith (fun e -> failwith $"Invalid GameId in state: {e}")
+
+                let action = Space.toAction targetSpace
 
                 let newNationPosition = Some pending.TargetSpace
 
@@ -482,7 +540,7 @@ module Rondel =
 
                 let actionDeterminedEvent =
                     ActionDetermined
-                        { GameId = state.GameId
+                        { GameId = gameId
                           Nation = pending.Nation
                           Action = action }
 
