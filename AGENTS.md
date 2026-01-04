@@ -15,7 +15,7 @@ Last verified: 2026-01-03
   - Function types for dependency injection (e.g., `ChargeNationForRondelMovement = ChargeNationForRondelMovementCommand -> Result<unit, string>`, `VoidRondelCharge = VoidRondelChargeCommand -> Result<unit, string>`)
   - Events use record types (e.g., `RondelEvent = | PositionedAtStart of PositionedAtStart` where `PositionedAtStart = { GameId: Guid }`)
 - **Domain modules:** CQRS bounded contexts with `.fsi` files defining public APIs
-  - Internal types (GameId, NationId, RondelBillingId, Action, Bank, Investor) hidden from public APIs; Space is exposed as public discriminated union
+  - Internal types (GameId, NationId, Bank, Investor) hidden from public APIs; `Action`, `RondelBillingId`, and `Space` are exposed in `Rondel.fsi`
   - **Two-layer architecture:** Transformation modules (accept Contract types, return `Result<DomainType, string>`) + Command/Event handlers (accept Domain types, return `unit` or `Result`)
   - Transformation modules: Named after domain command types (e.g., `SetToStartingPositionsCommand.toDomain`, `MoveCommand.toDomain`) to match the domain types they produce
   - Command handlers: Accept domain types directly, throw exceptions for business rule violations, return `unit`
@@ -43,7 +43,7 @@ Last verified: 2026-01-03
 - **Handler pipeline pattern**: Handlers accept domain types, follow consistent pipeline using simple forward pipes (`|>`, `||>`, `|||>`): validation → state loading → execution → IO side effects. Business rule violations throw exceptions via `failwith`.
 - **Record construction**: Use type annotation for contract state construction: `let newState : Contract.Rondel.RondelState = { GameId = ...; NationPositions = ...; PendingMovements = ... }`. F# records use `{ }` syntax directly, not `TypeName { }`.
 - **MoveOutcome type**: Internal discriminated union with named fields carrying complete context (targetSpace, distance, nation, rejectedCommand). All cases encapsulate necessary data, eliminating closure dependencies on outer scope variables for cleaner functional design.
-- **Decision chain**: Validates moves through `Decision` monad (`noMovesAllowedIfNotInitialized` → `noMovesAllowedForNationNotInGame` → `firstMoveIsFreeToAnyPosition` → `failIfPositionIsInvalid` → `decideMovementOutcome`) producing `MoveOutcome`.
+- **Decision chain**: Validates moves through `Decision` monad (`noMovesAllowedIfNotInitialized` → `noMovesAllowedForNationNotInGame` → `firstMoveIsFreeToAnyPosition` → `decideMovementOutcome`) producing `MoveOutcome`.
 - **Side-effect separation**: `handleMoveOutcome` transforms `MoveOutcome` to `(state, events, commands)` tuple; `performIO` sequences persistence, event publishing, and outbound command dispatch with `Result.bind` for error propagation (short-circuits on first error), then uses `Result.defaultWith` to unwrap and throw on IO failures.
 - **Command dispatch**: Uses `List.fold` with `Result.bind` to sequence outbound commands (`ChargeNationForRondelMovement`, `VoidRondelCharge`), returning first error or `Ok ()`.
 
