@@ -7,7 +7,8 @@ open Imperium.Contract.Rondel
 
 // Test helpers for mock dependencies
 let createMockStore () =
-    let store = System.Collections.Generic.Dictionary<Guid, Imperium.Contract.Rondel.RondelState>()
+    let store =
+        System.Collections.Generic.Dictionary<Guid, Imperium.Contract.Rondel.RondelState>()
 
     let load (gameId: Guid) : Imperium.Contract.Rondel.RondelState option =
         match store.TryGetValue(gameId) with

@@ -596,6 +596,7 @@ module Rondel =
             |> Option.map (fun state ->
                 RondelState.fromContract state
                 |> Result.defaultWith (fun e -> failwith $"Invalid persisted rondel state: {e}"))
+
         Ok(execute loadedState event)
 
     // Event handler: Process failed invoice payment from Accounting domain
