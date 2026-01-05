@@ -178,20 +178,40 @@ module Rondel =
     // Incoming Events (from other bounded contexts)
     // ──────────────────────────────────────────────────────────────────────────
 
+    /// <summary>
     /// Incoming events from Accounting domain that affect Rondel state.
+    /// These events are received after the Rondel dispatches charge commands
+    /// for paid movements (4-6 spaces) and represent payment outcomes.
+    /// </summary>
     type RondelIncomingEvent =
         | InvoicePaid of InvoicePaidEvent
         | InvoicePaymentFailed of InvoicePaymentFailedEvent
 
+    /// <summary>
     /// Payment confirmation received from Accounting domain.
+    /// Indicates the nation successfully paid for a rondel movement,
+    /// allowing the pending movement to complete.
+    /// </summary>
     and InvoicePaidEvent =
-        { GameId: Id
-          BillingId: RondelBillingId }
+        {
+            /// The game in which the payment was made.
+            GameId: Id
+            /// Correlates this payment to the pending movement awaiting confirmation.
+            BillingId: RondelBillingId
+        }
 
+    /// <summary>
     /// Payment failure notification from Accounting domain.
+    /// Indicates the nation could not pay for a rondel movement,
+    /// causing the pending movement to be rejected.
+    /// </summary>
     and InvoicePaymentFailedEvent =
-        { GameId: Id
-          BillingId: RondelBillingId }
+        {
+            /// The game in which the payment failed.
+            GameId: Id
+            /// Correlates this failure to the pending movement to be rejected.
+            BillingId: RondelBillingId
+        }
 
     // ──────────────────────────────────────────────────────────────────────────
     // Dependencies
