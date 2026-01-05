@@ -3,26 +3,26 @@ Last verified: 2026-01-04
 
 ## Project Structure & Module Organization
 - `Imperium.sln` stitches together the core F# library, ASP.NET Core web host, and unit test project.
-- `src/Imperium` contains domain modules (build order: `Primitives.fs`, `Contract.fs`, `Contract.Rondel.fs`, `Gameplay.fs/.fsi`, `Accounting.fs/.fsi`, `Rondel.fs/.fsi`).
+- `src/Imperium` contains domain modules (build order: `Primitives.fs`, `Contract.fs`, `Contract.Accounting.fs`, `Contract.Rondel.fs`, `Gameplay.fs/.fsi`, `Accounting.fs/.fsi`, `Rondel.fs/.fsi`).
 - `tests/Imperium.UnitTests` contains Expecto-based unit tests; test modules mirror source structure (e.g., `RondelTests.fs` tests `Rondel.fs`).
 - **Primitives module:** Foundational types with no `.fsi` file (intentionally public)
   - `Id` - Struct wrapping `Guid` with validation; provides `create`, `newId`, `value`, `toString`, `tryParse`, and mapper helpers
   - `Amount` - Measured struct wrapper (`int<M>`) with guarded construction; errors are plain strings; includes `tryParse`
 - **Contract modules:** Cross-bounded-context communication types; no `.fsi` files (intentionally public); organized by bounded context
-  - `Contract.Rondel` (Contract.Rondel.fs): SetToStartingPositionsCommand, MoveCommand, RondelEvent (PositionedAtStart, ActionDetermined, MoveToActionSpaceRejected), RondelState, PendingMovement
-  - `Contract.Accounting` (Contract.fs): ChargeNationForRondelMovementCommand, VoidRondelChargeCommand, AccountingEvent (RondelInvoicePaid, RondelInvoicePaymentFailed)
   - `Contract.Gameplay` (Contract.fs): Placeholder for future game-level coordination types
+  - `Contract.Accounting` (Contract.Accounting.fs): ChargeNationForRondelMovementCommand, VoidRondelChargeCommand, AccountingEvent (RondelInvoicePaid, RondelInvoicePaymentFailed)
+  - `Contract.Rondel` (Contract.Rondel.fs): SetToStartingPositionsCommand, MoveCommand, RondelEvent (PositionedAtStart, ActionDetermined, MoveToActionSpaceRejected), RondelState, PendingMovement
   - Function types for dependency injection (e.g., `ChargeNationForRondelMovement = ChargeNationForRondelMovementCommand -> Result<unit, string>`, `VoidRondelCharge = VoidRondelChargeCommand -> Result<unit, string>`)
   - Events use record types (e.g., `RondelEvent = | PositionedAtStart of PositionedAtStart` where `PositionedAtStart = { GameId: Guid }`)
 - **Domain modules:** CQRS bounded contexts with `.fsi` files defining public APIs
   - Internal types (GameId, NationId, Bank, Investor) hidden from public APIs; `Action`, `RondelBillingId`, and `Space` are exposed in `Rondel.fsi`
   - **Two-layer architecture:** Transformation modules (accept Contract types, return `Result<DomainType, string>`) + Command/Event handlers (accept Domain types, return `unit` or `Result`)
-  - Transformation modules: Named after domain command types (e.g., `SetToStartingPositionsCommand.toDomain`, `MoveCommand.toDomain`) to match the domain types they produce
+  - Transformation modules: Named after domain types (e.g., `SetToStartingPositionsCommand.toDomain`, `MoveCommand.toDomain`, `InvoicePaidEvent.toDomain`) to match the domain types they produce
   - Command handlers: Accept domain types directly, throw exceptions for business rule violations, return `unit`
-  - Event handlers: Accept Contract event types, return `Result<unit, string>` (maintain Result pattern for event processing)
+  - Event handlers: Accept domain event types (after transformation), return `Result<unit, string>` (maintain Result pattern for event processing)
   - All handlers take dependency injections explicitly (e.g., `load`, `save`, `publish`, specialized services)
   - `Gameplay` and `Accounting` have no public API currently (placeholder values only)
-  - `Rondel` exposes: transformation modules (SetToStartingPositionsCommand, MoveCommand), domain command types (SetToStartingPositionsCommand with `Set<string>` Nations, MoveCommand with Space), Space type, PublishRondelEvent type, setToStartingPositions (implemented), move (implemented), onInvoicedPaid (implemented), onInvoicePaymentFailed (stubbed)
+  - `Rondel` exposes: transformation modules (SetToStartingPositionsCommand, MoveCommand, InvoicePaidEvent, InvoicePaymentFailedEvent), domain command types (SetToStartingPositionsCommand with `Set<string>` Nations, MoveCommand with Space), domain incoming event types (InvoicePaidEvent, InvoicePaymentFailedEvent with `Id` and `RondelBillingId`), incoming event DU (RondelIncomingEvent), Space type, PublishRondelEvent type, setToStartingPositions (implemented), move (implemented), onInvoicedPaid (implemented), onInvoicePaymentFailed (stubbed)
   - `Contract.Rondel.RondelState`: Serializable DTOs (Guid/string) for persistence. NationPositions is `Map<string, string option>` at the serialization boundary and PendingMovements is keyed by nation name for O(log n) lookups.
   - `Rondel.RondelState`: Domain state uses strong types (`Id`, `Space option`, `RondelBillingId`). NationPositions is `Map<string, Space option>` and PendingMovement uses `Space` TargetSpace + `RondelBillingId` BillingId. Transformations live in `Rondel.fs` (`RondelState.toContract/fromContract`), not in a separate adapter.
 - `src/Imperium.Web` bootstraps the HTTP layer (`Program.fs`). Reference the core project via the existing project reference instead of duplicating logic.
@@ -31,9 +31,9 @@ Last verified: 2026-01-04
 - Rondel rules source: mechanic follows the boardgame "rondel" described in `docs/Imperial_English_Rules.pdf`. Keep only a quick cheat sheet here; see the PDF for full details. Key movement: clockwise, cannot stay put; 1–3 spaces free, 4–6 cost 2M per additional space beyond the first 3 free spaces (4 spaces = 2M, 5 spaces = 4M, 6 spaces = 6M; max distance 6), first turn may start anywhere. Actions: Factory (build own city for 5M, no hostile upright armies), Production (each unoccupied home factory produces 1 unit), Import (buy up to 3 units for 1M each in home provinces), Maneuver (fleets adjacent sea; armies adjacent land or via fleets; rail within home; 3 armies can destroy a factory; place flags in newly occupied regions), Investor (pay bond interest; investor card gets 2M and may invest; Swiss bank owners may also invest; passing executes investor steps 2–3), Taxation (tax: 2M per unoccupied factory, 1M per flag; dividend if tax track increases; add power points; treasury collects tax minus 1M per army/fleet). Game ends at 25 power points; score = bond interest x nation factor + personal cash.
 
 ### Handler Signature Pattern
-- **Transformation modules** (`SetToStartingPositionsCommand.toDomain`, `MoveCommand.toDomain`): Modules named after domain command types; accept Contract types, validate inputs, return `Result<DomainType, string>` with plain string errors
+- **Transformation modules** (`SetToStartingPositionsCommand.toDomain`, `MoveCommand.toDomain`, `InvoicePaidEvent.toDomain`, `InvoicePaymentFailedEvent.toDomain`): Modules named after domain types; accept Contract types, validate inputs, return `Result<DomainType, string>` with plain string errors
 - **Command handlers** (`setToStartingPositions`, `move`): Accept domain types directly, take dependencies explicitly (load, save, publish, services), throw exceptions for business rule violations, return `unit`
-- **Event handlers** (`onInvoicedPaid`, `onInvoicePaymentFailed`): Accept Contract event types, return `Result<unit, string>` for error propagation
+- **Event handlers** (`onInvoicedPaid`, `onInvoicePaymentFailed`): Accept domain event types (after transformation from Contract types), take dependencies explicitly, return `Result<unit, string>` for error propagation
 - Dependency injection order: persistence (load, save), publish, then specialized services (e.g., accounting charge/void). Load/save use domain `RondelState` and `Id`; persistence adapters map to/from `Contract.Rondel.RondelState`.
 - Signature files define public shape first; implementations should not widen the surface in `.fs`.
 
@@ -86,11 +86,12 @@ Domain modules (`.fsi` and `.fs` pairs) follow a consistent sectioned structure.
 | 1 | **Value Types & Enumerations** | Struct wrappers (`RondelBillingId`), DUs (`Action`, `Space`), companion modules |
 | 2 | **Domain State** | Persistent state records (`RondelState`, `PendingMovement`) |
 | 3 | **Commands** | Command DU and individual command records |
-| 4 | **Events** | Event DU and individual event records |
-| 5 | **Dependencies** | Function types for DI (`LoadState`, `SaveState`, `PublishEvent`) |
-| 6 | **Transformations** | Modules with `toDomain`, `toContract`, `fromContract` functions |
-| 7 | **Handlers (Internal Types)** | `.fs` only: internal DUs for routing/outcomes (`MoveOutcome`) |
-| 8 | **Handlers** | Command handlers, then event handlers |
+| 4 | **Events** | Outbound event DU and individual event records (published by this domain) |
+| 5 | **Incoming Events** | Inbound event DU and individual event records (received from other domains) |
+| 6 | **Dependencies** | Function types for DI (`LoadState`, `SaveState`, `PublishEvent`) |
+| 7 | **Transformations** | Modules with `toDomain`, `toContract`, `fromContract` functions |
+| 8 | **Handlers (Internal Types)** | `.fs` only: internal DUs for routing/outcomes (`MoveOutcome`) |
+| 9 | **Handlers** | Command handlers, then event handlers |
 
 **XML Documentation Comments:**
 - All public types and functions require `///` doc comments
@@ -146,7 +147,7 @@ Domain modules (`.fsi` and `.fs` pairs) follow a consistent sectioned structure.
   - move: moves of 4-6 spaces require payment (property test, 15 iterations; validates charge command dispatched with correct amount (distance - 3) * 2M, no premature action determination, move not rejected)
   - move: superseding pending paid move with another paid move voids old charge and rejects old move (validates void command dispatched for old BillingId, old move rejected, new charge created with correct amount, no action determined for new pending move)
   - move: superseding pending paid move with free move voids charge and completes immediately (validates void command dispatched, old move rejected, no new charge, new move completes with ActionDetermined)
-  - onInvoicePaid: completes pending movement and publishes ActionDetermined event (validates payment confirmation updates position, removes pending movement, publishes correct action, and allows subsequent moves from new position; idempotent - ignores events with no matching pending movement)
+  - onInvoicePaid: completes pending movement and publishes ActionDetermined event (validates Contract → Domain transformation via `InvoicePaidEvent.toDomain`, payment confirmation updates position, removes pending movement, publishes correct action, and allows subsequent moves from new position; idempotent - ignores events with no matching pending movement)
 
 ## Branch Naming Guidelines
 

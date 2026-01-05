@@ -1025,11 +1025,16 @@ let tests =
                     dispatchedCommands.Clear()
 
                     // Execute: process payment confirmation
-                    let paymentEvent: Imperium.Contract.Accounting.RondelInvoicePaid =
+                    let contractPaymentEvent: Imperium.Contract.Accounting.RondelInvoicePaid =
                         { GameId = gameId
                           BillingId = billingId }
 
-                    let result = onInvoicedPaid load save publish paymentEvent
+                    // Transform Contract → Domain first
+                    let transformResult = InvoicePaidEvent.toDomain contractPaymentEvent
+                    Expect.isOk transformResult "transformation should succeed with valid inputs"
+
+                    let domainPaymentEvent = Result.defaultWith failwith transformResult
+                    let result = onInvoicedPaid load save publish domainPaymentEvent
 
                     // Assert: operation succeeds
                     Expect.isOk result "payment confirmation should succeed"

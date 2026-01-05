@@ -50,11 +50,13 @@ module Rondel =
 
     /// Persistent state for a game's rondel, tracking nation positions and pending movements.
     type RondelState =
-        { GameId: Id
-          /// Maps nation name to current position. None indicates starting position (not yet moved).
-          NationPositions: Map<string, Space option>
-          /// Maps nation name to pending paid movement awaiting payment confirmation.
-          PendingMovements: Map<string, PendingMovement> }
+        {
+            GameId: Id
+            /// Maps nation name to current position. None indicates starting position (not yet moved).
+            NationPositions: Map<string, Space option>
+            /// Maps nation name to pending paid movement awaiting payment confirmation.
+            PendingMovements: Map<string, PendingMovement>
+        }
 
     /// A movement awaiting payment confirmation from the Accounting domain.
     and PendingMovement =
@@ -106,6 +108,25 @@ module Rondel =
           Space: Space }
 
     // ──────────────────────────────────────────────────────────────────────────
+    // Incoming Events (from other bounded contexts)
+    // ──────────────────────────────────────────────────────────────────────────
+
+    /// Incoming events from Accounting domain that affect Rondel state.
+    type RondelIncomingEvent =
+        | InvoicePaid of InvoicePaidEvent
+        | InvoicePaymentFailed of InvoicePaymentFailedEvent
+
+    /// Payment confirmation received from Accounting domain.
+    and InvoicePaidEvent =
+        { GameId: Id
+          BillingId: RondelBillingId }
+
+    /// Payment failure notification from Accounting domain.
+    and InvoicePaymentFailedEvent =
+        { GameId: Id
+          BillingId: RondelBillingId }
+
+    // ──────────────────────────────────────────────────────────────────────────
     // Dependencies
     // ──────────────────────────────────────────────────────────────────────────
 
@@ -155,6 +176,18 @@ module Rondel =
         /// Returns Error if Space name or BillingId is invalid.
         val fromContract: Contract.Rondel.PendingMovement -> Result<PendingMovement, string>
 
+    /// Transforms Contract RondelInvoicePaid to Domain InvoicePaidEvent.
+    module InvoicePaidEvent =
+        /// Validate and transform Contract event to Domain event.
+        /// Returns Error if GameId or BillingId is invalid.
+        val toDomain: Contract.Accounting.RondelInvoicePaid -> Result<InvoicePaidEvent, string>
+
+    /// Transforms Contract RondelInvoicePaymentFailed to Domain InvoicePaymentFailedEvent.
+    module InvoicePaymentFailedEvent =
+        /// Validate and transform Contract event to Domain event.
+        /// Returns Error if GameId or BillingId is invalid.
+        val toDomain: Contract.Accounting.RondelInvoicePaymentFailed -> Result<InvoicePaymentFailedEvent, string>
+
     // ──────────────────────────────────────────────────────────────────────────
     // Handlers
     // ──────────────────────────────────────────────────────────────────────────
@@ -182,9 +215,9 @@ module Rondel =
     /// Completes pending movement and publishes ActionDetermined event.
     /// Idempotent: ignores events for non-existent pending movements.
     val onInvoicedPaid:
-        LoadRondelState -> SaveRondelState -> PublishRondelEvent -> RondelInvoicePaid -> Result<unit, string>
+        LoadRondelState -> SaveRondelState -> PublishRondelEvent -> InvoicePaidEvent -> Result<unit, string>
 
     /// Process invoice payment failure from Accounting domain.
     /// Rejects movement and publishes MoveToActionSpaceRejected event.
     val onInvoicePaymentFailed:
-        LoadRondelState -> SaveRondelState -> PublishRondelEvent -> RondelInvoicePaymentFailed -> Result<unit, string>
+        LoadRondelState -> SaveRondelState -> PublishRondelEvent -> InvoicePaymentFailedEvent -> Result<unit, string>
