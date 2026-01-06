@@ -10,8 +10,11 @@ updates:
     pull-request-branch-name:
       separator: "-"
     labels:
-      - "dependencies"
+      - "chore"
     open-pull-requests-limit: 3
+    commit-message:
+      prefix: "chore"
+      prefix-development: "chore"
 
   # GitHub Actions workflow updates
   - package-ecosystem: "github-actions"
@@ -23,5 +26,8 @@ updates:
     pull-request-branch-name:
       separator: "-"
     labels:
-      - "dependencies"
+      - "chore"
     open-pull-requests-limit: 3
+    commit-message:
+      prefix: "chore"
+      prefix-development: "chore"

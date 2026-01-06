@@ -292,13 +292,16 @@ The project uses GitHub Actions for automated quality checks on all pull request
 - **NuGet packages**: Weekly updates (Monday 08:00 UTC)
 - **GitHub Actions workflows**: Weekly updates (Monday 08:00 UTC)
 - **Review routing**: Assigned via CODEOWNERS file (no explicit reviewer configuration)
-- **Labels**: All Dependabot PRs automatically tagged with `dependencies`
+- **Labels**: All Dependabot PRs automatically tagged with `chore`
+- **PR limit**: Maximum 3 open PRs per ecosystem to avoid clutter
+- **Commit messages**: All commits prefixed with `chore:` to align with branch naming conventions
 
 **Workflow:**
 
 - Dependabot runs weekly checks for new versions
 - Creates separate PRs for NuGet and Actions updates
 - Each PR includes changelog and upgrade impact summary
+- Commits follow the `chore:` prefix convention
 - Review and merge like any other PR; CODEOWNERS ensures appropriate reviewers are notified
 
 ### Local Development Tools
