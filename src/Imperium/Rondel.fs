@@ -258,7 +258,7 @@ module Rondel =
     /// Transforms Contract SetToStartingPositionsCommand to Domain type.
     module SetToStartingPositionsCommand =
         /// Validate and transform Contract command to Domain command.
-        let toDomain (command: Contract.Rondel.SetToStartingPositionsCommand) =
+        let fromContract (command: Contract.Rondel.SetToStartingPositionsCommand) =
             Id.create command.GameId
             |> Result.bind (fun id ->
                 let nations = Set.ofArray command.Nations
@@ -271,7 +271,7 @@ module Rondel =
     /// Transforms Contract MoveCommand to Domain type.
     module MoveCommand =
         /// Validate and transform Contract command to Domain command.
-        let toDomain (command: Contract.Rondel.MoveCommand) : Result<MoveCommand, string> =
+        let fromContract (command: Contract.Rondel.MoveCommand) : Result<MoveCommand, string> =
             Id.create command.GameId
             |> Result.bind (fun id -> Space.fromString command.Space |> Result.map (fun space -> id, space))
             |> Result.map (fun (id, space) ->
@@ -385,7 +385,7 @@ module Rondel =
     /// Transforms Contract RondelInvoicePaid to Domain InvoicePaidEvent.
     module InvoicePaidEvent =
         /// Validate and transform Contract event to Domain event.
-        let toDomain (event: Contract.Accounting.RondelInvoicePaid) : Result<InvoicePaidEvent, string> =
+        let fromContract (event: Contract.Accounting.RondelInvoicePaid) : Result<InvoicePaidEvent, string> =
             Id.create event.GameId
             |> Result.bind (fun gameId ->
                 RondelBillingId.create event.BillingId
@@ -396,7 +396,7 @@ module Rondel =
     /// Transforms Contract RondelInvoicePaymentFailed to Domain InvoicePaymentFailedEvent.
     module InvoicePaymentFailedEvent =
         /// Validate and transform Contract event to Domain event.
-        let toDomain
+        let fromContract
             (event: Contract.Accounting.RondelInvoicePaymentFailed)
             : Result<InvoicePaymentFailedEvent, string> =
             Id.create event.GameId
