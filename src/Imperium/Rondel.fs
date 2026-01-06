@@ -175,6 +175,27 @@ module Rondel =
           Space: Space }
 
     // ──────────────────────────────────────────────────────────────────────────
+    // Outbound Commands (to other bounded contexts)
+    // ──────────────────────────────────────────────────────────────────────────
+
+    /// Command to charge a nation for paid rondel movement (4-6 spaces).
+    type ChargeMovementOutboundCommand =
+        { GameId: Id
+          Nation: string
+          Amount: Amount
+          BillingId: RondelBillingId }
+
+    /// Command to void a previously initiated charge before payment completion.
+    type VoidChargeOutboundCommand =
+        { GameId: Id
+          BillingId: RondelBillingId }
+
+    /// Union of all outbound commands dispatched to other bounded contexts.
+    type RondelOutboundCommand =
+        | ChargeMovement of ChargeMovementOutboundCommand
+        | VoidCharge of VoidChargeOutboundCommand
+
+    // ──────────────────────────────────────────────────────────────────────────
     // Incoming Events (from other bounded contexts)
     // ──────────────────────────────────────────────────────────────────────────
 
@@ -226,6 +247,10 @@ module Rondel =
     /// Publish rondel domain events to the event bus.
     type PublishRondelEvent = RondelEvent -> unit
 
+    /// Dispatch outbound commands to other bounded contexts (e.g., Accounting).
+    /// Infrastructure handles conversion to contract types and actual dispatch.
+    type DispatchOutboundCommand = RondelOutboundCommand -> Result<unit, string>
+
     // ──────────────────────────────────────────────────────────────────────────
     // Transformations (Contract <-> Domain)
     // ──────────────────────────────────────────────────────────────────────────
@@ -270,6 +295,22 @@ module Rondel =
                     { GameId = Id.value e.GameId
                       Nation = e.Nation
                       Space = Space.toString e.Space }
+
+    /// Transforms Domain ChargeMovementOutboundCommand to Accounting contract type.
+    module ChargeMovementOutboundCommand =
+        /// Convert domain charge command to Accounting contract for dispatch.
+        let toContract (cmd: ChargeMovementOutboundCommand) : Contract.Accounting.ChargeNationForRondelMovementCommand =
+            { GameId = Id.value cmd.GameId
+              Nation = cmd.Nation
+              Amount = cmd.Amount
+              BillingId = RondelBillingId.value cmd.BillingId }
+
+    /// Transforms Domain VoidChargeOutboundCommand to Accounting contract type.
+    module VoidChargeOutboundCommand =
+        /// Convert domain void command to Accounting contract for dispatch.
+        let toContract (cmd: VoidChargeOutboundCommand) : Contract.Accounting.VoidRondelChargeCommand =
+            { GameId = Id.value cmd.GameId
+              BillingId = RondelBillingId.value cmd.BillingId }
 
     /// Transforms Domain PendingMovement to/from Contract type for persistence.
     module PendingMovement =
@@ -374,11 +415,6 @@ module Rondel =
         | InvoicePaid of InvoicePaidEvent
         | InvoicePaymentFailed of InvoicePaymentFailedEvent
 
-    /// Outbound commands to other bounded contexts (internal dispatch type).
-    type internal RondelOutboundCommand =
-        | ChargeNationForRondelMovement of ChargeNationForRondelMovementCommand
-        | VoidRondelCharge of VoidRondelChargeCommand
-
     /// Movement decision outcome (internal to move handler).
     type internal MoveOutcome =
         | Rejected of rejectedCommand: MoveCommand
@@ -426,14 +462,11 @@ module Rondel =
 
             let publishEvents events = events |> List.iter publish |> Ok
 
-            let executeOutboundCommands commands =
-                let executeCommand =
-                    function
-                    | ChargeNationForRondelMovement _ -> Ok()
-                    | VoidRondelCharge _ -> Ok()
-
-                (Ok(), commands)
-                ||> List.fold (fun state cmd -> state |> Result.bind (fun () -> executeCommand cmd))
+            let executeOutboundCommands (commands: RondelOutboundCommand list) =
+                // setToStartingPositions does not dispatch outbound commands
+                match commands with
+                | [] -> Ok()
+                | _ -> failwith "Unexpected outbound commands in setToStartingPositions"
 
             saveState state
             |> Result.bind (fun () -> publishEvents events)
@@ -451,8 +484,7 @@ module Rondel =
         (load: LoadRondelState)
         (save: SaveRondelState)
         (publish: PublishRondelEvent)
-        (chargeForMovement: ChargeNationForRondelMovement)
-        (voidCharge: VoidRondelCharge)
+        (dispatch: DispatchOutboundCommand)
         (command: MoveCommand)
         : unit =
 
@@ -542,13 +574,11 @@ module Rondel =
                           Space = existingUnpaidMove.TargetSpace }
 
                 let voidChargeCommand =
-                    { GameId = state.GameId |> Id.value
-                      BillingId = existingUnpaidMove.BillingId |> RondelBillingId.value }
-                    : VoidRondelChargeCommand
+                    VoidCharge
+                        { GameId = state.GameId
+                          BillingId = existingUnpaidMove.BillingId }
 
-                Some newState,
-                [ actionDeterminedEvent; existingUnpaidMoveRejectedEvent ],
-                [ VoidRondelCharge voidChargeCommand ]
+                Some newState, [ actionDeterminedEvent; existingUnpaidMoveRejectedEvent ], [ voidChargeCommand ]
             | Paid(targetSpace, distance, nation), Some state ->
                 let billingId = RondelBillingId.newId ()
 
@@ -564,12 +594,13 @@ module Rondel =
                 let amount = (distance - 3) * 2 |> Amount.unsafe
 
                 let chargeCommand =
-                    { GameId = state.GameId |> Id.value
-                      Nation = nation
-                      Amount = amount
-                      BillingId = billingId |> RondelBillingId.value }
+                    ChargeMovement
+                        { GameId = state.GameId
+                          Nation = nation
+                          Amount = amount
+                          BillingId = billingId }
 
-                Some newState, [], [ ChargeNationForRondelMovement chargeCommand ]
+                Some newState, [], [ chargeCommand ]
             | PaidWithSupersedingUnpaidMovement(targetSpace, distance, nation), Some state ->
                 let billingId = RondelBillingId.newId ()
 
@@ -585,10 +616,11 @@ module Rondel =
                 let amount = (distance - 3) * 2 |> Amount.unsafe
 
                 let chargeCommand =
-                    { GameId = state.GameId |> Id.value
-                      Nation = nation
-                      Amount = amount
-                      BillingId = billingId |> RondelBillingId.value }
+                    ChargeMovement
+                        { GameId = state.GameId
+                          Nation = nation
+                          Amount = amount
+                          BillingId = billingId }
 
                 let existingUnpaidMove = state.PendingMovements |> Map.find nation
 
@@ -599,14 +631,11 @@ module Rondel =
                           Space = existingUnpaidMove.TargetSpace }
 
                 let voidChargeCommand =
-                    { GameId = state.GameId |> Id.value
-                      BillingId = existingUnpaidMove.BillingId |> RondelBillingId.value }
-                    : VoidRondelChargeCommand
+                    VoidCharge
+                        { GameId = state.GameId
+                          BillingId = existingUnpaidMove.BillingId }
 
-                Some newState,
-                [ existingUnpaidMoveRejectedEvent ],
-                [ VoidRondelCharge voidChargeCommand
-                  ChargeNationForRondelMovement chargeCommand ]
+                Some newState, [ existingUnpaidMoveRejectedEvent ], [ voidChargeCommand; chargeCommand ]
             | _, _ -> failwith "Unhandled move outcome."
 
         // IO side-effect sequencer
@@ -619,13 +648,8 @@ module Rondel =
             let publishEvents events = events |> List.iter publish |> Ok
 
             let executeOutboundCommands commands =
-                let executeCommand =
-                    function
-                    | ChargeNationForRondelMovement c -> chargeForMovement c
-                    | VoidRondelCharge c -> voidCharge c
-
                 (Ok(), commands)
-                ||> List.fold (fun state cmd -> state |> Result.bind (fun () -> executeCommand cmd))
+                ||> List.fold (fun state cmd -> state |> Result.bind (fun () -> dispatch cmd))
 
             saveState state
             |> Result.bind (fun () -> publishEvents events)

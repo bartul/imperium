@@ -16,6 +16,10 @@ module Rondel =
     [<Struct>]
     type RondelBillingId = private RondelBillingId of Id
 
+    module RondelBillingId =
+        /// Extract the underlying Guid value for comparison and serialization.
+        val value: RondelBillingId -> Guid
+
     /// The six distinct actions a nation can perform on the rondel.
     /// Each action corresponds to one or two spaces on the circular track.
     [<RequireQualifiedAccess>]
@@ -108,6 +112,27 @@ module Rondel =
           Space: Space }
 
     // ──────────────────────────────────────────────────────────────────────────
+    // Outbound Commands (to other bounded contexts)
+    // ──────────────────────────────────────────────────────────────────────────
+
+    /// Command to charge a nation for paid rondel movement (4-6 spaces).
+    type ChargeMovementOutboundCommand =
+        { GameId: Id
+          Nation: string
+          Amount: Amount
+          BillingId: RondelBillingId }
+
+    /// Command to void a previously initiated charge before payment completion.
+    type VoidChargeOutboundCommand =
+        { GameId: Id
+          BillingId: RondelBillingId }
+
+    /// Union of all outbound commands dispatched to other bounded contexts.
+    type RondelOutboundCommand =
+        | ChargeMovement of ChargeMovementOutboundCommand
+        | VoidCharge of VoidChargeOutboundCommand
+
+    // ──────────────────────────────────────────────────────────────────────────
     // Incoming Events (from other bounded contexts)
     // ──────────────────────────────────────────────────────────────────────────
 
@@ -139,6 +164,10 @@ module Rondel =
     /// Publish rondel domain events to the event bus.
     type PublishRondelEvent = RondelEvent -> unit
 
+    /// Dispatch outbound commands to other bounded contexts (e.g., Accounting).
+    /// Infrastructure handles conversion to contract types and actual dispatch.
+    type DispatchOutboundCommand = RondelOutboundCommand -> Result<unit, string>
+
     // ──────────────────────────────────────────────────────────────────────────
     // Transformations (Contract <-> Domain)
     // ──────────────────────────────────────────────────────────────────────────
@@ -159,6 +188,16 @@ module Rondel =
     module RondelEvent =
         /// Transform Domain event to Contract event for cross-boundary communication.
         val toContract: RondelEvent -> Contract.Rondel.RondelEvent
+
+    /// Transforms Domain ChargeMovementOutboundCommand to Accounting contract type.
+    module ChargeMovementOutboundCommand =
+        /// Convert domain charge command to Accounting contract for dispatch.
+        val toContract: ChargeMovementOutboundCommand -> Contract.Accounting.ChargeNationForRondelMovementCommand
+
+    /// Transforms Domain VoidChargeOutboundCommand to Accounting contract type.
+    module VoidChargeOutboundCommand =
+        /// Convert domain void command to Accounting contract for dispatch.
+        val toContract: VoidChargeOutboundCommand -> Contract.Accounting.VoidRondelChargeCommand
 
     /// Transforms Domain RondelState to/from Contract type for persistence.
     module RondelState =
@@ -202,14 +241,7 @@ module Rondel =
     /// Free moves (1-3 spaces) complete immediately with ActionDetermined event.
     /// Paid moves (4-6 spaces) dispatch charge and await payment confirmation.
     /// Throws for invalid moves (0 spaces, 7+ spaces, uninitialized game).
-    val move:
-        LoadRondelState ->
-        SaveRondelState ->
-        PublishRondelEvent ->
-        ChargeNationForRondelMovement ->
-        VoidRondelCharge ->
-        MoveCommand ->
-            unit
+    val move: LoadRondelState -> SaveRondelState -> PublishRondelEvent -> DispatchOutboundCommand -> MoveCommand -> unit
 
     /// Process invoice payment confirmation from Accounting domain.
     /// Completes pending movement and publishes ActionDetermined event.

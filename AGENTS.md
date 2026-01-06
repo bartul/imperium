@@ -10,9 +10,9 @@ Last verified: 2026-01-04
   - `Amount` - Measured struct wrapper (`int<M>`) with guarded construction; errors are plain strings; includes `tryParse`
 - **Contract modules:** Cross-bounded-context communication types; no `.fsi` files (intentionally public); organized by bounded context
   - `Contract.Gameplay` (Contract.fs): Placeholder for future game-level coordination types
-  - `Contract.Accounting` (Contract.Accounting.fs): ChargeNationForRondelMovementCommand, VoidRondelChargeCommand, AccountingEvent (RondelInvoicePaid, RondelInvoicePaymentFailed)
+  - `Contract.Accounting` (Contract.Accounting.fs): ChargeNationForRondelMovementCommand, VoidRondelChargeCommand, AccountingCommand (routing DU), AccountingEvent (RondelInvoicePaid, RondelInvoicePaymentFailed)
   - `Contract.Rondel` (Contract.Rondel.fs): SetToStartingPositionsCommand, MoveCommand, RondelEvent (PositionedAtStart, ActionDetermined, MoveToActionSpaceRejected), RondelState, PendingMovement
-  - Function types for dependency injection (e.g., `ChargeNationForRondelMovement = ChargeNationForRondelMovementCommand -> Result<unit, string>`, `VoidRondelCharge = VoidRondelChargeCommand -> Result<unit, string>`)
+  - Contract function types for dependency injection (e.g., `ChargeNationForRondelMovement = ChargeNationForRondelMovementCommand -> Result<unit, string>`) - domain handlers use domain `DispatchOutboundCommand` dependency instead
   - Events use record types (e.g., `RondelEvent = | PositionedAtStart of PositionedAtStart` where `PositionedAtStart = { GameId: Guid }`)
 - **Domain modules:** CQRS bounded contexts with `.fsi` files defining public APIs
   - Internal types (GameId, NationId, Bank, Investor) hidden from public APIs; `Action`, `RondelBillingId`, and `Space` are exposed in `Rondel.fsi`
@@ -22,7 +22,7 @@ Last verified: 2026-01-04
   - Event handlers: Accept domain event types (after transformation), return `Result<unit, string>` (maintain Result pattern for event processing)
   - All handlers take dependency injections explicitly (e.g., `load`, `save`, `publish`, specialized services)
   - `Gameplay` and `Accounting` have no public API currently (placeholder values only)
-  - `Rondel` exposes: transformation modules (SetToStartingPositionsCommand, MoveCommand, InvoicePaidEvent, InvoicePaymentFailedEvent), domain command types (SetToStartingPositionsCommand with `Set<string>` Nations, MoveCommand with Space), domain incoming event types (InvoicePaidEvent, InvoicePaymentFailedEvent with `Id` and `RondelBillingId`), incoming event DU (RondelIncomingEvent), Space type, PublishRondelEvent type, setToStartingPositions (implemented), move (implemented), onInvoicedPaid (implemented), onInvoicePaymentFailed (stubbed)
+  - `Rondel` exposes: transformation modules (SetToStartingPositionsCommand, MoveCommand, InvoicePaidEvent, InvoicePaymentFailedEvent, ChargeMovementOutboundCommand, VoidChargeOutboundCommand), domain command types (SetToStartingPositionsCommand with `Set<string>` Nations, MoveCommand with Space), domain outbound command types (ChargeMovementOutboundCommand, VoidChargeOutboundCommand, RondelOutboundCommand DU), domain incoming event types (InvoicePaidEvent, InvoicePaymentFailedEvent with `Id` and `RondelBillingId`), incoming event DU (RondelIncomingEvent), Space type, RondelBillingId type with value accessor, PublishRondelEvent type, DispatchOutboundCommand type, setToStartingPositions (implemented), move (implemented), onInvoicedPaid (implemented), onInvoicePaymentFailed (stubbed)
   - `Contract.Rondel.RondelState`: Serializable DTOs (Guid/string) for persistence. NationPositions is `Map<string, string option>` at the serialization boundary and PendingMovements is keyed by nation name for O(log n) lookups.
   - `Rondel.RondelState`: Domain state uses strong types (`Id`, `Space option`, `RondelBillingId`). NationPositions is `Map<string, Space option>` and PendingMovement uses `Space` TargetSpace + `RondelBillingId` BillingId. Transformations live in `Rondel.fs` (`RondelState.toContract/fromContract`), not in a separate adapter.
 - `src/Imperium.Web` bootstraps the HTTP layer (`Program.fs`). Reference the core project via the existing project reference instead of duplicating logic.
@@ -34,7 +34,7 @@ Last verified: 2026-01-04
 - **Transformation modules** (`SetToStartingPositionsCommand.toDomain`, `MoveCommand.toDomain`, `InvoicePaidEvent.toDomain`, `InvoicePaymentFailedEvent.toDomain`): Modules named after domain types; accept Contract types, validate inputs, return `Result<DomainType, string>` with plain string errors
 - **Command handlers** (`setToStartingPositions`, `move`): Accept domain types directly, take dependencies explicitly (load, save, publish, services), throw exceptions for business rule violations, return `unit`
 - **Event handlers** (`onInvoicedPaid`, `onInvoicePaymentFailed`): Accept domain event types (after transformation from Contract types), take dependencies explicitly, return `Result<unit, string>` for error propagation
-- Dependency injection order: persistence (load, save), publish, then specialized services (e.g., accounting charge/void). Load/save use domain `RondelState` and `Id`; persistence adapters map to/from `Contract.Rondel.RondelState`.
+- Dependency injection order: persistence (load, save), publish, then dispatch (outbound commands). Load/save use domain `RondelState` and `Id`; persistence adapters map to/from `Contract.Rondel.RondelState`. Outbound commands use domain types (`RondelOutboundCommand`) with per-command `toContract` transformations targeting appropriate bounded contexts.
 - Signature files define public shape first; implementations should not widen the surface in `.fs`.
 
 ### Rondel Implementation Patterns
@@ -45,11 +45,11 @@ Last verified: 2026-01-04
 - **MoveOutcome type**: Internal discriminated union with named fields carrying complete context (targetSpace, distance, nation, rejectedCommand). All cases encapsulate necessary data, eliminating closure dependencies on outer scope variables for cleaner functional design.
 - **Decision chain**: Validates moves through `Decision` monad (`noMovesAllowedIfNotInitialized` → `noMovesAllowedForNationNotInGame` → `firstMoveIsFreeToAnyPosition` → `decideMovementOutcome`) producing `MoveOutcome`.
 - **Side-effect separation**: `handleMoveOutcome` transforms `MoveOutcome` to `(state, events, commands)` tuple; `performIO` sequences persistence, event publishing, and outbound command dispatch with `Result.bind` for error propagation (short-circuits on first error), then uses `Result.defaultWith` to unwrap and throw on IO failures.
-- **Command dispatch**: Uses `List.fold` with `Result.bind` to sequence outbound commands (`ChargeNationForRondelMovement`, `VoidRondelCharge`), returning first error or `Ok ()`.
+- **Command dispatch**: Uses `List.fold` with `Result.bind` to sequence outbound commands (`RondelOutboundCommand` with `ChargeMovement` and `VoidCharge` cases), returning first error or `Ok ()`. Infrastructure layer receives domain commands and calls per-command `toContract` transformations to dispatch to appropriate bounded contexts.
 
 ### Open Work (current)
 - Rondel `setToStartingPositions` handler is complete with validation, state persistence, and event publishing.
-- Rondel `move` handler is complete: clockwise distance calculation, 1-3 space free moves with immediate action determination, 4-6 space paid moves with charge dispatch and pending state storage (formula: (distance - 3) * 2M), rejects 0-space (stay put) and 7+ space (exceeds max) moves. Handler accepts `ChargeNationForRondelMovement` and `VoidRondelCharge` dependencies. When a nation initiates a new move while a previous move is pending payment, the handler automatically voids the old charge, rejects the old pending move, and proceeds with the new move.
+- Rondel `move` handler is complete: clockwise distance calculation, 1-3 space free moves with immediate action determination, 4-6 space paid moves with charge dispatch and pending state storage (formula: (distance - 3) * 2M), rejects 0-space (stay put) and 7+ space (exceeds max) moves. Handler accepts `DispatchOutboundCommand` dependency for domain outbound commands. When a nation initiates a new move while a previous move is pending payment, the handler automatically voids the old charge, rejects the old pending move, and proceeds with the new move.
 - Rondel `onInvoicedPaid` handler is complete: processes payment confirmations from Accounting domain, finds pending movement by BillingId, updates nation position, removes pending entry, publishes ActionDetermined event. Idempotent: ignores events for non-existent pending movements (handles duplicate payment events or already-completed/voided movements). Fails fast on state corruption (invalid TargetSpace in pending movement).
 - Implement remaining Rondel handler (`onInvoicePaymentFailed`) to complete payment flow rejection path.
 - Add public APIs for Gameplay and Accounting or trim placeholders if unused.
@@ -87,11 +87,12 @@ Domain modules (`.fsi` and `.fs` pairs) follow a consistent sectioned structure.
 | 2 | **Domain State** | Persistent state records (`RondelState`, `PendingMovement`) |
 | 3 | **Commands** | Command DU and individual command records |
 | 4 | **Events** | Outbound event DU and individual event records (published by this domain) |
-| 5 | **Incoming Events** | Inbound event DU and individual event records (received from other domains) |
-| 6 | **Dependencies** | Function types for DI (`LoadState`, `SaveState`, `PublishEvent`) |
-| 7 | **Transformations** | Modules with `toDomain`, `toContract`, `fromContract` functions |
-| 8 | **Handlers (Internal Types)** | `.fs` only: internal DUs for routing/outcomes (`MoveOutcome`) |
-| 9 | **Handlers** | Command handlers, then event handlers |
+| 5 | **Outbound Commands** | Commands dispatched to other bounded contexts (`ChargeMovementOutboundCommand`, `VoidChargeOutboundCommand`, `RondelOutboundCommand` DU) |
+| 6 | **Incoming Events** | Inbound event DU and individual event records (received from other domains) |
+| 7 | **Dependencies** | Function types for DI (`LoadState`, `SaveState`, `PublishEvent`, `DispatchOutboundCommand`) |
+| 8 | **Transformations** | Modules with `toDomain`, `toContract`, `fromContract` functions (including per-outbound-command `toContract`) |
+| 9 | **Handlers (Internal Types)** | `.fs` only: internal DUs for routing/outcomes (`MoveOutcome`) |
+| 10 | **Handlers** | Command handlers, then event handlers |
 
 **XML Documentation Comments:**
 - All public types and functions require `///` doc comments

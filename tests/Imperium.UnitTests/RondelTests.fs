@@ -25,25 +25,30 @@ let createMockPublisher () =
     let publish event = publishedEvents.Add event
     publish, publishedEvents
 
-let createMockCommandDispatcher () =
-    let dispatchedCommands =
-        ResizeArray<Imperium.Contract.Accounting.ChargeNationForRondelMovementCommand>()
+let createMockDispatcher () =
+    let dispatchedCommands = ResizeArray<RondelOutboundCommand>()
 
-    let chargeForMovement (command: Imperium.Contract.Accounting.ChargeNationForRondelMovementCommand) =
+    let dispatch (command: RondelOutboundCommand) =
         dispatchedCommands.Add command
         Ok()
 
-    chargeForMovement, dispatchedCommands
+    dispatch, dispatchedCommands
 
-let createMockVoidCharge () =
-    let voidedCommands =
-        ResizeArray<Imperium.Contract.Accounting.VoidRondelChargeCommand>()
+/// Helper to extract ChargeMovement commands from dispatched commands
+let getChargeCommands (commands: ResizeArray<RondelOutboundCommand>) =
+    commands
+    |> Seq.choose (function
+        | ChargeMovement cmd -> Some cmd
+        | _ -> None)
+    |> Seq.toList
 
-    let voidCharge (command: Imperium.Contract.Accounting.VoidRondelChargeCommand) =
-        voidedCommands.Add command
-        Ok()
-
-    voidCharge, voidedCommands
+/// Helper to extract VoidCharge commands from dispatched commands
+let getVoidCommands (commands: ResizeArray<RondelOutboundCommand>) =
+    commands
+    |> Seq.choose (function
+        | VoidCharge cmd -> Some cmd
+        | _ -> None)
+    |> Seq.toList
 
 // Independent reference implementation for test verification
 // This provides an alternate path to verify Space -> Action mapping
@@ -176,8 +181,7 @@ let tests =
                 <| fun _ ->
                     let load, save = createMockStore ()
                     let publish, publishedEvents = createMockPublisher ()
-                    let chargeForMovement, dispatchedCommands = createMockCommandDispatcher ()
-                    let voidCharge, voidedCommands = createMockVoidCharge ()
+                    let dispatch, dispatchedCommands = createMockDispatcher ()
 
                     let contractMoveCommand = mkContractMove (Guid.NewGuid()) "France" "Factory"
 
@@ -188,7 +192,7 @@ let tests =
                     let domainMoveCommand = Result.defaultWith failwith transformResult
 
                     // Handler returns unit
-                    move load save publish chargeForMovement voidCharge domainMoveCommand
+                    move load save publish dispatch domainMoveCommand
                     Expect.isNonEmpty publishedEvents "the rondel should signal why the move was denied"
 
                     Expect.contains
@@ -225,8 +229,7 @@ let tests =
                     // Setup: initialize rondel
                     let load, save = createMockStore ()
                     let publish, publishedEvents = createMockPublisher ()
-                    let chargeForMovement, dispatchedCommands = createMockCommandDispatcher ()
-                    let voidCharge, voidedCommands = createMockVoidCharge ()
+                    let dispatch, dispatchedCommands = createMockDispatcher ()
 
                     let contractInitCommand = mkContractSetToStartingPositions gameId nations
 
@@ -245,7 +248,7 @@ let tests =
 
                     let domainMoveCommand = Result.defaultWith failwith transformResult
 
-                    move load save publish chargeForMovement voidCharge domainMoveCommand
+                    move load save publish dispatch domainMoveCommand
 
                     // Assert: ActionDetermined event published with correct action
                     // Using independent reference implementation to avoid testing transformation with itself
@@ -304,8 +307,7 @@ let tests =
                     // Setup: initialize rondel
                     let load, save = createMockStore ()
                     let publish, publishedEvents = createMockPublisher ()
-                    let chargeForMovement, dispatchedCommands = createMockCommandDispatcher ()
-                    let voidCharge, voidedCommands = createMockVoidCharge ()
+                    let dispatch, dispatchedCommands = createMockDispatcher ()
 
                     let contractInitCommand = mkContractSetToStartingPositions gameId nations
 
@@ -324,7 +326,7 @@ let tests =
 
                     let domainMoveCommand = Result.defaultWith failwith transformResult
 
-                    move load save publish chargeForMovement voidCharge domainMoveCommand
+                    move load save publish dispatch domainMoveCommand
 
                     // Assert: first move succeeds
                     // Using independent reference implementation to avoid testing transformation with itself
@@ -342,7 +344,7 @@ let tests =
                     dispatchedCommands.Clear()
 
                     // Execute: attempt to move to same position (first rejection)
-                    move load save publish chargeForMovement voidCharge domainMoveCommand
+                    move load save publish dispatch domainMoveCommand
 
                     // Assert: second move is rejected
                     Expect.isNonEmpty publishedEvents "the rondel should signal why the move was denied"
@@ -370,7 +372,7 @@ let tests =
                     dispatchedCommands.Clear()
 
                     // Execute: attempt to move to same position again (second rejection)
-                    move load save publish chargeForMovement voidCharge domainMoveCommand
+                    move load save publish dispatch domainMoveCommand
 
                     // Assert: third move is also rejected
                     Expect.isNonEmpty publishedEvents "the rondel should signal why the move was denied"
@@ -423,8 +425,7 @@ let tests =
                     // Setup: initialize rondel
                     let load, save = createMockStore ()
                     let publish, publishedEvents = createMockPublisher ()
-                    let chargeForMovement, dispatchedCommands = createMockCommandDispatcher ()
-                    let voidCharge, voidedCommands = createMockVoidCharge ()
+                    let dispatch, dispatchedCommands = createMockDispatcher ()
 
                     let contractInitCommand = mkContractSetToStartingPositions gameId nations
 
@@ -445,7 +446,7 @@ let tests =
 
                     let domainMoveCommand1 = Result.defaultWith failwith transformResult1
 
-                    move load save publish chargeForMovement voidCharge domainMoveCommand1
+                    move load save publish dispatch domainMoveCommand1
                     // Using independent reference implementation to avoid testing transformation with itself
                     let expectedAction1 = spaceNameToExpectedAction startSpace
 
@@ -471,7 +472,7 @@ let tests =
 
                     let domainMoveCommand2 = Result.defaultWith failwith transformResult2
 
-                    move load save publish chargeForMovement voidCharge domainMoveCommand2
+                    move load save publish dispatch domainMoveCommand2
                     // Using independent reference implementation to avoid testing transformation with itself
                     let expectedAction2 = spaceNameToExpectedAction secondSpace
 
@@ -504,7 +505,7 @@ let tests =
 
                     let domainMoveCommand3 = Result.defaultWith failwith transformResult3
 
-                    move load save publish chargeForMovement voidCharge domainMoveCommand3
+                    move load save publish dispatch domainMoveCommand3
                     // Using independent reference implementation to avoid testing transformation with itself
                     let expectedAction3 = spaceNameToExpectedAction thirdSpace
 
@@ -548,8 +549,7 @@ let tests =
                     // Setup: initialize rondel
                     let load, save = createMockStore ()
                     let publish, publishedEvents = createMockPublisher ()
-                    let chargeForMovement, dispatchedCommands = createMockCommandDispatcher ()
-                    let voidCharge, voidedCommands = createMockVoidCharge ()
+                    let dispatch, dispatchedCommands = createMockDispatcher ()
 
                     let contractInitCommand = mkContractSetToStartingPositions gameId nations
 
@@ -570,7 +570,7 @@ let tests =
 
                     let domainMoveCommand1 = Result.defaultWith failwith transformResult1
 
-                    move load save publish chargeForMovement voidCharge domainMoveCommand1
+                    move load save publish dispatch domainMoveCommand1
                     // Using independent reference implementation to avoid testing transformation with itself
                     let expectedAction1 = spaceNameToExpectedAction startSpace
 
@@ -596,7 +596,7 @@ let tests =
 
                     let domainMoveCommand2 = Result.defaultWith failwith transformResult2
 
-                    move load save publish chargeForMovement voidCharge domainMoveCommand2
+                    move load save publish dispatch domainMoveCommand2
 
                     // Assert: move should be rejected (7 spaces exceeds maximum of 6)
                     Expect.isNonEmpty publishedEvents "the rondel should signal why the move was denied"
@@ -655,8 +655,7 @@ let tests =
                     // Setup: initialize rondel
                     let load, save = createMockStore ()
                     let publish, publishedEvents = createMockPublisher ()
-                    let chargeForMovement, dispatchedCommands = createMockCommandDispatcher ()
-                    let voidCharge, voidedCommands = createMockVoidCharge ()
+                    let dispatch, dispatchedCommands = createMockDispatcher ()
 
                     let contractInitCommand = mkContractSetToStartingPositions gameId nations
 
@@ -677,7 +676,7 @@ let tests =
 
                     let domainMoveCommand1 = Result.defaultWith failwith transformResult1
 
-                    move load save publish chargeForMovement voidCharge domainMoveCommand1
+                    move load save publish dispatch domainMoveCommand1
                     publishedEvents.Clear()
                     dispatchedCommands.Clear()
 
@@ -696,16 +695,20 @@ let tests =
                     let domainMoveCommand2 = Result.defaultWith failwith transformResult2
 
                     // Assert: move command succeeds
-                    move load save publish chargeForMovement voidCharge domainMoveCommand2
+                    move load save publish dispatch domainMoveCommand2
 
                     // Assert: charge command dispatched with correct amount
+                    let chargeCommands = getChargeCommands dispatchedCommands
+
                     Expect.hasLength
-                        dispatchedCommands
+                        chargeCommands
                         1
                         (sprintf "exactly one charge command should be dispatched for %d-space move" dist)
 
-                    let chargeCmd = dispatchedCommands.[0]
-                    Expect.equal chargeCmd.GameId gameId "charge command should have correct GameId"
+                    let chargeCmd = chargeCommands.[0]
+
+                    Expect.equal (Id.value chargeCmd.GameId) gameId "charge command should have correct GameId"
+
                     Expect.equal chargeCmd.Nation nation "charge command should have correct Nation"
 
                     let expectedAmount = Imperium.Primitives.Amount.unsafe ((dist - 3) * 2)
@@ -715,7 +718,10 @@ let tests =
                         expectedAmount
                         (sprintf "charge for %d spaces should be %dM ((distance - 3) * 2)" dist ((dist - 3) * 2))
 
-                    Expect.notEqual chargeCmd.BillingId Guid.Empty "charge command should have valid BillingId"
+                    Expect.notEqual
+                        (RondelBillingId.value chargeCmd.BillingId)
+                        Guid.Empty
+                        "charge command should have valid BillingId"
 
                     // Assert: NO ActionDetermined event (payment pending)
                     let actionDeterminedEvents =
@@ -742,8 +748,7 @@ let tests =
                     // Setup
                     let load, save = createMockStore ()
                     let publish, publishedEvents = createMockPublisher ()
-                    let chargeForMovement, dispatchedCommands = createMockCommandDispatcher ()
-                    let voidCharge, voidedCommands = createMockVoidCharge ()
+                    let dispatch, dispatchedCommands = createMockDispatcher ()
 
                     let gameId = Guid.NewGuid()
                     let nations = [| "France" |]
@@ -764,7 +769,7 @@ let tests =
                         |> MoveCommand.toDomain
                         |> Result.defaultWith failwith
 
-                    move load save publish chargeForMovement voidCharge firstMoveCmd
+                    move load save publish dispatch firstMoveCmd
 
                     Expect.contains
                         publishedEvents
@@ -783,13 +788,14 @@ let tests =
                         |> MoveCommand.toDomain
                         |> Result.defaultWith failwith
 
-                    move load save publish chargeForMovement voidCharge secondMove
+                    move load save publish dispatch secondMove
 
-                    Expect.hasLength dispatchedCommands 1 "first pending move should dispatch charge"
-                    let firstBillingId = dispatchedCommands.[0].BillingId
+                    let chargeCommands1 = getChargeCommands dispatchedCommands
+                    Expect.hasLength chargeCommands1 1 "first pending move should dispatch charge"
+                    let firstBillingId = chargeCommands1.[0].BillingId
 
                     Expect.equal
-                        dispatchedCommands.[0].Amount
+                        chargeCommands1.[0].Amount
                         (Imperium.Primitives.Amount.unsafe 2)
                         "charge for 4 spaces should be 2M"
 
@@ -810,16 +816,16 @@ let tests =
                         load
                         save
                         publish
-                        chargeForMovement
-                        voidCharge
+                        dispatch
                         (mkContractMove gameId "France" "ManeuverTwo"
                          |> MoveCommand.toDomain
                          |> Result.defaultWith failwith)
 
                     // Assert: old charge voided
-                    Expect.hasLength voidedCommands 1 "exactly one void command should be dispatched"
-                    Expect.equal voidedCommands.[0].BillingId firstBillingId "should void the first billing"
-                    Expect.equal voidedCommands.[0].GameId gameId "void command should have correct GameId"
+                    let voidCommands = getVoidCommands dispatchedCommands
+                    Expect.hasLength voidCommands 1 "exactly one void command should be dispatched"
+                    Expect.equal voidCommands.[0].BillingId firstBillingId "should void the first billing"
+                    Expect.equal (Id.value voidCommands.[0].GameId) gameId "void command should have correct GameId"
 
                     // Assert: old move rejected
                     Expect.contains
@@ -831,8 +837,9 @@ let tests =
                         "first pending move should be rejected"
 
                     // Assert: new charge created
-                    Expect.hasLength dispatchedCommands 1 "exactly one new charge should be dispatched"
-                    let secondCharge = dispatchedCommands.[0]
+                    let chargeCommands2 = getChargeCommands dispatchedCommands
+                    Expect.hasLength chargeCommands2 1 "exactly one new charge should be dispatched"
+                    let secondCharge = chargeCommands2.[0]
 
                     Expect.equal
                         secondCharge.Amount
@@ -840,7 +847,7 @@ let tests =
                         "charge for 5 spaces should be 4M"
 
                     Expect.notEqual secondCharge.BillingId firstBillingId "new charge should have different billing id"
-                    Expect.equal secondCharge.GameId gameId "new charge should have correct GameId"
+                    Expect.equal (Id.value secondCharge.GameId) gameId "new charge should have correct GameId"
                     Expect.equal secondCharge.Nation "France" "new charge should have correct Nation"
 
                     // Assert: no action determined (new move still pending payment)
@@ -858,8 +865,7 @@ let tests =
                     // Setup
                     let load, save = createMockStore ()
                     let publish, publishedEvents = createMockPublisher ()
-                    let chargeForMovement, dispatchedCommands = createMockCommandDispatcher ()
-                    let voidCharge, voidedCommands = createMockVoidCharge ()
+                    let dispatch, dispatchedCommands = createMockDispatcher ()
 
                     let gameId = Guid.NewGuid()
                     let nations = [| "Germany" |]
@@ -880,7 +886,7 @@ let tests =
                         |> MoveCommand.toDomain
                         |> Result.defaultWith failwith
 
-                    move load save publish chargeForMovement voidCharge firstMoveCmd
+                    move load save publish dispatch firstMoveCmd
 
                     Expect.contains
                         publishedEvents
@@ -899,13 +905,14 @@ let tests =
                         |> MoveCommand.toDomain
                         |> Result.defaultWith failwith
 
-                    move load save publish chargeForMovement voidCharge secondMove
+                    move load save publish dispatch secondMove
 
-                    Expect.hasLength dispatchedCommands 1 "first pending move should dispatch charge"
-                    let firstBillingId = dispatchedCommands.[0].BillingId
+                    let chargeCommands1 = getChargeCommands dispatchedCommands
+                    Expect.hasLength chargeCommands1 1 "first pending move should dispatch charge"
+                    let firstBillingId = chargeCommands1.[0].BillingId
 
                     Expect.equal
-                        dispatchedCommands.[0].Amount
+                        chargeCommands1.[0].Amount
                         (Imperium.Primitives.Amount.unsafe 4)
                         "charge for 5 spaces should be 4M"
 
@@ -927,12 +934,13 @@ let tests =
                         |> MoveCommand.toDomain
                         |> Result.defaultWith failwith
 
-                    move load save publish chargeForMovement voidCharge thirdMove
+                    move load save publish dispatch thirdMove
 
                     // Assert: old charge voided
-                    Expect.hasLength voidedCommands 1 "exactly one void command should be dispatched"
-                    Expect.equal voidedCommands.[0].BillingId firstBillingId "should void the first billing"
-                    Expect.equal voidedCommands.[0].GameId gameId "void command should have correct GameId"
+                    let voidCommands = getVoidCommands dispatchedCommands
+                    Expect.hasLength voidCommands 1 "exactly one void command should be dispatched"
+                    Expect.equal voidCommands.[0].BillingId firstBillingId "should void the first billing"
+                    Expect.equal (Id.value voidCommands.[0].GameId) gameId "void command should have correct GameId"
 
                     // Assert: old move rejected
                     Expect.contains
@@ -944,7 +952,8 @@ let tests =
                         "first pending move should be rejected"
 
                     // Assert: no new charge (free move)
-                    Expect.isEmpty dispatchedCommands "free move should not dispatch charge command"
+                    let chargeCommands2 = getChargeCommands dispatchedCommands
+                    Expect.isEmpty chargeCommands2 "free move should not dispatch charge command"
 
                     // Assert: action determined for new move (free move completes immediately)
                     Expect.contains
@@ -961,8 +970,7 @@ let tests =
                     // Setup: create mocks
                     let load, save = createMockStore ()
                     let publish, publishedEvents = createMockPublisher ()
-                    let chargeForMovement, dispatchedCommands = createMockCommandDispatcher ()
-                    let voidCharge, voidedCommands = createMockVoidCharge ()
+                    let dispatch, dispatchedCommands = createMockDispatcher ()
 
                     let gameId = Guid.NewGuid()
                     let nations = [| "Austria" |]
@@ -983,7 +991,7 @@ let tests =
                         |> MoveCommand.toDomain
                         |> Result.defaultWith failwith
 
-                    move load save publish chargeForMovement voidCharge firstMoveCmd
+                    move load save publish dispatch firstMoveCmd
 
                     Expect.contains
                         publishedEvents
@@ -1002,13 +1010,14 @@ let tests =
                         |> MoveCommand.toDomain
                         |> Result.defaultWith failwith
 
-                    move load save publish chargeForMovement voidCharge secondMoveCmd
+                    move load save publish dispatch secondMoveCmd
 
-                    Expect.hasLength dispatchedCommands 1 "paid move should dispatch charge command"
-                    let billingId = dispatchedCommands.[0].BillingId
+                    let chargeCommands = getChargeCommands dispatchedCommands
+                    Expect.hasLength chargeCommands 1 "paid move should dispatch charge command"
+                    let billingId = chargeCommands.[0].BillingId
 
                     Expect.equal
-                        dispatchedCommands.[0].Amount
+                        chargeCommands.[0].Amount
                         (Imperium.Primitives.Amount.unsafe 4)
                         "charge for 5 spaces should be 4M"
 
@@ -1027,7 +1036,7 @@ let tests =
                     // Execute: process payment confirmation
                     let contractPaymentEvent: Imperium.Contract.Accounting.RondelInvoicePaid =
                         { GameId = gameId
-                          BillingId = billingId }
+                          BillingId = RondelBillingId.value billingId }
 
                     // Transform Contract → Domain first
                     let transformResult = InvoicePaidEvent.toDomain contractPaymentEvent
@@ -1053,7 +1062,8 @@ let tests =
 
                     // Assert: no additional charges or voids
                     Expect.isEmpty dispatchedCommands "no new charges after payment confirmation"
-                    Expect.isEmpty voidedCommands "no voids after successful payment"
+                    let voidCommands = getVoidCommands dispatchedCommands
+                    Expect.isEmpty voidCommands "no voids after successful payment"
 
                     // Assert: verify state updated - pending movement cleared, position updated
                     // Subsequent move from Investor (new position) should succeed
@@ -1064,7 +1074,7 @@ let tests =
                         |> MoveCommand.toDomain
                         |> Result.defaultWith failwith
 
-                    move load save publish chargeForMovement voidCharge thirdMoveCmd
+                    move load save publish dispatch thirdMoveCmd
 
                     Expect.contains
                         publishedEvents
