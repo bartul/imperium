@@ -176,13 +176,13 @@ module Rondel =
     module SetToStartingPositionsCommand =
         /// Validate and transform Contract command to Domain command.
         /// Returns Error if GameId is invalid (Guid.Empty).
-        val toDomain: Contract.Rondel.SetToStartingPositionsCommand -> Result<SetToStartingPositionsCommand, string>
+        val fromContract: Contract.Rondel.SetToStartingPositionsCommand -> Result<SetToStartingPositionsCommand, string>
 
     /// Transforms Contract MoveCommand to Domain type.
     module MoveCommand =
         /// Validate and transform Contract command to Domain command.
         /// Returns Error if GameId is invalid or Space name is unknown.
-        val toDomain: Contract.Rondel.MoveCommand -> Result<MoveCommand, string>
+        val fromContract: Contract.Rondel.MoveCommand -> Result<MoveCommand, string>
 
     /// Transforms Domain RondelEvent to Contract type for publication.
     module RondelEvent =
@@ -219,13 +219,13 @@ module Rondel =
     module InvoicePaidEvent =
         /// Validate and transform Contract event to Domain event.
         /// Returns Error if GameId or BillingId is invalid.
-        val toDomain: Contract.Accounting.RondelInvoicePaid -> Result<InvoicePaidEvent, string>
+        val fromContract: Contract.Accounting.RondelInvoicePaid -> Result<InvoicePaidEvent, string>
 
     /// Transforms Contract RondelInvoicePaymentFailed to Domain InvoicePaymentFailedEvent.
     module InvoicePaymentFailedEvent =
         /// Validate and transform Contract event to Domain event.
         /// Returns Error if GameId or BillingId is invalid.
-        val toDomain: Contract.Accounting.RondelInvoicePaymentFailed -> Result<InvoicePaymentFailedEvent, string>
+        val fromContract: Contract.Accounting.RondelInvoicePaymentFailed -> Result<InvoicePaymentFailedEvent, string>
 
     // ──────────────────────────────────────────────────────────────────────────
     // Handlers

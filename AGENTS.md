@@ -17,7 +17,7 @@ Last verified: 2026-01-04
 - **Domain modules:** CQRS bounded contexts with `.fsi` files defining public APIs
   - Internal types (GameId, NationId, Bank, Investor) hidden from public APIs; `Action`, `RondelBillingId`, and `Space` are exposed in `Rondel.fsi`
   - **Two-layer architecture:** Transformation modules (accept Contract types, return `Result<DomainType, string>`) + Command/Event handlers (accept Domain types, return `unit` or `Result`)
-  - Transformation modules: Named after domain types (e.g., `SetToStartingPositionsCommand.toDomain`, `MoveCommand.toDomain`, `InvoicePaidEvent.toDomain`) to match the domain types they produce
+  - Transformation modules: Named after domain types (e.g., `SetToStartingPositionsCommand.fromContract`, `MoveCommand.fromContract`, `InvoicePaidEvent.fromContract`) using directional naming (`fromContract` for Contract → Domain, `toContract` for Domain → Contract)
   - Command handlers: Accept domain types directly, throw exceptions for business rule violations, return `unit`
   - Event handlers: Accept domain event types (after transformation), return `Result<unit, string>` (maintain Result pattern for event processing)
   - All handlers take dependency injections explicitly (e.g., `load`, `save`, `publish`, specialized services)
@@ -31,7 +31,7 @@ Last verified: 2026-01-04
 - Rondel rules source: mechanic follows the boardgame "rondel" described in `docs/Imperial_English_Rules.pdf`. Keep only a quick cheat sheet here; see the PDF for full details. Key movement: clockwise, cannot stay put; 1–3 spaces free, 4–6 cost 2M per additional space beyond the first 3 free spaces (4 spaces = 2M, 5 spaces = 4M, 6 spaces = 6M; max distance 6), first turn may start anywhere. Actions: Factory (build own city for 5M, no hostile upright armies), Production (each unoccupied home factory produces 1 unit), Import (buy up to 3 units for 1M each in home provinces), Maneuver (fleets adjacent sea; armies adjacent land or via fleets; rail within home; 3 armies can destroy a factory; place flags in newly occupied regions), Investor (pay bond interest; investor card gets 2M and may invest; Swiss bank owners may also invest; passing executes investor steps 2–3), Taxation (tax: 2M per unoccupied factory, 1M per flag; dividend if tax track increases; add power points; treasury collects tax minus 1M per army/fleet). Game ends at 25 power points; score = bond interest x nation factor + personal cash.
 
 ### Handler Signature Pattern
-- **Transformation modules** (`SetToStartingPositionsCommand.toDomain`, `MoveCommand.toDomain`, `InvoicePaidEvent.toDomain`, `InvoicePaymentFailedEvent.toDomain`): Modules named after domain types; accept Contract types, validate inputs, return `Result<DomainType, string>` with plain string errors
+- **Transformation modules** (`SetToStartingPositionsCommand.fromContract`, `MoveCommand.fromContract`, `InvoicePaidEvent.fromContract`, `InvoicePaymentFailedEvent.fromContract`): Modules named after domain types; accept Contract types, validate inputs, return `Result<DomainType, string>` with plain string errors
 - **Command handlers** (`setToStartingPositions`, `move`): Accept domain types directly, take dependencies explicitly (load, save, publish, services), throw exceptions for business rule violations, return `unit`
 - **Event handlers** (`onInvoicedPaid`, `onInvoicePaymentFailed`): Accept domain event types (after transformation from Contract types), take dependencies explicitly, return `Result<unit, string>` for error propagation
 - Dependency injection order: persistence (load, save), publish, then dispatch (outbound commands). Load/save use domain `RondelState` and `Id`; persistence adapters map to/from `Contract.Rondel.RondelState`. Outbound commands use domain types (`RondelOutboundCommand`) with per-command `toContract` transformations targeting appropriate bounded contexts.
@@ -90,7 +90,7 @@ Domain modules (`.fsi` and `.fs` pairs) follow a consistent sectioned structure.
 | 5 | **Outbound Commands** | Commands dispatched to other bounded contexts (`ChargeMovementOutboundCommand`, `VoidChargeOutboundCommand`, `RondelOutboundCommand` DU) |
 | 6 | **Incoming Events** | Inbound event DU and individual event records (received from other domains) |
 | 7 | **Dependencies** | Function types for DI (`LoadState`, `SaveState`, `PublishEvent`, `DispatchOutboundCommand`) |
-| 8 | **Transformations** | Modules with `toDomain`, `toContract`, `fromContract` functions (including per-outbound-command `toContract`) |
+| 8 | **Transformations** | Modules with `fromContract` (Contract → Domain), `toContract` (Domain → Contract) functions (including per-outbound-command `toContract`) |
 | 9 | **Handlers (Internal Types)** | `.fs` only: internal DUs for routing/outcomes (`MoveOutcome`) |
 | 10 | **Handlers** | Command handlers, then event handlers |
 
@@ -120,7 +120,7 @@ Domain modules (`.fsi` and `.fs` pairs) follow a consistent sectioned structure.
 - When two record types share identical field names/types (e.g., `MoveCommand` and `MoveToActionSpaceRejectedEvent` both have `GameId`, `Nation`, `Space`), F# infers the last-defined type
 - Add explicit type annotations to avoid ambiguity:
   ```fsharp
-  let toDomain (cmd: Contract.MoveCommand) : Result<MoveCommand, string> = ...
+  let fromContract (cmd: Contract.MoveCommand) : Result<MoveCommand, string> = ...
   let decideOutcome (state: RondelState, cmd: MoveCommand, pos) = ...
   ```
 
@@ -135,7 +135,7 @@ Domain modules (`.fsi` and `.fs` pairs) follow a consistent sectioned structure.
 - Cover edge cases: null inputs, empty strings, invalid formats, boundary conditions.
 - Follow three-phase module development process documented in `docs/module_design_process.md`: define interface, write tests, implement functionality.
 - **Testing approach:**
-  - **Input validation tests**: Use transformation modules (`SetToStartingPositionsCommand.toDomain`, `MoveCommand.toDomain`) with Contract types to verify input validation returns appropriate errors
+  - **Input validation tests**: Use transformation modules (`SetToStartingPositionsCommand.fromContract`, `MoveCommand.fromContract`) with Contract types to verify input validation returns appropriate errors
   - **Business logic tests**: Transform Contract → Domain, then call handlers with domain types and injected dependencies to verify correct outcomes, events, and charges
   - **Exception testing**: Use `Expect.throws` for business rule violations (e.g., empty nations, invalid moves)
 - Current test coverage:
@@ -148,7 +148,7 @@ Domain modules (`.fsi` and `.fs` pairs) follow a consistent sectioned structure.
   - move: moves of 4-6 spaces require payment (property test, 15 iterations; validates charge command dispatched with correct amount (distance - 3) * 2M, no premature action determination, move not rejected)
   - move: superseding pending paid move with another paid move voids old charge and rejects old move (validates void command dispatched for old BillingId, old move rejected, new charge created with correct amount, no action determined for new pending move)
   - move: superseding pending paid move with free move voids charge and completes immediately (validates void command dispatched, old move rejected, no new charge, new move completes with ActionDetermined)
-  - onInvoicePaid: completes pending movement and publishes ActionDetermined event (validates Contract → Domain transformation via `InvoicePaidEvent.toDomain`, payment confirmation updates position, removes pending movement, publishes correct action, and allows subsequent moves from new position; idempotent - ignores events with no matching pending movement)
+  - onInvoicePaid: completes pending movement and publishes ActionDetermined event (validates Contract → Domain transformation via `InvoicePaidEvent.fromContract`, payment confirmation updates position, removes pending movement, publishes correct action, and allows subsequent moves from new position; idempotent - ignores events with no matching pending movement)
 
 ## Branch Naming Guidelines
 
