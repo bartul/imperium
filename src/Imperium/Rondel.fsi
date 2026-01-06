@@ -225,7 +225,8 @@ module Rondel =
     module InvoicePaymentFailedInboundEvent =
         /// Validate and transform Contract event to Domain event.
         /// Returns Error if GameId or BillingId is invalid.
-        val fromContract: Contract.Accounting.RondelInvoicePaymentFailed -> Result<InvoicePaymentFailedInboundEvent, string>
+        val fromContract:
+            Contract.Accounting.RondelInvoicePaymentFailed -> Result<InvoicePaymentFailedInboundEvent, string>
 
     // ──────────────────────────────────────────────────────────────────────────
     // Handlers
@@ -252,4 +253,8 @@ module Rondel =
     /// Process invoice payment failure from Accounting domain.
     /// Rejects movement and publishes MoveToActionSpaceRejected event.
     val onInvoicePaymentFailed:
-        LoadRondelState -> SaveRondelState -> PublishRondelEvent -> InvoicePaymentFailedInboundEvent -> Result<unit, string>
+        LoadRondelState ->
+        SaveRondelState ->
+        PublishRondelEvent ->
+        InvoicePaymentFailedInboundEvent ->
+            Result<unit, string>
