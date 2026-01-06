@@ -175,6 +175,27 @@ module Rondel =
           Space: Space }
 
     // ──────────────────────────────────────────────────────────────────────────
+    // Outbound Commands (to other bounded contexts)
+    // ──────────────────────────────────────────────────────────────────────────
+
+    /// Command to charge a nation for paid rondel movement (4-6 spaces).
+    type ChargeMovementCommand =
+        { GameId: Id
+          Nation: string
+          Amount: Amount
+          BillingId: RondelBillingId }
+
+    /// Command to void a previously initiated charge before payment completion.
+    type VoidChargeCommand =
+        { GameId: Id
+          BillingId: RondelBillingId }
+
+    /// Union of all outbound commands dispatched to other bounded contexts.
+    type RondelOutboundCommand =
+        | ChargeMovement of ChargeMovementCommand
+        | VoidCharge of VoidChargeCommand
+
+    // ──────────────────────────────────────────────────────────────────────────
     // Incoming Events (from other bounded contexts)
     // ──────────────────────────────────────────────────────────────────────────
 
@@ -226,6 +247,10 @@ module Rondel =
     /// Publish rondel domain events to the event bus.
     type PublishRondelEvent = RondelEvent -> unit
 
+    /// Dispatch outbound commands to other bounded contexts (e.g., Accounting).
+    /// Infrastructure handles conversion to contract types and actual dispatch.
+    type DispatchOutboundCommand = RondelOutboundCommand -> Result<unit, string>
+
     // ──────────────────────────────────────────────────────────────────────────
     // Transformations (Contract <-> Domain)
     // ──────────────────────────────────────────────────────────────────────────
@@ -270,6 +295,22 @@ module Rondel =
                     { GameId = Id.value e.GameId
                       Nation = e.Nation
                       Space = Space.toString e.Space }
+
+    /// Transforms Domain ChargeMovementCommand to Accounting contract type.
+    module ChargeMovementCommand =
+        /// Convert domain charge command to Accounting contract for dispatch.
+        let toContract (cmd: ChargeMovementCommand) : Contract.Accounting.ChargeNationForRondelMovementCommand =
+            { GameId = Id.value cmd.GameId
+              Nation = cmd.Nation
+              Amount = cmd.Amount
+              BillingId = RondelBillingId.value cmd.BillingId }
+
+    /// Transforms Domain VoidChargeCommand to Accounting contract type.
+    module VoidChargeCommand =
+        /// Convert domain void command to Accounting contract for dispatch.
+        let toContract (cmd: VoidChargeCommand) : Contract.Accounting.VoidRondelChargeCommand =
+            { GameId = Id.value cmd.GameId
+              BillingId = RondelBillingId.value cmd.BillingId }
 
     /// Transforms Domain PendingMovement to/from Contract type for persistence.
     module PendingMovement =
@@ -373,11 +414,6 @@ module Rondel =
     type internal RondelInboundEvent =
         | InvoicePaid of InvoicePaidEvent
         | InvoicePaymentFailed of InvoicePaymentFailedEvent
-
-    /// Outbound commands to other bounded contexts (internal dispatch type).
-    type internal RondelOutboundCommand =
-        | ChargeNationForRondelMovement of ChargeNationForRondelMovementCommand
-        | VoidRondelCharge of VoidRondelChargeCommand
 
     /// Movement decision outcome (internal to move handler).
     type internal MoveOutcome =
