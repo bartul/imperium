@@ -707,10 +707,7 @@ let tests =
 
                     let chargeCmd = chargeCommands.[0]
 
-                    Expect.equal
-                        (Id.value chargeCmd.GameId)
-                        gameId
-                        "charge command should have correct GameId"
+                    Expect.equal (Id.value chargeCmd.GameId) gameId "charge command should have correct GameId"
 
                     Expect.equal chargeCmd.Nation nation "charge command should have correct Nation"
 

@@ -179,21 +179,21 @@ module Rondel =
     // ──────────────────────────────────────────────────────────────────────────
 
     /// Command to charge a nation for paid rondel movement (4-6 spaces).
-    type ChargeMovementCommand =
+    type ChargeMovementOutboundCommand =
         { GameId: Id
           Nation: string
           Amount: Amount
           BillingId: RondelBillingId }
 
     /// Command to void a previously initiated charge before payment completion.
-    type VoidChargeCommand =
+    type VoidChargeOutboundCommand =
         { GameId: Id
           BillingId: RondelBillingId }
 
     /// Union of all outbound commands dispatched to other bounded contexts.
     type RondelOutboundCommand =
-        | ChargeMovement of ChargeMovementCommand
-        | VoidCharge of VoidChargeCommand
+        | ChargeMovement of ChargeMovementOutboundCommand
+        | VoidCharge of VoidChargeOutboundCommand
 
     // ──────────────────────────────────────────────────────────────────────────
     // Incoming Events (from other bounded contexts)
@@ -296,19 +296,19 @@ module Rondel =
                       Nation = e.Nation
                       Space = Space.toString e.Space }
 
-    /// Transforms Domain ChargeMovementCommand to Accounting contract type.
-    module ChargeMovementCommand =
+    /// Transforms Domain ChargeMovementOutboundCommand to Accounting contract type.
+    module ChargeMovementOutboundCommand =
         /// Convert domain charge command to Accounting contract for dispatch.
-        let toContract (cmd: ChargeMovementCommand) : Contract.Accounting.ChargeNationForRondelMovementCommand =
+        let toContract (cmd: ChargeMovementOutboundCommand) : Contract.Accounting.ChargeNationForRondelMovementCommand =
             { GameId = Id.value cmd.GameId
               Nation = cmd.Nation
               Amount = cmd.Amount
               BillingId = RondelBillingId.value cmd.BillingId }
 
-    /// Transforms Domain VoidChargeCommand to Accounting contract type.
-    module VoidChargeCommand =
+    /// Transforms Domain VoidChargeOutboundCommand to Accounting contract type.
+    module VoidChargeOutboundCommand =
         /// Convert domain void command to Accounting contract for dispatch.
-        let toContract (cmd: VoidChargeCommand) : Contract.Accounting.VoidRondelChargeCommand =
+        let toContract (cmd: VoidChargeOutboundCommand) : Contract.Accounting.VoidRondelChargeCommand =
             { GameId = Id.value cmd.GameId
               BillingId = RondelBillingId.value cmd.BillingId }
 
@@ -578,9 +578,7 @@ module Rondel =
                         { GameId = state.GameId
                           BillingId = existingUnpaidMove.BillingId }
 
-                Some newState,
-                [ actionDeterminedEvent; existingUnpaidMoveRejectedEvent ],
-                [ voidChargeCommand ]
+                Some newState, [ actionDeterminedEvent; existingUnpaidMoveRejectedEvent ], [ voidChargeCommand ]
             | Paid(targetSpace, distance, nation), Some state ->
                 let billingId = RondelBillingId.newId ()
 
@@ -637,9 +635,7 @@ module Rondel =
                         { GameId = state.GameId
                           BillingId = existingUnpaidMove.BillingId }
 
-                Some newState,
-                [ existingUnpaidMoveRejectedEvent ],
-                [ voidChargeCommand; chargeCommand ]
+                Some newState, [ existingUnpaidMoveRejectedEvent ], [ voidChargeCommand; chargeCommand ]
             | _, _ -> failwith "Unhandled move outcome."
 
         // IO side-effect sequencer

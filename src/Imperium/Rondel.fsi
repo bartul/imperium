@@ -116,21 +116,21 @@ module Rondel =
     // ──────────────────────────────────────────────────────────────────────────
 
     /// Command to charge a nation for paid rondel movement (4-6 spaces).
-    type ChargeMovementCommand =
+    type ChargeMovementOutboundCommand =
         { GameId: Id
           Nation: string
           Amount: Amount
           BillingId: RondelBillingId }
 
     /// Command to void a previously initiated charge before payment completion.
-    type VoidChargeCommand =
+    type VoidChargeOutboundCommand =
         { GameId: Id
           BillingId: RondelBillingId }
 
     /// Union of all outbound commands dispatched to other bounded contexts.
     type RondelOutboundCommand =
-        | ChargeMovement of ChargeMovementCommand
-        | VoidCharge of VoidChargeCommand
+        | ChargeMovement of ChargeMovementOutboundCommand
+        | VoidCharge of VoidChargeOutboundCommand
 
     // ──────────────────────────────────────────────────────────────────────────
     // Incoming Events (from other bounded contexts)
@@ -189,15 +189,15 @@ module Rondel =
         /// Transform Domain event to Contract event for cross-boundary communication.
         val toContract: RondelEvent -> Contract.Rondel.RondelEvent
 
-    /// Transforms Domain ChargeMovementCommand to Accounting contract type.
-    module ChargeMovementCommand =
+    /// Transforms Domain ChargeMovementOutboundCommand to Accounting contract type.
+    module ChargeMovementOutboundCommand =
         /// Convert domain charge command to Accounting contract for dispatch.
-        val toContract: ChargeMovementCommand -> Contract.Accounting.ChargeNationForRondelMovementCommand
+        val toContract: ChargeMovementOutboundCommand -> Contract.Accounting.ChargeNationForRondelMovementCommand
 
-    /// Transforms Domain VoidChargeCommand to Accounting contract type.
-    module VoidChargeCommand =
+    /// Transforms Domain VoidChargeOutboundCommand to Accounting contract type.
+    module VoidChargeOutboundCommand =
         /// Convert domain void command to Accounting contract for dispatch.
-        val toContract: VoidChargeCommand -> Contract.Accounting.VoidRondelChargeCommand
+        val toContract: VoidChargeOutboundCommand -> Contract.Accounting.VoidRondelChargeCommand
 
     /// Transforms Domain RondelState to/from Contract type for persistence.
     module RondelState =
@@ -241,13 +241,7 @@ module Rondel =
     /// Free moves (1-3 spaces) complete immediately with ActionDetermined event.
     /// Paid moves (4-6 spaces) dispatch charge and await payment confirmation.
     /// Throws for invalid moves (0 spaces, 7+ spaces, uninitialized game).
-    val move:
-        LoadRondelState ->
-        SaveRondelState ->
-        PublishRondelEvent ->
-        DispatchOutboundCommand ->
-        MoveCommand ->
-            unit
+    val move: LoadRondelState -> SaveRondelState -> PublishRondelEvent -> DispatchOutboundCommand -> MoveCommand -> unit
 
     /// Process invoice payment confirmation from Accounting domain.
     /// Completes pending movement and publishes ActionDetermined event.
