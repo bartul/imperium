@@ -22,6 +22,12 @@ module Accounting =
     type VoidRondelCharge = VoidRondelChargeCommand -> Result<unit, string>
     and VoidRondelChargeCommand = { GameId: Guid; BillingId: Guid }
 
+    /// Union of all commands that can be dispatched to Accounting bounded context.
+    /// Used for infrastructure routing and dispatch.
+    type AccountingCommand =
+        | ChargeNationForRondelMovement of ChargeNationForRondelMovementCommand
+        | VoidRondelCharge of VoidRondelChargeCommand
+
     // Events
     /// Integration events published by Accounting domain to notify other bounded contexts of payment outcomes.
     type AccountingEvent =
