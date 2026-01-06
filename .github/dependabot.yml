@@ -11,6 +11,7 @@ updates:
       separator: "-"
     labels:
       - "dependencies"
+    open-pull-requests-limit: 3
 
   # GitHub Actions workflow updates
   - package-ecosystem: "github-actions"
@@ -23,3 +24,4 @@ updates:
       separator: "-"
     labels:
       - "dependencies"
+    open-pull-requests-limit: 3
