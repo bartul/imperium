@@ -277,7 +277,11 @@ module Rondel =
             result {
                 let! id = Id.create command.GameId
                 let! space = Space.fromString command.Space
-                return { GameId = id; Nation = command.Nation; Space = space }
+
+                return
+                    { GameId = id
+                      Nation = command.Nation
+                      Space = space }
             }
 
     /// Transforms Domain RondelEvent to Contract type for publication.
@@ -326,7 +330,11 @@ module Rondel =
             result {
                 let! space = Space.fromString pending.TargetSpace
                 let! billingId = RondelBillingId.create pending.BillingId
-                return { Nation = pending.Nation; TargetSpace = space; BillingId = billingId }
+
+                return
+                    { Nation = pending.Nation
+                      TargetSpace = space
+                      BillingId = billingId }
             }
 
     /// Transforms Domain RondelState to/from Contract type for persistence.
@@ -344,38 +352,42 @@ module Rondel =
         /// Reconstruct domain state from contract representation.
         let fromContract (state: Contract.Rondel.RondelState) : Result<RondelState, string> =
             let nationPositions =
-                state.NationPositions
-                |> Map.toList
-                |> List.fold
-                    (fun acc (nation, position) ->
-                        acc
-                        |> Result.bind (fun map ->
-                            match position with
-                            | None -> Ok(map |> Map.add nation None)
-                            | Some value ->
-                                Space.fromString value
-                                |> Result.map (fun space -> map |> Map.add nation (Some space))))
-                    (Ok Map.empty)
+                result {
+                    let mutable positions = Map.empty
+
+                    for nation, position in state.NationPositions |> Map.toSeq do
+                        match position with
+                        | None -> positions <- positions |> Map.add nation None
+                        | Some value ->
+                            let! space = Space.fromString value
+                            positions <- positions |> Map.add nation (Some space)
+
+                    return positions
+                }
 
             let pendingMovements =
-                state.PendingMovements
-                |> Map.toList
-                |> List.fold
-                    (fun acc (nation, pending) ->
-                        acc
-                        |> Result.bind (fun map ->
-                            if pending.Nation <> nation then
-                                Error $"Pending movement nation mismatch for {nation}."
-                            else
-                                PendingMovement.fromContract pending
-                                |> Result.map (fun mapped -> map |> Map.add nation mapped)))
-                    (Ok Map.empty)
+                result {
+                    let mutable movements = Map.empty
+
+                    for nation, pending in state.PendingMovements |> Map.toSeq do
+                        if pending.Nation <> nation then
+                            return! Error $"Pending movement nation mismatch for {nation}."
+                        else
+                            let! mapped = PendingMovement.fromContract pending
+                            movements <- movements |> Map.add nation mapped
+
+                    return movements
+                }
 
             result {
                 let! gameId = Id.create state.GameId
                 let! positions = nationPositions
                 let! pending = pendingMovements
-                return { GameId = gameId; NationPositions = positions; PendingMovements = pending }
+
+                return
+                    { GameId = gameId
+                      NationPositions = positions
+                      PendingMovements = pending }
             }
 
     /// Transforms Contract RondelInvoicePaid to Domain InvoicePaidInboundEvent.
@@ -385,7 +397,10 @@ module Rondel =
             result {
                 let! gameId = Id.create event.GameId
                 let! billingId = RondelBillingId.create event.BillingId
-                return { GameId = gameId; BillingId = billingId }
+
+                return
+                    { GameId = gameId
+                      BillingId = billingId }
             }
 
     /// Transforms Contract RondelInvoicePaymentFailed to Domain InvoicePaymentFailedInboundEvent.
@@ -397,7 +412,10 @@ module Rondel =
             result {
                 let! gameId = Id.create event.GameId
                 let! billingId = RondelBillingId.create event.BillingId
-                return { GameId = gameId; BillingId = billingId }
+
+                return
+                    { GameId = gameId
+                      BillingId = billingId }
             }
 
     // ──────────────────────────────────────────────────────────────────────────
