@@ -6,6 +6,7 @@ open Imperium.Contract.Rondel
 
 module Rondel =
     open Imperium.Primitives
+    open FsToolkit.ErrorHandling
 
     // ──────────────────────────────────────────────────────────────────────────
     // Value Types & Enumerations
@@ -259,25 +260,25 @@ module Rondel =
     module SetToStartingPositionsCommand =
         /// Validate and transform Contract command to Domain command.
         let fromContract (command: Contract.Rondel.SetToStartingPositionsCommand) =
-            Id.create command.GameId
-            |> Result.bind (fun id ->
+            result {
+                let! id = Id.create command.GameId
                 let nations = Set.ofArray command.Nations
 
                 if Set.isEmpty nations then
-                    Error "Starting positions require at least one nation."
+                    return! Error "Starting positions require at least one nation."
                 else
-                    Ok { GameId = id; Nations = nations })
+                    return { GameId = id; Nations = nations }
+            }
 
     /// Transforms Contract MoveCommand to Domain type.
     module MoveCommand =
         /// Validate and transform Contract command to Domain command.
         let fromContract (command: Contract.Rondel.MoveCommand) : Result<MoveCommand, string> =
-            Id.create command.GameId
-            |> Result.bind (fun id -> Space.fromString command.Space |> Result.map (fun space -> id, space))
-            |> Result.map (fun (id, space) ->
-                { GameId = id
-                  Nation = command.Nation
-                  Space = space })
+            result {
+                let! id = Id.create command.GameId
+                let! space = Space.fromString command.Space
+                return { GameId = id; Nation = command.Nation; Space = space }
+            }
 
     /// Transforms Domain RondelEvent to Contract type for publication.
     module RondelEvent =
@@ -322,13 +323,11 @@ module Rondel =
 
         /// Reconstruct domain pending movement from contract representation.
         let fromContract (pending: Contract.Rondel.PendingMovement) : Result<PendingMovement, string> =
-            Space.fromString pending.TargetSpace
-            |> Result.bind (fun space ->
-                RondelBillingId.create pending.BillingId
-                |> Result.map (fun billingId ->
-                    { Nation = pending.Nation
-                      TargetSpace = space
-                      BillingId = billingId }))
+            result {
+                let! space = Space.fromString pending.TargetSpace
+                let! billingId = RondelBillingId.create pending.BillingId
+                return { Nation = pending.Nation; TargetSpace = space; BillingId = billingId }
+            }
 
     /// Transforms Domain RondelState to/from Contract type for persistence.
     module RondelState =
@@ -372,26 +371,22 @@ module Rondel =
                                 |> Result.map (fun mapped -> map |> Map.add nation mapped)))
                     (Ok Map.empty)
 
-            Id.create state.GameId
-            |> Result.bind (fun gameId ->
-                nationPositions
-                |> Result.bind (fun positions ->
-                    pendingMovements
-                    |> Result.map (fun pending ->
-                        { GameId = gameId
-                          NationPositions = positions
-                          PendingMovements = pending })))
+            result {
+                let! gameId = Id.create state.GameId
+                let! positions = nationPositions
+                let! pending = pendingMovements
+                return { GameId = gameId; NationPositions = positions; PendingMovements = pending }
+            }
 
     /// Transforms Contract RondelInvoicePaid to Domain InvoicePaidInboundEvent.
     module InvoicePaidInboundEvent =
         /// Validate and transform Contract event to Domain event.
         let fromContract (event: Contract.Accounting.RondelInvoicePaid) : Result<InvoicePaidInboundEvent, string> =
-            Id.create event.GameId
-            |> Result.bind (fun gameId ->
-                RondelBillingId.create event.BillingId
-                |> Result.map (fun billingId ->
-                    { GameId = gameId
-                      BillingId = billingId }))
+            result {
+                let! gameId = Id.create event.GameId
+                let! billingId = RondelBillingId.create event.BillingId
+                return { GameId = gameId; BillingId = billingId }
+            }
 
     /// Transforms Contract RondelInvoicePaymentFailed to Domain InvoicePaymentFailedInboundEvent.
     module InvoicePaymentFailedInboundEvent =
@@ -399,12 +394,11 @@ module Rondel =
         let fromContract
             (event: Contract.Accounting.RondelInvoicePaymentFailed)
             : Result<InvoicePaymentFailedInboundEvent, string> =
-            Id.create event.GameId
-            |> Result.bind (fun gameId ->
-                RondelBillingId.create event.BillingId
-                |> Result.map (fun billingId ->
-                    { GameId = gameId
-                      BillingId = billingId }))
+            result {
+                let! gameId = Id.create event.GameId
+                let! billingId = RondelBillingId.create event.BillingId
+                return { GameId = gameId; BillingId = billingId }
+            }
 
     // ──────────────────────────────────────────────────────────────────────────
     // Handlers (Internal Types)

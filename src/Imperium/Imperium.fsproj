@@ -14,4 +14,7 @@
     <Compile Include="Rondel.fsi" />
     <Compile Include="Rondel.fs" />
   </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="FsToolkit.ErrorHandling" Version="5.1.0" />
+  </ItemGroup>
 </Project>
