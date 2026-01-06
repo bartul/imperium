@@ -1039,7 +1039,7 @@ let tests =
                           BillingId = RondelBillingId.value billingId }
 
                     // Transform Contract → Domain first
-                    let transformResult = InvoicePaidEvent.fromContract contractPaymentEvent
+                    let transformResult = InvoicePaidInboundEvent.fromContract contractPaymentEvent
                     Expect.isOk transformResult "transformation should succeed with valid inputs"
 
                     let domainPaymentEvent = Result.defaultWith failwith transformResult
