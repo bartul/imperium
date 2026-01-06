@@ -283,17 +283,38 @@ The project uses GitHub Actions for automated quality checks on all pull request
 - Keeps repository clean without manual cleanup
 - Configure at: Repository Settings → General → Pull Requests
 
+### Dependency Management
+
+**GitHub Dependabot** automatically scans dependencies and creates pull requests for updates.
+
+**Configuration:** `.github/dependabot.yml`
+
+- **NuGet packages**: Weekly updates (Monday 08:00 UTC)
+- **GitHub Actions workflows**: Weekly updates (Monday 08:00 UTC)
+- **Review routing**: Assigned via CODEOWNERS file (no explicit reviewer configuration)
+- **Labels**: All Dependabot PRs automatically tagged with `dependencies`
+
+**Workflow:**
+
+- Dependabot runs weekly checks for new versions
+- Creates separate PRs for NuGet and Actions updates
+- Each PR includes changelog and upgrade impact summary
+- Review and merge like any other PR; CODEOWNERS ensures appropriate reviewers are notified
+
 ### Local Development Tools
 
 **.config/dotnet-tools.json** contains:
+
 - `fantomas` (7.0.5): F# code formatter
 
 **Restore tools locally:**
+
 ```bash
 dotnet tool restore
 ```
 
 **Format code:**
+
 ```bash
 dotnet fantomas .          # Format all files
 dotnet fantomas --check .  # Check without modifying

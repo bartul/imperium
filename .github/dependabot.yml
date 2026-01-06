@@ -1,0 +1,25 @@
+version: 2
+updates:
+  # NuGet package updates
+  - package-ecosystem: "nuget"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "08:00"
+    pull-request-branch-name:
+      separator: "-"
+    labels:
+      - "dependencies"
+
+  # GitHub Actions workflow updates
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "08:00"
+    pull-request-branch-name:
+      separator: "-"
+    labels:
+      - "dependencies"
