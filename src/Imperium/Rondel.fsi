@@ -16,6 +16,10 @@ module Rondel =
     [<Struct>]
     type RondelBillingId = private RondelBillingId of Id
 
+    module RondelBillingId =
+        /// Extract the underlying Guid value for comparison and serialization.
+        val value: RondelBillingId -> Guid
+
     /// The six distinct actions a nation can perform on the rondel.
     /// Each action corresponds to one or two spaces on the circular track.
     [<RequireQualifiedAccess>]
