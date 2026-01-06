@@ -6,6 +6,7 @@ open Imperium.Contract.Rondel
 
 module Rondel =
     open Imperium.Primitives
+    open FsToolkit.ErrorHandling
 
     // ──────────────────────────────────────────────────────────────────────────
     // Value Types & Enumerations
@@ -259,25 +260,29 @@ module Rondel =
     module SetToStartingPositionsCommand =
         /// Validate and transform Contract command to Domain command.
         let fromContract (command: Contract.Rondel.SetToStartingPositionsCommand) =
-            Id.create command.GameId
-            |> Result.bind (fun id ->
+            result {
+                let! id = Id.create command.GameId
                 let nations = Set.ofArray command.Nations
 
                 if Set.isEmpty nations then
-                    Error "Starting positions require at least one nation."
+                    return! Error "Starting positions require at least one nation."
                 else
-                    Ok { GameId = id; Nations = nations })
+                    return { GameId = id; Nations = nations }
+            }
 
     /// Transforms Contract MoveCommand to Domain type.
     module MoveCommand =
         /// Validate and transform Contract command to Domain command.
         let fromContract (command: Contract.Rondel.MoveCommand) : Result<MoveCommand, string> =
-            Id.create command.GameId
-            |> Result.bind (fun id -> Space.fromString command.Space |> Result.map (fun space -> id, space))
-            |> Result.map (fun (id, space) ->
-                { GameId = id
-                  Nation = command.Nation
-                  Space = space })
+            result {
+                let! id = Id.create command.GameId
+                let! space = Space.fromString command.Space
+
+                return
+                    { GameId = id
+                      Nation = command.Nation
+                      Space = space }
+            }
 
     /// Transforms Domain RondelEvent to Contract type for publication.
     module RondelEvent =
@@ -322,13 +327,15 @@ module Rondel =
 
         /// Reconstruct domain pending movement from contract representation.
         let fromContract (pending: Contract.Rondel.PendingMovement) : Result<PendingMovement, string> =
-            Space.fromString pending.TargetSpace
-            |> Result.bind (fun space ->
-                RondelBillingId.create pending.BillingId
-                |> Result.map (fun billingId ->
+            result {
+                let! space = Space.fromString pending.TargetSpace
+                let! billingId = RondelBillingId.create pending.BillingId
+
+                return
                     { Nation = pending.Nation
                       TargetSpace = space
-                      BillingId = billingId }))
+                      BillingId = billingId }
+            }
 
     /// Transforms Domain RondelState to/from Contract type for persistence.
     module RondelState =
@@ -345,53 +352,56 @@ module Rondel =
         /// Reconstruct domain state from contract representation.
         let fromContract (state: Contract.Rondel.RondelState) : Result<RondelState, string> =
             let nationPositions =
-                state.NationPositions
-                |> Map.toList
-                |> List.fold
-                    (fun acc (nation, position) ->
-                        acc
-                        |> Result.bind (fun map ->
-                            match position with
-                            | None -> Ok(map |> Map.add nation None)
-                            | Some value ->
-                                Space.fromString value
-                                |> Result.map (fun space -> map |> Map.add nation (Some space))))
-                    (Ok Map.empty)
+                result {
+                    let mutable positions = Map.empty
+
+                    for nation, position in state.NationPositions |> Map.toSeq do
+                        match position with
+                        | None -> positions <- positions |> Map.add nation None
+                        | Some value ->
+                            let! space = Space.fromString value
+                            positions <- positions |> Map.add nation (Some space)
+
+                    return positions
+                }
 
             let pendingMovements =
-                state.PendingMovements
-                |> Map.toList
-                |> List.fold
-                    (fun acc (nation, pending) ->
-                        acc
-                        |> Result.bind (fun map ->
-                            if pending.Nation <> nation then
-                                Error $"Pending movement nation mismatch for {nation}."
-                            else
-                                PendingMovement.fromContract pending
-                                |> Result.map (fun mapped -> map |> Map.add nation mapped)))
-                    (Ok Map.empty)
+                result {
+                    let mutable movements = Map.empty
 
-            Id.create state.GameId
-            |> Result.bind (fun gameId ->
-                nationPositions
-                |> Result.bind (fun positions ->
-                    pendingMovements
-                    |> Result.map (fun pending ->
-                        { GameId = gameId
-                          NationPositions = positions
-                          PendingMovements = pending })))
+                    for nation, pending in state.PendingMovements |> Map.toSeq do
+                        if pending.Nation <> nation then
+                            return! Error $"Pending movement nation mismatch for {nation}."
+                        else
+                            let! mapped = PendingMovement.fromContract pending
+                            movements <- movements |> Map.add nation mapped
+
+                    return movements
+                }
+
+            result {
+                let! gameId = Id.create state.GameId
+                let! positions = nationPositions
+                let! pending = pendingMovements
+
+                return
+                    { GameId = gameId
+                      NationPositions = positions
+                      PendingMovements = pending }
+            }
 
     /// Transforms Contract RondelInvoicePaid to Domain InvoicePaidInboundEvent.
     module InvoicePaidInboundEvent =
         /// Validate and transform Contract event to Domain event.
         let fromContract (event: Contract.Accounting.RondelInvoicePaid) : Result<InvoicePaidInboundEvent, string> =
-            Id.create event.GameId
-            |> Result.bind (fun gameId ->
-                RondelBillingId.create event.BillingId
-                |> Result.map (fun billingId ->
+            result {
+                let! gameId = Id.create event.GameId
+                let! billingId = RondelBillingId.create event.BillingId
+
+                return
                     { GameId = gameId
-                      BillingId = billingId }))
+                      BillingId = billingId }
+            }
 
     /// Transforms Contract RondelInvoicePaymentFailed to Domain InvoicePaymentFailedInboundEvent.
     module InvoicePaymentFailedInboundEvent =
@@ -399,12 +409,14 @@ module Rondel =
         let fromContract
             (event: Contract.Accounting.RondelInvoicePaymentFailed)
             : Result<InvoicePaymentFailedInboundEvent, string> =
-            Id.create event.GameId
-            |> Result.bind (fun gameId ->
-                RondelBillingId.create event.BillingId
-                |> Result.map (fun billingId ->
+            result {
+                let! gameId = Id.create event.GameId
+                let! billingId = RondelBillingId.create event.BillingId
+
+                return
                     { GameId = gameId
-                      BillingId = billingId }))
+                      BillingId = billingId }
+            }
 
     // ──────────────────────────────────────────────────────────────────────────
     // Handlers (Internal Types)
