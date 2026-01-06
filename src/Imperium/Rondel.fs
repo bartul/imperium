@@ -462,14 +462,11 @@ module Rondel =
 
             let publishEvents events = events |> List.iter publish |> Ok
 
-            let executeOutboundCommands commands =
-                let executeCommand =
-                    function
-                    | ChargeNationForRondelMovement _ -> Ok()
-                    | VoidRondelCharge _ -> Ok()
-
-                (Ok(), commands)
-                ||> List.fold (fun state cmd -> state |> Result.bind (fun () -> executeCommand cmd))
+            let executeOutboundCommands (commands: RondelOutboundCommand list) =
+                // setToStartingPositions does not dispatch outbound commands
+                match commands with
+                | [] -> Ok()
+                | _ -> failwith "Unexpected outbound commands in setToStartingPositions"
 
             saveState state
             |> Result.bind (fun () -> publishEvents events)
@@ -487,8 +484,7 @@ module Rondel =
         (load: LoadRondelState)
         (save: SaveRondelState)
         (publish: PublishRondelEvent)
-        (chargeForMovement: ChargeNationForRondelMovement)
-        (voidCharge: VoidRondelCharge)
+        (dispatch: DispatchOutboundCommand)
         (command: MoveCommand)
         : unit =
 
@@ -578,13 +574,13 @@ module Rondel =
                           Space = existingUnpaidMove.TargetSpace }
 
                 let voidChargeCommand =
-                    { GameId = state.GameId |> Id.value
-                      BillingId = existingUnpaidMove.BillingId |> RondelBillingId.value }
-                    : VoidRondelChargeCommand
+                    VoidCharge
+                        { GameId = state.GameId
+                          BillingId = existingUnpaidMove.BillingId }
 
                 Some newState,
                 [ actionDeterminedEvent; existingUnpaidMoveRejectedEvent ],
-                [ VoidRondelCharge voidChargeCommand ]
+                [ voidChargeCommand ]
             | Paid(targetSpace, distance, nation), Some state ->
                 let billingId = RondelBillingId.newId ()
 
@@ -600,12 +596,13 @@ module Rondel =
                 let amount = (distance - 3) * 2 |> Amount.unsafe
 
                 let chargeCommand =
-                    { GameId = state.GameId |> Id.value
-                      Nation = nation
-                      Amount = amount
-                      BillingId = billingId |> RondelBillingId.value }
+                    ChargeMovement
+                        { GameId = state.GameId
+                          Nation = nation
+                          Amount = amount
+                          BillingId = billingId }
 
-                Some newState, [], [ ChargeNationForRondelMovement chargeCommand ]
+                Some newState, [], [ chargeCommand ]
             | PaidWithSupersedingUnpaidMovement(targetSpace, distance, nation), Some state ->
                 let billingId = RondelBillingId.newId ()
 
@@ -621,10 +618,11 @@ module Rondel =
                 let amount = (distance - 3) * 2 |> Amount.unsafe
 
                 let chargeCommand =
-                    { GameId = state.GameId |> Id.value
-                      Nation = nation
-                      Amount = amount
-                      BillingId = billingId |> RondelBillingId.value }
+                    ChargeMovement
+                        { GameId = state.GameId
+                          Nation = nation
+                          Amount = amount
+                          BillingId = billingId }
 
                 let existingUnpaidMove = state.PendingMovements |> Map.find nation
 
@@ -635,14 +633,13 @@ module Rondel =
                           Space = existingUnpaidMove.TargetSpace }
 
                 let voidChargeCommand =
-                    { GameId = state.GameId |> Id.value
-                      BillingId = existingUnpaidMove.BillingId |> RondelBillingId.value }
-                    : VoidRondelChargeCommand
+                    VoidCharge
+                        { GameId = state.GameId
+                          BillingId = existingUnpaidMove.BillingId }
 
                 Some newState,
                 [ existingUnpaidMoveRejectedEvent ],
-                [ VoidRondelCharge voidChargeCommand
-                  ChargeNationForRondelMovement chargeCommand ]
+                [ voidChargeCommand; chargeCommand ]
             | _, _ -> failwith "Unhandled move outcome."
 
         // IO side-effect sequencer
@@ -655,13 +652,8 @@ module Rondel =
             let publishEvents events = events |> List.iter publish |> Ok
 
             let executeOutboundCommands commands =
-                let executeCommand =
-                    function
-                    | ChargeNationForRondelMovement c -> chargeForMovement c
-                    | VoidRondelCharge c -> voidCharge c
-
                 (Ok(), commands)
-                ||> List.fold (fun state cmd -> state |> Result.bind (fun () -> executeCommand cmd))
+                ||> List.fold (fun state cmd -> state |> Result.bind (fun () -> dispatch cmd))
 
             saveState state
             |> Result.bind (fun () -> publishEvents events)
