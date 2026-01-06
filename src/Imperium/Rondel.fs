@@ -200,20 +200,20 @@ module Rondel =
     // ──────────────────────────────────────────────────────────────────────────
 
     /// <summary>
-    /// Incoming events from Accounting domain that affect Rondel state.
+    /// Inbound events from Accounting domain that affect Rondel state.
     /// These events are received after the Rondel dispatches charge commands
     /// for paid movements (4-6 spaces) and represent payment outcomes.
     /// </summary>
-    type RondelIncomingEvent =
-        | InvoicePaid of InvoicePaidEvent
-        | InvoicePaymentFailed of InvoicePaymentFailedEvent
+    type RondelInboundEvent =
+        | InvoicePaid of InvoicePaidInboundEvent
+        | InvoicePaymentFailed of InvoicePaymentFailedInboundEvent
 
     /// <summary>
     /// Payment confirmation received from Accounting domain.
     /// Indicates the nation successfully paid for a rondel movement,
     /// allowing the pending movement to complete.
     /// </summary>
-    and InvoicePaidEvent =
+    and InvoicePaidInboundEvent =
         {
             /// The game in which the payment was made.
             GameId: Id
@@ -226,7 +226,7 @@ module Rondel =
     /// Indicates the nation could not pay for a rondel movement,
     /// causing the pending movement to be rejected.
     /// </summary>
-    and InvoicePaymentFailedEvent =
+    and InvoicePaymentFailedInboundEvent =
         {
             /// The game in which the payment failed.
             GameId: Id
@@ -382,10 +382,10 @@ module Rondel =
                           NationPositions = positions
                           PendingMovements = pending })))
 
-    /// Transforms Contract RondelInvoicePaid to Domain InvoicePaidEvent.
-    module InvoicePaidEvent =
+    /// Transforms Contract RondelInvoicePaid to Domain InvoicePaidInboundEvent.
+    module InvoicePaidInboundEvent =
         /// Validate and transform Contract event to Domain event.
-        let fromContract (event: Contract.Accounting.RondelInvoicePaid) : Result<InvoicePaidEvent, string> =
+        let fromContract (event: Contract.Accounting.RondelInvoicePaid) : Result<InvoicePaidInboundEvent, string> =
             Id.create event.GameId
             |> Result.bind (fun gameId ->
                 RondelBillingId.create event.BillingId
@@ -393,12 +393,12 @@ module Rondel =
                     { GameId = gameId
                       BillingId = billingId }))
 
-    /// Transforms Contract RondelInvoicePaymentFailed to Domain InvoicePaymentFailedEvent.
-    module InvoicePaymentFailedEvent =
+    /// Transforms Contract RondelInvoicePaymentFailed to Domain InvoicePaymentFailedInboundEvent.
+    module InvoicePaymentFailedInboundEvent =
         /// Validate and transform Contract event to Domain event.
         let fromContract
             (event: Contract.Accounting.RondelInvoicePaymentFailed)
-            : Result<InvoicePaymentFailedEvent, string> =
+            : Result<InvoicePaymentFailedInboundEvent, string> =
             Id.create event.GameId
             |> Result.bind (fun gameId ->
                 RondelBillingId.create event.BillingId
@@ -409,11 +409,6 @@ module Rondel =
     // ──────────────────────────────────────────────────────────────────────────
     // Handlers (Internal Types)
     // ──────────────────────────────────────────────────────────────────────────
-
-    /// Inbound events from other bounded contexts (internal routing type).
-    type internal RondelInboundEvent =
-        | InvoicePaid of InvoicePaidEvent
-        | InvoicePaymentFailed of InvoicePaymentFailedEvent
 
     /// Movement decision outcome (internal to move handler).
     type internal MoveOutcome =
@@ -673,7 +668,7 @@ module Rondel =
         (load: LoadRondelState)
         (save: SaveRondelState)
         (publish: PublishRondelEvent)
-        (event: InvoicePaidEvent)
+        (event: InvoicePaidInboundEvent)
         : Result<unit, string> =
 
         let performIO state events =
@@ -688,12 +683,12 @@ module Rondel =
             |> Result.bind (fun () -> publishEvents events)
             |> Result.defaultWith (fun e -> failwith $"Failed to perform IO side effects: {e}")
 
-        let failIfNotInitialized (state: RondelState option, event: InvoicePaidEvent) =
+        let failIfNotInitialized (state: RondelState option, event: InvoicePaidInboundEvent) =
             match state with
             | Some s -> s, event
             | None -> failwith "Rondel not initialized for game."
 
-        let registerPaymentAndCompleteMovement (state: RondelState, event: InvoicePaidEvent) =
+        let registerPaymentAndCompleteMovement (state: RondelState, event: InvoicePaidInboundEvent) =
             let pendingMovement =
                 state.PendingMovements
                 |> Map.toSeq
@@ -735,6 +730,6 @@ module Rondel =
         (load: LoadRondelState)
         (save: SaveRondelState)
         (publish: PublishRondelEvent)
-        (event: InvoicePaymentFailedEvent)
+        (event: InvoicePaymentFailedInboundEvent)
         : Result<unit, string> =
         invalidOp "Not implemented: onInvoicePaymentFailed"
