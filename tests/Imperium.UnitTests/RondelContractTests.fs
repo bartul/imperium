@@ -3,7 +3,6 @@ module Imperium.UnitTests.RondelContract
 open System
 open Expecto
 open Imperium.Rondel
-open Imperium.Primitives
 
 module ContractRondel = Imperium.Contract.Rondel
 
