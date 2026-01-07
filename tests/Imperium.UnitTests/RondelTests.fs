@@ -75,8 +75,6 @@ let allSpaces =
       Space.ProductionTwo
       Space.ManeuverTwo ]
 
-// module ContractRondel = Imperium.Contract.Rondel
-
 [<Tests>]
 let tests =
     testList
@@ -556,7 +554,7 @@ let tests =
 
                     Expect.equal chargeCmd.Nation nation "charge command should have correct Nation"
 
-                    let expectedAmount = Imperium.Primitives.Amount.unsafe ((dist - 3) * 2)
+                    let expectedAmount = Amount.unsafe ((dist - 3) * 2)
 
                     Expect.equal
                         chargeCmd.Amount
