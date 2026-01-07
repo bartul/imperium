@@ -29,7 +29,19 @@ let tests =
 
                     // Transformation should reject empty roster
                     let transformResult = SetToStartingPositionsCommand.fromContract contractCommand
-                    Expect.isError transformResult "starting positions require at least one nation" ]
+                    Expect.isError transformResult "starting positions require at least one nation"
+                testCase "ignores duplicate nations"
+                <| fun _ ->
+                    let contractCommand : ContractRondel.SetToStartingPositionsCommand =
+                        { GameId = Guid.NewGuid()
+                          Nations = [| "France"; "France"; "Germany" |] }
+
+                    // Transformation should succeed - Set automatically deduplicates
+                    let transformResult = SetToStartingPositionsCommand.fromContract contractCommand
+                    Expect.isOk transformResult "transformation should succeed with duplicate nations"
+
+                    let domainCommand = Result.defaultWith failwith transformResult
+                    Expect.equal (Set.count domainCommand.Nations) 2 "duplicates should be removed (France + Germany)" ]
           testList
               "MoveCommand.fromContract"
               [ testCase "rejects an unknown rondel space"

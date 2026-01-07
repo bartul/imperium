@@ -85,25 +85,7 @@ let tests =
           // Tests for public Rondel API
           testList
               "starting positions"
-              [ testCase "ignores duplicate nations"
-                <| fun _ ->
-                    let load, save = createMockStore ()
-                    let publish, publishedEvents = createMockPublisher ()
-
-                    // Set automatically deduplicates - testing handler accepts deduplicated set
-                    let command =
-                        { GameId = Guid.NewGuid() |> Id
-                          Nations = Set.ofList [ "France"; "France" ] }
-
-                    // Handler succeeds (Set has 1 nation, not empty)
-                    setToStartingPositions load save publish command
-                    Expect.isNonEmpty publishedEvents "the rondel should signal that starting positions are set"
-
-                    Expect.contains
-                        publishedEvents
-                        (PositionedAtStart { GameId = command.GameId })
-                        "the rondel should signal that starting positions are set"
-                testCase "signals setup for the roster"
+              [ testCase "signals setup for the roster"
                 <| fun _ ->
                     let load, save = createMockStore ()
                     let publish, publishedEvents = createMockPublisher ()
