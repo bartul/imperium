@@ -14,7 +14,7 @@ let tests =
               "SetToStartingPositionsCommand.fromContract"
               [ testCase "requires a game id"
                 <| fun _ ->
-                    let contractCommand : ContractRondel.SetToStartingPositionsCommand =
+                    let contractCommand: ContractRondel.SetToStartingPositionsCommand =
                         { GameId = Guid.Empty
                           Nations = [| "France" |] }
 
@@ -23,7 +23,7 @@ let tests =
                     Expect.isError transformResult "starting positions cannot be chosen without a game id"
                 testCase "requires at least one nation"
                 <| fun _ ->
-                    let contractCommand : ContractRondel.SetToStartingPositionsCommand =
+                    let contractCommand: ContractRondel.SetToStartingPositionsCommand =
                         { GameId = Guid.NewGuid()
                           Nations = [||] }
 
@@ -32,7 +32,7 @@ let tests =
                     Expect.isError transformResult "starting positions require at least one nation"
                 testCase "ignores duplicate nations"
                 <| fun _ ->
-                    let contractCommand : ContractRondel.SetToStartingPositionsCommand =
+                    let contractCommand: ContractRondel.SetToStartingPositionsCommand =
                         { GameId = Guid.NewGuid()
                           Nations = [| "France"; "France"; "Germany" |] }
 
@@ -47,7 +47,7 @@ let tests =
               [ testCase "rejects an unknown rondel space"
                 <| fun _ ->
                     // Execute: attempt to move to an invalid space
-                    let contractMoveCommand : ContractRondel.MoveCommand =
+                    let contractMoveCommand: ContractRondel.MoveCommand =
                         { GameId = Guid.NewGuid()
                           Nation = "France"
                           Space = "InvalidSpace" }
@@ -59,7 +59,7 @@ let tests =
                 testCase "requires a game id"
                 <| fun _ ->
                     // Execute: attempt to move with empty game id
-                    let contractMoveCommand : ContractRondel.MoveCommand =
+                    let contractMoveCommand: ContractRondel.MoveCommand =
                         { GameId = Guid.Empty
                           Nation = "France"
                           Space = "Factory" }

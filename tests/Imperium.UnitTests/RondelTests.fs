@@ -135,10 +135,10 @@ let tests =
                     let publish, publishedEvents = createMockPublisher ()
                     let dispatch, dispatchedCommands = createMockDispatcher ()
 
-                    let command : MoveCommand =
+                    let command: MoveCommand =
                         { GameId = Guid.NewGuid() |> Id
                           Nation = "France"
-                          Space = Space.Factory } 
+                          Space = Space.Factory }
 
                     move load save publish dispatch command
                     Expect.isNonEmpty publishedEvents "the rondel should signal why the move was denied"
@@ -169,7 +169,7 @@ let tests =
                     let publish, publishedEvents = createMockPublisher ()
                     let dispatch, dispatchedCommands = createMockDispatcher ()
 
-                    let initCommand = 
+                    let initCommand =
                         { GameId = gameId |> Id
                           Nations = Set.ofArray nations }
 
@@ -177,7 +177,7 @@ let tests =
                     publishedEvents.Clear()
 
                     // Execute: move one nation to target space
-                    let moveCommand : MoveCommand =
+                    let moveCommand: MoveCommand =
                         { GameId = gameId |> Id
                           Nation = nation
                           Space = space }
@@ -222,7 +222,7 @@ let tests =
                     publishedEvents.Clear()
 
                     // Execute: move nation to target space (first move)
-                    let moveCommand : MoveCommand =
+                    let moveCommand: MoveCommand =
                         { GameId = gameId |> Id
                           Nation = nation
                           Space = space }
@@ -327,7 +327,7 @@ let tests =
                     // First move: to starting position
                     let startSpace = allSpaces.[startIndex]
 
-                    let moveCommand1 : MoveCommand =
+                    let moveCommand1: MoveCommand =
                         { GameId = gameId |> Id
                           Nation = nation
                           Space = startSpace }
@@ -351,7 +351,7 @@ let tests =
                     let secondIndex = (startIndex + dist1) % allSpaces.Length
                     let secondSpace = allSpaces.[secondIndex]
 
-                    let moveCommand2 : MoveCommand =
+                    let moveCommand2: MoveCommand =
                         { GameId = gameId |> Id
                           Nation = nation
                           Space = secondSpace }
@@ -382,7 +382,7 @@ let tests =
                     let thirdIndex = (secondIndex + dist2) % allSpaces.Length
                     let thirdSpace = allSpaces.[thirdIndex]
 
-                    let moveCommand3 : MoveCommand =
+                    let moveCommand3: MoveCommand =
                         { GameId = gameId |> Id
                           Nation = nation
                           Space = thirdSpace }
@@ -432,7 +432,7 @@ let tests =
                     // First move: establish starting position
                     let startSpace = allSpaces.[startIndex]
 
-                    let moveCommand1 : MoveCommand =
+                    let moveCommand1: MoveCommand =
                         { GameId = gameId |> Id
                           Nation = nation
                           Space = startSpace }
@@ -456,7 +456,7 @@ let tests =
                     let targetIndex = (startIndex + 7) % allSpaces.Length
                     let targetSpace = allSpaces.[targetIndex]
 
-                    let moveCommand2 : MoveCommand =
+                    let moveCommand2: MoveCommand =
                         { GameId = gameId |> Id
                           Nation = nation
                           Space = targetSpace }
@@ -521,7 +521,7 @@ let tests =
                     // First move: establish starting position
                     let startSpace = allSpaces.[startIndex]
 
-                    let moveCommand1 : MoveCommand =
+                    let moveCommand1: MoveCommand =
                         { GameId = gameId |> Id
                           Nation = nation
                           Space = startSpace }
@@ -534,7 +534,7 @@ let tests =
                     let targetIndex = (startIndex + dist) % allSpaces.Length
                     let targetSpace = allSpaces.[targetIndex]
 
-                    let moveCommand2 : MoveCommand =
+                    let moveCommand2: MoveCommand =
                         { GameId = gameId |> Id
                           Nation = nation
                           Space = targetSpace }
@@ -608,7 +608,7 @@ let tests =
                     publishedEvents.Clear()
 
                     // First move: Establish starting position (2 spaces, free)
-                    let firstMoveCmd : MoveCommand =
+                    let firstMoveCmd: MoveCommand =
                         { GameId = gameId |> Id
                           Nation = "France"
                           Space = Space.ProductionOne }
@@ -627,7 +627,7 @@ let tests =
                     dispatchedCommands.Clear()
 
                     // Second move: 4 spaces (pending payment) - ProductionOne to ProductionTwo
-                    let secondMove : MoveCommand =
+                    let secondMove: MoveCommand =
                         { GameId = gameId |> Id
                           Nation = "France"
                           Space = Space.ProductionTwo }
@@ -656,7 +656,7 @@ let tests =
                     dispatchedCommands.Clear()
 
                     // Third move: 5 spaces (should supersede pending move) - ProductionOne to ManeuverTwo
-                    let thirdMove : MoveCommand =
+                    let thirdMove: MoveCommand =
                         { GameId = gameId |> Id
                           Nation = "France"
                           Space = Space.ManeuverTwo }
@@ -722,7 +722,7 @@ let tests =
                     publishedEvents.Clear()
 
                     // First move: Establish starting position (3 spaces, free)
-                    let firstMoveCmd : MoveCommand =
+                    let firstMoveCmd: MoveCommand =
                         { GameId = gameId |> Id
                           Nation = "Germany"
                           Space = Space.ManeuverOne }
@@ -741,7 +741,7 @@ let tests =
                     dispatchedCommands.Clear()
 
                     // Second move: 5 spaces (pending payment) - ManeuverOne to Investor
-                    let secondMove : MoveCommand =
+                    let secondMove: MoveCommand =
                         { GameId = gameId |> Id
                           Nation = "Germany"
                           Space = Space.Investor }
@@ -770,7 +770,7 @@ let tests =
                     dispatchedCommands.Clear()
 
                     // Third move: 2 spaces (free, should supersede and complete immediately) - ManeuverOne to Factory
-                    let thirdMove : MoveCommand =
+                    let thirdMove: MoveCommand =
                         { GameId = gameId |> Id
                           Nation = "Germany"
                           Space = Space.Factory }
@@ -826,7 +826,7 @@ let tests =
                     publishedEvents.Clear()
 
                     // Setup: establish starting position with first move (free to any space)
-                    let firstMoveCmd : MoveCommand =
+                    let firstMoveCmd: MoveCommand =
                         { GameId = gameId |> Id
                           Nation = "Austria"
                           Space = Space.ManeuverOne }
@@ -845,7 +845,7 @@ let tests =
                     dispatchedCommands.Clear()
 
                     // Setup: initiate paid move (5 spaces: ManeuverOne to Investor) - creates pending movement
-                    let secondMoveCmd : MoveCommand =
+                    let secondMoveCmd: MoveCommand =
                         { GameId = gameId |> Id
                           Nation = "Austria"
                           Space = Space.Investor }
@@ -856,10 +856,7 @@ let tests =
                     Expect.hasLength chargeCommands 1 "paid move should dispatch charge command"
                     let billingId = chargeCommands.[0].BillingId
 
-                    Expect.equal
-                        chargeCommands.[0].Amount
-                        (Amount.unsafe 4)
-                        "charge for 5 spaces should be 4M"
+                    Expect.equal chargeCommands.[0].Amount (Amount.unsafe 4) "charge for 5 spaces should be 4M"
 
                     let actionEvents =
                         publishedEvents
@@ -874,7 +871,7 @@ let tests =
                     dispatchedCommands.Clear()
 
                     // Execute: process payment confirmation
-                    let invoicePaidEvent : InvoicePaidInboundEvent =
+                    let invoicePaidEvent: InvoicePaidInboundEvent =
                         { GameId = gameId |> Id
                           BillingId = billingId }
 
@@ -903,7 +900,7 @@ let tests =
                     // Subsequent move from Investor (new position) should succeed
                     publishedEvents.Clear()
 
-                    let thirdMoveCmd : MoveCommand =
+                    let thirdMoveCmd: MoveCommand =
                         { GameId = gameId |> Id
                           Nation = "Austria"
                           Space = Space.Import }
