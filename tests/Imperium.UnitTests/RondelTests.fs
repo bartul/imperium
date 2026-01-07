@@ -75,7 +75,7 @@ let allSpaces =
       Space.ProductionTwo
       Space.ManeuverTwo ]
 
-module ContractRondel = Imperium.Contract.Rondel
+// module ContractRondel = Imperium.Contract.Rondel
 
 [<Tests>]
 let tests =
@@ -876,7 +876,7 @@ let tests =
 
                     Expect.equal
                         chargeCommands.[0].Amount
-                        (Imperium.Primitives.Amount.unsafe 4)
+                        (Amount.unsafe 4)
                         "charge for 5 spaces should be 4M"
 
                     let actionEvents =
@@ -892,17 +892,11 @@ let tests =
                     dispatchedCommands.Clear()
 
                     // Execute: process payment confirmation
-                    let contractPaymentEvent: Imperium.Contract.Accounting.RondelInvoicePaid =
-                        { GameId = gameId
-                          BillingId = RondelBillingId.value billingId }
+                    let invoicePaidEvent : InvoicePaidInboundEvent =
+                        { GameId = gameId |> Id
+                          BillingId = billingId }
 
-                    // Transform Contract → Domain first
-                    let transformResult = InvoicePaidInboundEvent.fromContract contractPaymentEvent
-                    Expect.isOk transformResult "transformation should succeed with valid inputs"
-
-                    let domainPaymentEvent = Result.defaultWith failwith transformResult
-                    let result = onInvoicedPaid load save publish domainPaymentEvent
-
+                    let result = onInvoicedPaid load save publish invoicePaidEvent
                     // Assert: operation succeeds
                     Expect.isOk result "payment confirmation should succeed"
 
@@ -912,7 +906,7 @@ let tests =
                         (ActionDetermined
                             { GameId = secondMoveCmd.GameId
                               Nation = "Austria"
-                              Action = Imperium.Rondel.Action.Investor })
+                              Action = Action.Investor })
                         "ActionDetermined event should be published after payment confirmation"
 
                     // Assert: only one event published
@@ -939,5 +933,5 @@ let tests =
                         (ActionDetermined
                             { GameId = thirdMoveCmd.GameId
                               Nation = "Austria"
-                              Action = Imperium.Rondel.Action.Import })
+                              Action = Action.Import })
                         "subsequent move from Investor to Import (1 space) should succeed, confirming position was updated" ] ]
