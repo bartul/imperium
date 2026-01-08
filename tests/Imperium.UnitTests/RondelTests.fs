@@ -636,10 +636,7 @@ let tests =
                     Expect.hasLength chargeCommands1 1 "first pending move should dispatch charge"
                     let firstBillingId = chargeCommands1.[0].BillingId
 
-                    Expect.equal
-                        chargeCommands1.[0].Amount
-                        (Amount.unsafe 2)
-                        "charge for 4 spaces should be 2M"
+                    Expect.equal chargeCommands1.[0].Amount (Amount.unsafe 2) "charge for 4 spaces should be 2M"
 
                     let actionEvents1 =
                         publishedEvents
@@ -681,10 +678,7 @@ let tests =
                     Expect.hasLength chargeCommands2 1 "exactly one new charge should be dispatched"
                     let secondCharge = chargeCommands2.[0]
 
-                    Expect.equal
-                        secondCharge.Amount
-                        (Amount.unsafe 4)
-                        "charge for 5 spaces should be 4M"
+                    Expect.equal secondCharge.Amount (Amount.unsafe 4) "charge for 5 spaces should be 4M"
 
                     Expect.notEqual secondCharge.BillingId firstBillingId "new charge should have different billing id"
                     Expect.equal (Id.value secondCharge.GameId) gameId "new charge should have correct GameId"
@@ -750,10 +744,7 @@ let tests =
                     Expect.hasLength chargeCommands1 1 "first pending move should dispatch charge"
                     let firstBillingId = chargeCommands1.[0].BillingId
 
-                    Expect.equal
-                        chargeCommands1.[0].Amount
-                        (Amount.unsafe 4)
-                        "charge for 5 spaces should be 4M"
+                    Expect.equal chargeCommands1.[0].Amount (Amount.unsafe 4) "charge for 5 spaces should be 4M"
 
                     let actionEvents1 =
                         publishedEvents
