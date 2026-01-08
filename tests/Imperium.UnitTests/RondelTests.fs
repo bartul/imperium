@@ -7,21 +7,21 @@ open Imperium.Primitives
 
 // Test helpers for mock dependencies
 let createMockStore () =
-    let store = System.Collections.Generic.Dictionary<Id, RondelState>()
+    let store = Collections.Generic.Dictionary<Id, RondelState>()
 
-    let load (gameId: Id) : RondelState option =
+    let load (gameId: Id) =
         match store.TryGetValue(gameId) with
         | true, state -> Some state
         | false, _ -> None
 
-    let save (state: RondelState) : Result<unit, string> =
+    let save (state: RondelState) =
         store.[state.GameId] <- state
         Ok()
 
     load, save
 
 let createMockPublisher () =
-    let publishedEvents = ResizeArray<Imperium.Rondel.RondelEvent>()
+    let publishedEvents = ResizeArray<RondelEvent>()
     let publish event = publishedEvents.Add event
     publish, publishedEvents
 
@@ -53,16 +53,16 @@ let getVoidCommands (commands: ResizeArray<RondelOutboundCommand>) =
 // Independent reference implementation for test verification
 // This provides an alternate path to verify Space -> Action mapping
 // without using the production Space.toAction function
-let spaceToExpectedAction (space: Space) : Imperium.Rondel.Action =
+let spaceToExpectedAction (space: Space) =
     match space with
-    | Space.Investor -> Imperium.Rondel.Action.Investor
-    | Space.Factory -> Imperium.Rondel.Action.Factory
-    | Space.Import -> Imperium.Rondel.Action.Import
-    | Space.Taxation -> Imperium.Rondel.Action.Taxation
+    | Space.Investor -> Action.Investor
+    | Space.Factory -> Action.Factory
+    | Space.Import -> Action.Import
+    | Space.Taxation -> Action.Taxation
     | Space.ProductionOne
-    | Space.ProductionTwo -> Imperium.Rondel.Action.Production
+    | Space.ProductionTwo -> Action.Production
     | Space.ManeuverOne
-    | Space.ManeuverTwo -> Imperium.Rondel.Action.Maneuver
+    | Space.ManeuverTwo -> Action.Maneuver
 
 // All rondel spaces in clockwise order
 let allSpaces =
@@ -618,7 +618,7 @@ let tests =
                         (ActionDetermined
                             { GameId = firstMoveCmd.GameId
                               Nation = "France"
-                              Action = Imperium.Rondel.Action.Production })
+                              Action = Action.Production })
                         "first move should determine action"
 
                     publishedEvents.Clear()
@@ -638,7 +638,7 @@ let tests =
 
                     Expect.equal
                         chargeCommands1.[0].Amount
-                        (Imperium.Primitives.Amount.unsafe 2)
+                        (Amount.unsafe 2)
                         "charge for 4 spaces should be 2M"
 
                     let actionEvents1 =
@@ -683,7 +683,7 @@ let tests =
 
                     Expect.equal
                         secondCharge.Amount
-                        (Imperium.Primitives.Amount.unsafe 4)
+                        (Amount.unsafe 4)
                         "charge for 5 spaces should be 4M"
 
                     Expect.notEqual secondCharge.BillingId firstBillingId "new charge should have different billing id"
@@ -732,7 +732,7 @@ let tests =
                         (ActionDetermined
                             { GameId = firstMoveCmd.GameId
                               Nation = "Germany"
-                              Action = Imperium.Rondel.Action.Maneuver })
+                              Action = Action.Maneuver })
                         "first move should determine action"
 
                     publishedEvents.Clear()
@@ -752,7 +752,7 @@ let tests =
 
                     Expect.equal
                         chargeCommands1.[0].Amount
-                        (Imperium.Primitives.Amount.unsafe 4)
+                        (Amount.unsafe 4)
                         "charge for 5 spaces should be 4M"
 
                     let actionEvents1 =
@@ -800,7 +800,7 @@ let tests =
                         (ActionDetermined
                             { GameId = thirdMove.GameId
                               Nation = "Germany"
-                              Action = Imperium.Rondel.Action.Factory })
+                              Action = Action.Factory })
                         "free move should determine action immediately despite superseding" ]
           testList
               "onInvoicePaid"
@@ -836,7 +836,7 @@ let tests =
                         (ActionDetermined
                             { GameId = firstMoveCmd.GameId
                               Nation = "Austria"
-                              Action = Imperium.Rondel.Action.Maneuver })
+                              Action = Action.Maneuver })
                         "first move should complete immediately"
 
                     publishedEvents.Clear()
