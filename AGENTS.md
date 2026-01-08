@@ -4,7 +4,7 @@ Last verified: 2026-01-04
 ## Project Structure & Module Organization
 - `Imperium.sln` stitches together the core F# library, ASP.NET Core web host, and unit test project.
 - `src/Imperium` contains domain modules (build order: `Primitives.fs`, `Contract.fs`, `Contract.Accounting.fs`, `Contract.Rondel.fs`, `Gameplay.fs/.fsi`, `Accounting.fs/.fsi`, `Rondel.fs/.fsi`).
-- `tests/Imperium.UnitTests` contains Expecto-based unit tests; test modules mirror source structure (e.g., `RondelTests.fs` tests `Rondel.fs`).
+- `tests/Imperium.UnitTests` contains Expecto-based unit tests; test modules mirror source structure (e.g., `RondelTests.fs` tests `Rondel.fs` handlers, `RondelContractTests.fs` tests `Rondel.fs` transformation layer).
 - **Primitives module:** Foundational types with no `.fsi` file (intentionally public)
   - `Id` - Struct wrapping `Guid` with validation; provides `create`, `newId`, `value`, `toString`, `tryParse`, and mapper helpers
   - `Amount` - Measured struct wrapper (`int<M>`) with guarded construction; errors are plain strings; includes `tryParse`
@@ -128,27 +128,31 @@ Domain modules (`.fsi` and `.fs` pairs) follow a consistent sectioned structure.
 
 ## Testing Guidelines
 - Unit tests live in `tests/Imperium.UnitTests` using Expecto 10.2.3 with FsCheck integration for property-based testing.
-- Test modules mirror source structure: `Imperium.UnitTests.Rondel` tests `Imperium.Rondel`; file names use `*Tests.fs` suffix (e.g., `RondelTests.fs`).
+- Test modules mirror source structure with separation of concerns: `Imperium.UnitTests.RondelTests` tests handler behavior, `Imperium.UnitTests.RondelContractTests` tests transformation layer; file names use `*Tests.fs` suffix.
 - Use `[<Tests>]` attribute on test values for discovery by YoloDev.Expecto.TestSdk (enables VS Code Test Explorer integration).
 - Execute `dotnet test` (via TestSdk) or `dotnet run --project tests/Imperium.UnitTests/Imperium.UnitTests.fsproj` (native Expecto runner with colorized output).
 - Test organization: group related tests with `testList`, use descriptive test names in lowercase ("accepts valid GUID", not "AcceptsValidGuid").
 - Cover edge cases: null inputs, empty strings, invalid formats, boundary conditions.
 - Follow three-phase module development process documented in `docs/module_design_process.md`: define interface, write tests, implement functionality.
 - **Testing approach:**
-  - **Input validation tests**: Use transformation modules (`SetToStartingPositionsCommand.fromContract`, `MoveCommand.fromContract`) with Contract types to verify input validation returns appropriate errors
-  - **Business logic tests**: Transform Contract → Domain, then call handlers with domain types and injected dependencies to verify correct outcomes, events, and charges
-  - **Exception testing**: Use `Expect.throws` for business rule violations (e.g., empty nations, invalid moves)
-- Current test coverage:
-  - starting positions: rejects missing game id; rejects empty roster; ignores duplicate nations; rondel signals that starting positions are set
-  - move: before starting positions are chosen, the move is denied and no movement fee is due
-  - move: nation's first move may choose any rondel space (free); chosen rondel space determines the action (property test, 15 iterations)
-  - move: rejects move to nation's current position repeatedly (property test, 15 iterations; validates rejection stability across multiple attempts, no charges, no action determined)
-  - move: multiple consecutive moves of 1-3 spaces are free (property test, 15 iterations; validates 3 consecutive moves per nation with correct action determination and no charges, includes wraparound)
-  - move: rejects moves of 7 spaces as exceeding maximum distance (property test, 15 iterations; validates all nations and starting positions reject 7-space moves with MoveToActionSpaceRejected, no charges)
-  - move: moves of 4-6 spaces require payment (property test, 15 iterations; validates charge command dispatched with correct amount (distance - 3) * 2M, no premature action determination, move not rejected)
-  - move: superseding pending paid move with another paid move voids old charge and rejects old move (validates void command dispatched for old BillingId, old move rejected, new charge created with correct amount, no action determined for new pending move)
-  - move: superseding pending paid move with free move voids charge and completes immediately (validates void command dispatched, old move rejected, no new charge, new move completes with ActionDetermined)
-  - onInvoicePaid: completes pending movement and publishes ActionDetermined event (validates Contract → Domain transformation via `InvoicePaidInboundEvent.fromContract`, payment confirmation updates position, removes pending movement, publishes correct action, and allows subsequent moves from new position; idempotent - ignores events with no matching pending movement)
+  - **Transformation validation tests** (in `*ContractTests.fs`): Test `fromContract` transformations with Contract types to verify input validation returns appropriate errors; use domain types directly in test setup
+  - **Handler behavior tests** (in `*Tests.fs`): Create domain types directly (no transformation layer), call handlers with injected dependencies to verify correct outcomes, events, and charges
+  - **Separation**: Keep transformation layer testing separate from handler behavior testing for clearer test intent and reduced boilerplate
+- Current test coverage (16 tests total):
+  - **RondelContractTests.fs** (5 transformation validation tests):
+    - SetToStartingPositionsCommand.fromContract: rejects Guid.Empty; rejects empty nations array; accepts duplicate nations (Set deduplicates to 2 from 3)
+    - MoveCommand.fromContract: rejects unknown rondel space; rejects Guid.Empty
+  - **RondelTests.fs** (11 handler behavior tests):
+    - setToStartingPositions: signals setup for roster; setting twice does not signal again
+    - move: cannot begin before starting positions are chosen
+    - move: nation's first move may choose any rondel space (property test, 15 iterations)
+    - move: rejects move to nation's current position repeatedly (property test, 15 iterations)
+    - move: multiple consecutive moves of 1-3 spaces are free (property test, 15 iterations)
+    - move: rejects moves of 7 spaces as exceeding maximum distance (property test, 15 iterations)
+    - move: moves of 4-6 spaces require payment with formula (distance - 3) * 2M (property test, 15 iterations)
+    - move: superseding pending paid move with another paid move voids old charge and rejects old move
+    - move: superseding pending paid move with free move voids charge and completes immediately
+    - onInvoicePaid: completes pending movement and publishes ActionDetermined event
 
 ## Branch Naming Guidelines
 
