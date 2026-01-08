@@ -34,6 +34,13 @@ let createMockDispatcher () =
 
     dispatch, dispatchedCommands
 
+/// Create RondelDependencies from individual mock dependencies
+let createDependencies load save publish dispatch : RondelDependencies =
+    { Load = load
+      Save = save
+      Publish = publish
+      Dispatch = dispatch }
+
 /// Helper to extract ChargeMovement commands from dispatched commands
 let getChargeCommands (commands: ResizeArray<RondelOutboundCommand>) =
     commands
@@ -87,12 +94,14 @@ let tests =
                 <| fun _ ->
                     let load, save = createMockStore ()
                     let publish, publishedEvents = createMockPublisher ()
+                    let dispatch, _ = createMockDispatcher ()
+                    let deps = createDependencies load save publish dispatch
 
                     let command =
                         { GameId = Guid.NewGuid() |> Id
                           Nations = Set.ofList [ "France"; "Germany" ] }
                     // Handler succeeds
-                    setToStartingPositions load save publish command
+                    setToStartingPositions deps command
                     Expect.isNonEmpty publishedEvents "the rondel should signal that starting positions are set"
 
                     Expect.contains
@@ -103,16 +112,18 @@ let tests =
                 <| fun _ ->
                     let load, save = createMockStore ()
                     let publish, publishedEvents = createMockPublisher ()
+                    let dispatch, _ = createMockDispatcher ()
+                    let deps = createDependencies load save publish dispatch
 
                     let command =
                         { GameId = Guid.NewGuid() |> Id
                           Nations = Set.ofList [ "France"; "Germany" ] }
 
                     // First call to set positions
-                    setToStartingPositions load save publish command
+                    setToStartingPositions deps command
                     publishedEvents.Clear()
                     // Second call to set positions again
-                    setToStartingPositions load save publish command
+                    setToStartingPositions deps command
 
                     let positionedAtStartPublishedEvents =
                         publishedEvents
@@ -132,13 +143,14 @@ let tests =
                     let load, save = createMockStore ()
                     let publish, publishedEvents = createMockPublisher ()
                     let dispatch, dispatchedCommands = createMockDispatcher ()
+                    let deps = createDependencies load save publish dispatch
 
                     let command: MoveCommand =
                         { GameId = Guid.NewGuid() |> Id
                           Nation = "France"
                           Space = Space.Factory }
 
-                    move load save publish dispatch command
+                    move deps command
                     Expect.isNonEmpty publishedEvents "the rondel should signal why the move was denied"
 
                     Expect.contains
@@ -166,12 +178,13 @@ let tests =
                     let load, save = createMockStore ()
                     let publish, publishedEvents = createMockPublisher ()
                     let dispatch, dispatchedCommands = createMockDispatcher ()
+                    let deps = createDependencies load save publish dispatch
 
                     let initCommand =
                         { GameId = gameId |> Id
                           Nations = Set.ofArray nations }
 
-                    setToStartingPositions load save publish initCommand
+                    setToStartingPositions deps initCommand
                     publishedEvents.Clear()
 
                     // Execute: move one nation to target space
@@ -180,7 +193,7 @@ let tests =
                           Nation = nation
                           Space = space }
 
-                    move load save publish dispatch moveCommand
+                    move deps moveCommand
 
                     // Assert: ActionDetermined event published with correct action
                     // Using independent reference implementation to avoid testing transformation with itself
@@ -211,12 +224,13 @@ let tests =
                     let load, save = createMockStore ()
                     let publish, publishedEvents = createMockPublisher ()
                     let dispatch, dispatchedCommands = createMockDispatcher ()
+                    let deps = createDependencies load save publish dispatch
 
                     let initCommand =
                         { GameId = gameId |> Id
                           Nations = Set.ofArray nations }
 
-                    setToStartingPositions load save publish initCommand
+                    setToStartingPositions deps initCommand
                     publishedEvents.Clear()
 
                     // Execute: move nation to target space (first move)
@@ -225,7 +239,7 @@ let tests =
                           Nation = nation
                           Space = space }
 
-                    move load save publish dispatch moveCommand
+                    move deps moveCommand
 
                     // Assert: first move succeeds
                     // Using independent reference implementation to avoid testing transformation with itself
@@ -243,7 +257,7 @@ let tests =
                     dispatchedCommands.Clear()
 
                     // Execute: attempt to move to same position (first rejection)
-                    move load save publish dispatch moveCommand
+                    move deps moveCommand
 
                     // Assert: second move is rejected
                     Expect.isNonEmpty publishedEvents "the rondel should signal why the move was denied"
@@ -271,7 +285,7 @@ let tests =
                     dispatchedCommands.Clear()
 
                     // Execute: attempt to move to same position again (second rejection)
-                    move load save publish dispatch moveCommand
+                    move deps moveCommand
 
                     // Assert: third move is also rejected
                     Expect.isNonEmpty publishedEvents "the rondel should signal why the move was denied"
@@ -314,12 +328,13 @@ let tests =
                     let load, save = createMockStore ()
                     let publish, publishedEvents = createMockPublisher ()
                     let dispatch, dispatchedCommands = createMockDispatcher ()
+                    let deps = createDependencies load save publish dispatch
 
                     let initCommand =
                         { GameId = gameId |> Id
                           Nations = Set.ofArray nations }
 
-                    setToStartingPositions load save publish initCommand
+                    setToStartingPositions deps initCommand
                     publishedEvents.Clear()
 
                     // First move: to starting position
@@ -330,7 +345,7 @@ let tests =
                           Nation = nation
                           Space = startSpace }
 
-                    move load save publish dispatch moveCommand1
+                    move deps moveCommand1
                     // Using independent reference implementation to avoid testing transformation with itself
                     let expectedAction1 = spaceToExpectedAction startSpace
 
@@ -354,7 +369,7 @@ let tests =
                           Nation = nation
                           Space = secondSpace }
 
-                    move load save publish dispatch moveCommand2
+                    move deps moveCommand2
                     // Using independent reference implementation to avoid testing transformation with itself
                     let expectedAction2 = spaceToExpectedAction secondSpace
 
@@ -385,7 +400,7 @@ let tests =
                           Nation = nation
                           Space = thirdSpace }
 
-                    move load save publish dispatch moveCommand3
+                    move deps moveCommand3
                     // Using independent reference implementation to avoid testing transformation with itself
                     let expectedAction3 = spaceToExpectedAction thirdSpace
 
@@ -419,12 +434,13 @@ let tests =
                     let load, save = createMockStore ()
                     let publish, publishedEvents = createMockPublisher ()
                     let dispatch, dispatchedCommands = createMockDispatcher ()
+                    let deps = createDependencies load save publish dispatch
 
                     let initCommand =
                         { GameId = gameId |> Id
                           Nations = Set.ofArray nations }
 
-                    setToStartingPositions load save publish initCommand
+                    setToStartingPositions deps initCommand
                     publishedEvents.Clear()
 
                     // First move: establish starting position
@@ -435,7 +451,7 @@ let tests =
                           Nation = nation
                           Space = startSpace }
 
-                    move load save publish dispatch moveCommand1
+                    move deps moveCommand1
                     // Using independent reference implementation to avoid testing transformation with itself
                     let expectedAction1 = spaceToExpectedAction startSpace
 
@@ -459,7 +475,7 @@ let tests =
                           Nation = nation
                           Space = targetSpace }
 
-                    move load save publish dispatch moveCommand2
+                    move deps moveCommand2
 
                     // Assert: move should be rejected (7 spaces exceeds maximum of 6)
                     Expect.isNonEmpty publishedEvents "the rondel should signal why the move was denied"
@@ -508,12 +524,13 @@ let tests =
                     let load, save = createMockStore ()
                     let publish, publishedEvents = createMockPublisher ()
                     let dispatch, dispatchedCommands = createMockDispatcher ()
+                    let deps = createDependencies load save publish dispatch
 
                     let initCommand =
                         { GameId = gameId |> Id
                           Nations = Set.ofArray nations }
 
-                    setToStartingPositions load save publish initCommand
+                    setToStartingPositions deps initCommand
                     publishedEvents.Clear()
 
                     // First move: establish starting position
@@ -524,7 +541,7 @@ let tests =
                           Nation = nation
                           Space = startSpace }
 
-                    move load save publish dispatch moveCommand1
+                    move deps moveCommand1
                     publishedEvents.Clear()
                     dispatchedCommands.Clear()
 
@@ -538,7 +555,7 @@ let tests =
                           Space = targetSpace }
 
                     // Assert: move command succeeds
-                    move load save publish dispatch moveCommand2
+                    move deps moveCommand2
 
                     // Assert: charge command dispatched with correct amount
                     let chargeCommands = getChargeCommands dispatchedCommands
@@ -592,6 +609,7 @@ let tests =
                     let load, save = createMockStore ()
                     let publish, publishedEvents = createMockPublisher ()
                     let dispatch, dispatchedCommands = createMockDispatcher ()
+                    let deps = createDependencies load save publish dispatch
 
                     let gameId = Guid.NewGuid()
                     let nations = [| "France" |]
@@ -601,7 +619,7 @@ let tests =
                         { GameId = gameId |> Id
                           Nations = Set.ofArray nations }
 
-                    setToStartingPositions load save publish initCommand
+                    setToStartingPositions deps initCommand
 
                     publishedEvents.Clear()
 
@@ -611,7 +629,7 @@ let tests =
                           Nation = "France"
                           Space = Space.ProductionOne }
 
-                    move load save publish dispatch firstMoveCmd
+                    move deps firstMoveCmd
 
                     Expect.contains
                         publishedEvents
@@ -630,7 +648,7 @@ let tests =
                           Nation = "France"
                           Space = Space.ProductionTwo }
 
-                    move load save publish dispatch secondMove
+                    move deps secondMove
 
                     let chargeCommands1 = getChargeCommands dispatchedCommands
                     Expect.hasLength chargeCommands1 1 "first pending move should dispatch charge"
@@ -656,7 +674,7 @@ let tests =
                           Nation = "France"
                           Space = Space.ManeuverTwo }
 
-                    move load save publish dispatch thirdMove
+                    move deps thirdMove
 
                     // Assert: old charge voided
                     let voidCommands = getVoidCommands dispatchedCommands
@@ -700,6 +718,7 @@ let tests =
                     let load, save = createMockStore ()
                     let publish, publishedEvents = createMockPublisher ()
                     let dispatch, dispatchedCommands = createMockDispatcher ()
+                    let deps = createDependencies load save publish dispatch
 
                     let gameId = Guid.NewGuid()
                     let nations = [| "Germany" |]
@@ -709,7 +728,7 @@ let tests =
                         { GameId = gameId |> Id
                           Nations = Set.ofArray nations }
 
-                    setToStartingPositions load save publish initCommand
+                    setToStartingPositions deps initCommand
 
                     publishedEvents.Clear()
 
@@ -719,7 +738,7 @@ let tests =
                           Nation = "Germany"
                           Space = Space.ManeuverOne }
 
-                    move load save publish dispatch firstMoveCmd
+                    move deps firstMoveCmd
 
                     Expect.contains
                         publishedEvents
@@ -738,7 +757,7 @@ let tests =
                           Nation = "Germany"
                           Space = Space.Investor }
 
-                    move load save publish dispatch secondMove
+                    move deps secondMove
 
                     let chargeCommands1 = getChargeCommands dispatchedCommands
                     Expect.hasLength chargeCommands1 1 "first pending move should dispatch charge"
@@ -764,7 +783,7 @@ let tests =
                           Nation = "Germany"
                           Space = Space.Factory }
 
-                    move load save publish dispatch thirdMove
+                    move deps thirdMove
 
                     // Assert: old charge voided
                     let voidCommands = getVoidCommands dispatchedCommands
@@ -801,6 +820,7 @@ let tests =
                     let load, save = createMockStore ()
                     let publish, publishedEvents = createMockPublisher ()
                     let dispatch, dispatchedCommands = createMockDispatcher ()
+                    let deps = createDependencies load save publish dispatch
 
                     let gameId = Guid.NewGuid()
                     let nations = [| "Austria" |]
@@ -810,7 +830,7 @@ let tests =
                         { GameId = gameId |> Id
                           Nations = Set.ofArray nations }
 
-                    setToStartingPositions load save publish initCommand
+                    setToStartingPositions deps initCommand
 
                     publishedEvents.Clear()
 
@@ -820,7 +840,7 @@ let tests =
                           Nation = "Austria"
                           Space = Space.ManeuverOne }
 
-                    move load save publish dispatch firstMoveCmd
+                    move deps firstMoveCmd
 
                     Expect.contains
                         publishedEvents
@@ -839,7 +859,7 @@ let tests =
                           Nation = "Austria"
                           Space = Space.Investor }
 
-                    move load save publish dispatch secondMoveCmd
+                    move deps secondMoveCmd
 
                     let chargeCommands = getChargeCommands dispatchedCommands
                     Expect.hasLength chargeCommands 1 "paid move should dispatch charge command"
@@ -864,7 +884,7 @@ let tests =
                         { GameId = gameId |> Id
                           BillingId = billingId }
 
-                    let result = onInvoicedPaid load save publish invoicePaidEvent
+                    let result = onInvoicedPaid deps invoicePaidEvent
                     // Assert: operation succeeds
                     Expect.isOk result "payment confirmation should succeed"
 
@@ -894,7 +914,7 @@ let tests =
                           Nation = "Austria"
                           Space = Space.Import }
 
-                    move load save publish dispatch thirdMoveCmd
+                    move deps thirdMoveCmd
 
                     Expect.contains
                         publishedEvents

@@ -5,7 +5,7 @@ Last verified: 2026-01-04
 
 ## Quick Status (last verified: current)
 
-- Rondel handlers: `setToStartingPositions` (complete), `move` (complete - handles 1-3 space free moves, 4-6 space paid moves with charge dispatch and pending state, rejects 0 and 7+ space moves; accepts `DispatchOutboundCommand` dependency for domain outbound commands; automatically voids old charges and rejects old pending moves when a nation initiates a new move before previous payment completes; PendingMovements map keyed by nation for efficient lookups), `onInvoicedPaid` (complete - idempotent payment confirmation handler; ignores duplicate payment events; fails fast on state corruption), `onInvoicePaymentFailed` (stubbed).
+- Rondel handlers: All handlers accept unified `RondelDependencies` record (contains Load, Save, Publish, Dispatch). `setToStartingPositions` (complete), `move` (complete - handles 1-3 space free moves, 4-6 space paid moves with charge dispatch and pending state, rejects 0 and 7+ space moves; automatically voids old charges and rejects old pending moves when a nation initiates a new move before previous payment completes; PendingMovements map keyed by nation for efficient lookups), `onInvoicedPaid` (complete - idempotent payment confirmation handler; ignores duplicate payment events; fails fast on state corruption), `onInvoicePaymentFailed` (stubbed).
 - Rondel outbound commands: Domain types (`ChargeMovementOutboundCommand`, `VoidChargeOutboundCommand`, `RondelOutboundCommand` DU) with per-command `toContract` transformations targeting Accounting bounded context.
 - Accounting contract: ChargeNationForRondelMovementCommand, VoidRondelChargeCommand (commands), AccountingCommand (routing DU), AccountingEvent (payment result events).
 - Rondel state: handlers load/save domain `RondelState` by `Id`; persistence adapters map to/from `Contract.Rondel.RondelState` via `RondelState.toContract/fromContract`.
@@ -15,7 +15,7 @@ Last verified: 2026-01-04
 ## Agent Priorities
 
 - Follow the three-phase process in `docs/module_design_process.md`: define `.fsi`, write tests, then implement.
-- Keep dependency order consistent: persistence first, then publisher, then external services (e.g., accounting).
+- Handlers accept unified `RondelDependencies` record for consistency. When adding new handlers, use the same pattern.
 - Prefer minimal public surface; align `.fs` to `.fsi` without widening the API.
 
 ## CQRS & Contract Patterns (anchor details in AGENTS.md)
