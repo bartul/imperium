@@ -252,6 +252,15 @@ module Rondel =
     /// Infrastructure handles conversion to contract types and actual dispatch.
     type DispatchOutboundCommand = RondelOutboundCommand -> Result<unit, string>
 
+    /// Unified dependencies for all Rondel handlers.
+    /// All handlers receive the same dependencies record for consistency,
+    /// even if some handlers don't use all dependencies.
+    type RondelDependencies =
+        { Load: LoadRondelState
+          Save: SaveRondelState
+          Publish: PublishRondelEvent
+          Dispatch: DispatchOutboundCommand }
+
     // ──────────────────────────────────────────────────────────────────────────
     // Transformations (Contract <-> Domain)
     // ──────────────────────────────────────────────────────────────────────────
@@ -435,12 +444,10 @@ module Rondel =
     // ──────────────────────────────────────────────────────────────────────────
 
     /// Initialize rondel for the specified game with the given nations.
-    let setToStartingPositions
-        (load: LoadRondelState)
-        (save: SaveRondelState)
-        (publish: PublishRondelEvent)
-        (command: SetToStartingPositionsCommand)
-        : unit =
+    let setToStartingPositions (deps: RondelDependencies) (command: SetToStartingPositionsCommand) : unit =
+        let load = deps.Load
+        let save = deps.Save
+        let publish = deps.Publish
 
         let canNotSetStartPositionsWithNoNations command =
             if Set.isEmpty command.Nations then
@@ -487,13 +494,11 @@ module Rondel =
         |||> performIO
 
     /// Move a nation to the specified space on the rondel.
-    let move
-        (load: LoadRondelState)
-        (save: SaveRondelState)
-        (publish: PublishRondelEvent)
-        (dispatch: DispatchOutboundCommand)
-        (command: MoveCommand)
-        : unit =
+    let move (deps: RondelDependencies) (command: MoveCommand) : unit =
+        let load = deps.Load
+        let save = deps.Save
+        let publish = deps.Publish
+        let dispatch = deps.Dispatch
 
         // Decision chain functions
         let noMovesAllowedIfNotInitialized (state, validatedCommand: MoveCommand) =
@@ -676,12 +681,10 @@ module Rondel =
         execute loadedState command
 
     /// Process invoice payment confirmation from Accounting domain.
-    let onInvoicedPaid
-        (load: LoadRondelState)
-        (save: SaveRondelState)
-        (publish: PublishRondelEvent)
-        (event: InvoicePaidInboundEvent)
-        : Result<unit, string> =
+    let onInvoicedPaid (deps: RondelDependencies) (event: InvoicePaidInboundEvent) : Result<unit, string> =
+        let load = deps.Load
+        let save = deps.Save
+        let publish = deps.Publish
 
         let performIO state events =
             let saveState state =
@@ -739,9 +742,7 @@ module Rondel =
 
     /// Process invoice payment failure from Accounting domain.
     let onInvoicePaymentFailed
-        (load: LoadRondelState)
-        (save: SaveRondelState)
-        (publish: PublishRondelEvent)
+        (deps: RondelDependencies)
         (event: InvoicePaymentFailedInboundEvent)
         : Result<unit, string> =
         invalidOp "Not implemented: onInvoicePaymentFailed"
