@@ -1,9 +1,5 @@
 namespace Imperium
 
-open System
-open Imperium.Contract.Accounting
-open Imperium.Contract.Rondel
-
 module Rondel =
     open Imperium.Primitives
     open FsToolkit.ErrorHandling
@@ -88,7 +84,7 @@ module Rondel =
             | Space.ProductionTwo -> "ProductionTwo"
             | Space.ManeuverTwo -> "ManeuverTwo"
 
-        let fromString (s: string) : Result<Space, string> =
+        let fromString s =
             match s with
             | "Investor" -> Ok Space.Investor
             | "Import" -> Ok Space.Import
@@ -296,7 +292,7 @@ module Rondel =
     /// Transforms Domain RondelEvent to Contract type for publication.
     module RondelEvent =
         /// Transform Domain event to Contract event.
-        let toContract (event: RondelEvent) : Contract.Rondel.RondelEvent =
+        let toContract event =
             match event with
             | PositionedAtStart e -> Contract.Rondel.PositionedAtStart { GameId = Id.value e.GameId }
             | ActionDetermined e ->
@@ -476,7 +472,7 @@ module Rondel =
 
             let publishEvents events = events |> List.iter publish |> Ok
 
-            let executeOutboundCommands (commands: RondelOutboundCommand list) =
+            let executeOutboundCommands commands =
                 // setToStartingPositions does not dispatch outbound commands
                 match commands with
                 | [] -> Ok()

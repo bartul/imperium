@@ -2,8 +2,6 @@ namespace Imperium
 
 open System
 open Imperium.Primitives
-open Imperium.Contract.Accounting
-open Imperium.Contract.Rondel
 
 module Rondel =
 
