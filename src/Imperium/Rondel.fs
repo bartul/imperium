@@ -175,22 +175,22 @@ module Rondel =
     // Outbound Commands (to other bounded contexts)
     // ──────────────────────────────────────────────────────────────────────────
 
+    /// Union of all outbound commands dispatched to other bounded contexts.
+    type RondelOutboundCommand =
+        | ChargeMovement of ChargeMovementOutboundCommand
+        | VoidCharge of VoidChargeOutboundCommand
+
     /// Command to charge a nation for paid rondel movement (4-6 spaces).
-    type ChargeMovementOutboundCommand =
+    and ChargeMovementOutboundCommand =
         { GameId: Id
           Nation: string
           Amount: Amount
           BillingId: RondelBillingId }
 
     /// Command to void a previously initiated charge before payment completion.
-    type VoidChargeOutboundCommand =
+    and VoidChargeOutboundCommand =
         { GameId: Id
           BillingId: RondelBillingId }
-
-    /// Union of all outbound commands dispatched to other bounded contexts.
-    type RondelOutboundCommand =
-        | ChargeMovement of ChargeMovementOutboundCommand
-        | VoidCharge of VoidChargeOutboundCommand
 
     // ──────────────────────────────────────────────────────────────────────────
     // Incoming Events (from other bounded contexts)
@@ -440,7 +440,7 @@ module Rondel =
     // ──────────────────────────────────────────────────────────────────────────
 
     /// Initialize rondel for the specified game with the given nations.
-    let setToStartingPositions (deps: RondelDependencies) (command: SetToStartingPositionsCommand) : unit =
+    let internal setToStartingPositions (deps: RondelDependencies) (command: SetToStartingPositionsCommand) : unit =
         let load = deps.Load
         let save = deps.Save
         let publish = deps.Publish
@@ -490,7 +490,7 @@ module Rondel =
         |||> performIO
 
     /// Move a nation to the specified space on the rondel.
-    let move (deps: RondelDependencies) (command: MoveCommand) : unit =
+    let internal move (deps: RondelDependencies) (command: MoveCommand) : unit =
         let load = deps.Load
         let save = deps.Save
         let publish = deps.Publish
@@ -677,7 +677,7 @@ module Rondel =
         execute loadedState command
 
     /// Process invoice payment confirmation from Accounting domain.
-    let onInvoicedPaid (deps: RondelDependencies) (event: InvoicePaidInboundEvent) : Result<unit, string> =
+    let internal onInvoicedPaid (deps: RondelDependencies) (event: InvoicePaidInboundEvent) : Result<unit, string> =
         let load = deps.Load
         let save = deps.Save
         let publish = deps.Publish
@@ -737,8 +737,24 @@ module Rondel =
         Ok(execute loadedState event)
 
     /// Process invoice payment failure from Accounting domain.
-    let onInvoicePaymentFailed
+    let internal onInvoicePaymentFailed
         (deps: RondelDependencies)
         (event: InvoicePaymentFailedInboundEvent)
         : Result<unit, string> =
         invalidOp "Not implemented: onInvoicePaymentFailed"
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // Public Routers
+    // ──────────────────────────────────────────────────────────────────────────
+
+    /// Execute a rondel command. Routes to the appropriate command handler.
+    let execute (deps: RondelDependencies) (command: RondelCommand) : unit =
+        match command with
+        | SetToStartingPositions cmd -> setToStartingPositions deps cmd
+        | Move cmd -> move deps cmd
+
+    /// Handle an inbound event from other bounded contexts. Routes to the appropriate event handler.
+    let handle (deps: RondelDependencies) (event: RondelInboundEvent) : Result<unit, string> =
+        match event with
+        | InvoicePaid evt -> onInvoicedPaid deps evt
+        | InvoicePaymentFailed evt -> onInvoicePaymentFailed deps evt

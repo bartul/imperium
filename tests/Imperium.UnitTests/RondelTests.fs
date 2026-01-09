@@ -6,10 +6,8 @@ open Imperium.Rondel
 open Imperium.Primitives
 
 type private Rondel =
-    { SetToStartingPositions: SetToStartingPositionsCommand -> unit
-      Move: MoveCommand -> unit
-      OnInvoicePaid: InvoicePaidInboundEvent -> Result<unit, string>
-      OnInvoicePaymentFailed: InvoicePaymentFailedInboundEvent -> Result<unit, string> }
+    { Execute: RondelCommand -> unit
+      Handle: RondelInboundEvent -> Result<unit, string> }
 
 let private createRondel () =
     let store = Collections.Generic.Dictionary<Id, RondelState>()
@@ -37,10 +35,8 @@ let private createRondel () =
           Publish = publishedEvents.Add
           Dispatch = dispatch }
 
-    { SetToStartingPositions = setToStartingPositions deps
-      Move = move deps
-      OnInvoicePaid = onInvoicedPaid deps
-      OnInvoicePaymentFailed = onInvoicePaymentFailed deps },
+    { Execute = execute deps
+      Handle = handle deps },
     publishedEvents,
     dispatchedCommands
 
@@ -101,7 +97,7 @@ let tests =
                         { GameId = Guid.NewGuid() |> Id
                           Nations = Set.ofList [ "France"; "Germany" ] }
                     // Handler succeeds
-                    rondel.SetToStartingPositions command
+                    rondel.Execute <| SetToStartingPositions command
                     Expect.isNonEmpty publishedEvents "the rondel should signal that starting positions are set"
 
                     Expect.contains
@@ -117,10 +113,10 @@ let tests =
                           Nations = Set.ofList [ "France"; "Germany" ] }
 
                     // First call to set positions
-                    rondel.SetToStartingPositions command
+                    rondel.Execute <| SetToStartingPositions command
                     publishedEvents.Clear()
                     // Second call to set positions again
-                    rondel.SetToStartingPositions command
+                    rondel.Execute <| SetToStartingPositions command
 
                     let positionedAtStartPublishedEvents =
                         publishedEvents
@@ -144,7 +140,7 @@ let tests =
                           Nation = "France"
                           Space = Space.Factory }
 
-                    rondel.Move command
+                    rondel.Execute <| Move command
                     Expect.isNonEmpty publishedEvents "the rondel should signal why the move was denied"
 
                     Expect.contains
@@ -176,7 +172,7 @@ let tests =
                         { GameId = gameId |> Id
                           Nations = Set.ofArray nations }
 
-                    rondel.SetToStartingPositions initCommand
+                    rondel.Execute <| SetToStartingPositions initCommand
                     publishedEvents.Clear()
 
                     // Execute: move one nation to target space
@@ -185,7 +181,7 @@ let tests =
                           Nation = nation
                           Space = space }
 
-                    rondel.Move moveCommand
+                    rondel.Execute <| Move moveCommand
 
                     // Assert: ActionDetermined event published with correct action
                     // Using independent reference implementation to avoid testing transformation with itself
@@ -220,7 +216,7 @@ let tests =
                         { GameId = game
                           Nations = Set.ofArray nations }
 
-                    rondel.SetToStartingPositions initCommand
+                    rondel.Execute <| SetToStartingPositions initCommand
                     publishedEvents.Clear()
 
                     // Execute: move nation to target space (first move)
@@ -229,7 +225,7 @@ let tests =
                           Nation = nation
                           Space = space }
 
-                    rondel.Move moveCommand
+                    rondel.Execute <| Move moveCommand
 
                     // Assert: first move succeeds
                     // Using independent reference implementation to avoid testing transformation with itself
@@ -247,7 +243,7 @@ let tests =
                     dispatchedCommands.Clear()
 
                     // Execute: attempt to move to same position (first rejection)
-                    rondel.Move moveCommand
+                    rondel.Execute <| Move moveCommand
 
                     // Assert: second move is rejected
                     Expect.isNonEmpty publishedEvents "the rondel should signal why the move was denied"
@@ -275,7 +271,7 @@ let tests =
                     dispatchedCommands.Clear()
 
                     // Execute: attempt to move to same position again (second rejection)
-                    rondel.Move moveCommand
+                    rondel.Execute <| Move moveCommand
 
                     // Assert: third move is also rejected
                     Expect.isNonEmpty publishedEvents "the rondel should signal why the move was denied"
@@ -322,7 +318,7 @@ let tests =
                         { GameId = game
                           Nations = Set.ofArray nations }
 
-                    rondel.SetToStartingPositions initCommand
+                    rondel.Execute <| SetToStartingPositions initCommand
                     publishedEvents.Clear()
 
                     // First move: to starting position
@@ -333,7 +329,7 @@ let tests =
                           Nation = nation
                           Space = startSpace }
 
-                    rondel.Move moveCommand1
+                    rondel.Execute <| Move moveCommand1
                     // Using independent reference implementation to avoid testing transformation with itself
                     let expectedAction1 = spaceToExpectedAction startSpace
 
@@ -357,7 +353,7 @@ let tests =
                           Nation = nation
                           Space = secondSpace }
 
-                    rondel.Move moveCommand2
+                    rondel.Execute <| Move moveCommand2
                     // Using independent reference implementation to avoid testing transformation with itself
                     let expectedAction2 = spaceToExpectedAction secondSpace
 
@@ -388,7 +384,7 @@ let tests =
                           Nation = nation
                           Space = thirdSpace }
 
-                    rondel.Move moveCommand3
+                    rondel.Execute <| Move moveCommand3
                     // Using independent reference implementation to avoid testing transformation with itself
                     let expectedAction3 = spaceToExpectedAction thirdSpace
 
@@ -426,7 +422,7 @@ let tests =
                         { GameId = game
                           Nations = Set.ofArray nations }
 
-                    rondel.SetToStartingPositions initCommand
+                    rondel.Execute <| SetToStartingPositions initCommand
                     publishedEvents.Clear()
 
                     // First move: establish starting position
@@ -437,7 +433,7 @@ let tests =
                           Nation = nation
                           Space = startSpace }
 
-                    rondel.Move moveCommand1
+                    rondel.Execute <| Move moveCommand1
                     // Using independent reference implementation to avoid testing transformation with itself
                     let expectedAction1 = spaceToExpectedAction startSpace
 
@@ -461,7 +457,7 @@ let tests =
                           Nation = nation
                           Space = targetSpace }
 
-                    rondel.Move moveCommand2
+                    rondel.Execute <| Move moveCommand2
 
                     // Assert: move should be rejected (7 spaces exceeds maximum of 6)
                     Expect.isNonEmpty publishedEvents "the rondel should signal why the move was denied"
@@ -514,7 +510,7 @@ let tests =
                         { GameId = gameId |> Id
                           Nations = Set.ofArray nations }
 
-                    rondel.SetToStartingPositions initCommand
+                    rondel.Execute <| SetToStartingPositions initCommand
                     publishedEvents.Clear()
 
                     // First move: establish starting position
@@ -525,7 +521,7 @@ let tests =
                           Nation = nation
                           Space = startSpace }
 
-                    rondel.Move moveCommand1
+                    rondel.Execute <| Move moveCommand1
                     publishedEvents.Clear()
                     dispatchedCommands.Clear()
 
@@ -539,7 +535,7 @@ let tests =
                           Space = targetSpace }
 
                     // Assert: move command succeeds
-                    rondel.Move moveCommand2
+                    rondel.Execute <| Move moveCommand2
 
                     // Assert: charge command dispatched with correct amount
                     let chargeCommands = getChargeCommands dispatchedCommands
@@ -600,7 +596,7 @@ let tests =
                         { GameId = game
                           Nations = Set.ofArray nations }
 
-                    rondel.SetToStartingPositions initCommand
+                    rondel.Execute <| SetToStartingPositions initCommand
 
                     publishedEvents.Clear()
 
@@ -610,7 +606,7 @@ let tests =
                           Nation = "France"
                           Space = Space.ProductionOne }
 
-                    rondel.Move firstMoveCmd
+                    rondel.Execute <| Move firstMoveCmd
 
                     Expect.contains
                         publishedEvents
@@ -629,7 +625,7 @@ let tests =
                           Nation = "France"
                           Space = Space.ProductionTwo }
 
-                    rondel.Move secondMove
+                    rondel.Execute <| Move secondMove
 
                     let chargeCommands1 = getChargeCommands dispatchedCommands
                     Expect.hasLength chargeCommands1 1 "first pending move should dispatch charge"
@@ -655,7 +651,7 @@ let tests =
                           Nation = "France"
                           Space = Space.ManeuverTwo }
 
-                    rondel.Move thirdMove
+                    rondel.Execute <| Move thirdMove
 
                     // Assert: old charge voided
                     let voidCommands = getVoidCommands dispatchedCommands
@@ -705,7 +701,7 @@ let tests =
                         { GameId = gameId
                           Nations = Set.ofArray nations }
 
-                    rondel.SetToStartingPositions initCommand
+                    rondel.Execute <| SetToStartingPositions initCommand
 
                     publishedEvents.Clear()
 
@@ -715,7 +711,7 @@ let tests =
                           Nation = "Germany"
                           Space = Space.ManeuverOne }
 
-                    rondel.Move firstMoveCmd
+                    rondel.Execute <| Move firstMoveCmd
 
                     Expect.contains
                         publishedEvents
@@ -734,7 +730,7 @@ let tests =
                           Nation = "Germany"
                           Space = Space.Investor }
 
-                    rondel.Move secondMove
+                    rondel.Execute <| Move secondMove
 
                     let chargeCommands1 = getChargeCommands dispatchedCommands
                     Expect.hasLength chargeCommands1 1 "first pending move should dispatch charge"
@@ -760,7 +756,7 @@ let tests =
                           Nation = "Germany"
                           Space = Space.Factory }
 
-                    rondel.Move thirdMove
+                    rondel.Execute <| Move thirdMove
 
                     // Assert: old charge voided
                     let voidCommands = getVoidCommands dispatchedCommands
@@ -804,7 +800,7 @@ let tests =
                         { GameId = gameId
                           Nations = Set.ofArray nations }
 
-                    rondel.SetToStartingPositions initCommand
+                    rondel.Execute <| SetToStartingPositions initCommand
 
                     publishedEvents.Clear()
 
@@ -814,7 +810,7 @@ let tests =
                           Nation = "Austria"
                           Space = Space.ManeuverOne }
 
-                    rondel.Move firstMoveCmd
+                    rondel.Execute <| Move firstMoveCmd
 
                     Expect.contains
                         publishedEvents
@@ -833,7 +829,7 @@ let tests =
                           Nation = "Austria"
                           Space = Space.Investor }
 
-                    rondel.Move secondMoveCmd
+                    rondel.Execute <| Move secondMoveCmd
 
                     let chargeCommands = getChargeCommands dispatchedCommands
                     Expect.hasLength chargeCommands 1 "paid move should dispatch charge command"
@@ -858,7 +854,7 @@ let tests =
                         { GameId = gameId
                           BillingId = billingId }
 
-                    let result = rondel.OnInvoicePaid invoicePaidEvent
+                    let result = rondel.Handle <| InvoicePaid invoicePaidEvent
                     // Assert: operation succeeds
                     Expect.isOk result "payment confirmation should succeed"
 
@@ -888,7 +884,7 @@ let tests =
                           Nation = "Austria"
                           Space = Space.Import }
 
-                    rondel.Move thirdMoveCmd
+                    rondel.Execute <| Move thirdMoveCmd
 
                     Expect.contains
                         publishedEvents
