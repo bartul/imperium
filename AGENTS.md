@@ -22,7 +22,7 @@ Last verified: 2026-01-04
   - Event handlers: Accept domain event types (after transformation), return `Result<unit, string>` (maintain Result pattern for event processing)
   - All handlers take dependency injections explicitly (e.g., `load`, `save`, `publish`, specialized services)
   - `Gameplay` and `Accounting` have no public API currently (placeholder values only)
-  - `Rondel` exposes: transformation modules (SetToStartingPositionsCommand, MoveCommand, InvoicePaidInboundEvent, InvoicePaymentFailedInboundEvent, ChargeMovementOutboundCommand, VoidChargeOutboundCommand), domain command types (SetToStartingPositionsCommand with `Set<string>` Nations, MoveCommand with Space), domain outbound command types (ChargeMovementOutboundCommand, VoidChargeOutboundCommand, RondelOutboundCommand DU), domain inbound event types (InvoicePaidInboundEvent, InvoicePaymentFailedInboundEvent with `Id` and `RondelBillingId`), inbound event DU (RondelInboundEvent), Space type, RondelBillingId type with value accessor, dependency types (LoadRondelState, SaveRondelState, PublishRondelEvent, DispatchOutboundCommand, RondelDependencies record), setToStartingPositions (implemented), move (implemented), onInvoicedPaid (implemented), onInvoicePaymentFailed (stubbed)
+  - `Rondel` exposes: transformation modules (SetToStartingPositionsCommand, MoveCommand, InvoicePaidInboundEvent, InvoicePaymentFailedInboundEvent, ChargeMovementOutboundCommand, VoidChargeOutboundCommand), domain command types (SetToStartingPositionsCommand with `Set<string>` Nations, MoveCommand with Space), domain outbound command types (ChargeMovementOutboundCommand, VoidChargeOutboundCommand, RondelOutboundCommand DU), domain inbound event types (InvoicePaidInboundEvent, InvoicePaymentFailedInboundEvent with `Id` and `RondelBillingId`), command routing DU (RondelCommand), inbound event routing DU (RondelInboundEvent), Space type, RondelBillingId type with value accessor, dependency types (LoadRondelState, SaveRondelState, PublishRondelEvent, DispatchOutboundCommand, RondelDependencies record), `execute` router (routes RondelCommand to internal handlers), `handle` router (routes RondelInboundEvent to internal handlers)
   - `Contract.Rondel.RondelState`: Serializable DTOs (Guid/string) for persistence. NationPositions is `Map<string, string option>` at the serialization boundary and PendingMovements is keyed by nation name for O(log n) lookups.
   - `Rondel.RondelState`: Domain state uses strong types (`Id`, `Space option`, `RondelBillingId`). NationPositions is `Map<string, Space option>` and PendingMovement uses `Space` TargetSpace + `RondelBillingId` BillingId. Transformations live in `Rondel.fs` (`RondelState.toContract/fromContract`), not in a separate adapter.
 - `src/Imperium.Web` bootstraps the HTTP layer (`Program.fs`). Reference the core project via the existing project reference instead of duplicating logic.
@@ -32,9 +32,13 @@ Last verified: 2026-01-04
 
 ### Handler Signature Pattern
 - **Transformation modules** (`SetToStartingPositionsCommand.fromContract`, `MoveCommand.fromContract`, `InvoicePaidInboundEvent.fromContract`, `InvoicePaymentFailedInboundEvent.fromContract`): Modules named after domain types; accept Contract types, validate inputs, return `Result<DomainType, string>` with plain string errors
-- **Command handlers** (`setToStartingPositions`, `move`): Accept `RondelDependencies` record containing all dependencies, then domain command types; throw exceptions for business rule violations, return `unit`
-- **Event handlers** (`onInvoicedPaid`, `onInvoicePaymentFailed`): Accept `RondelDependencies` record, then domain event types (after transformation from Contract types); return `Result<unit, string>` for error propagation
+- **Router functions (public API)**:
+  - `execute`: Routes `RondelCommand` union type to appropriate internal command handler; accepts `RondelDependencies` record, then `RondelCommand`; throws exceptions for business rule violations, returns `unit`
+  - `handle`: Routes `RondelInboundEvent` union type to appropriate internal event handler; accepts `RondelDependencies` record, then `RondelInboundEvent`; returns `Result<unit, string>` for error propagation
+- **Internal command handlers** (`setToStartingPositions`, `move`): Accept `RondelDependencies` record, then domain command types; throw exceptions for business rule violations, return `unit`; marked `internal`, not exposed in `.fsi`
+- **Internal event handlers** (`onInvoicedPaid`, `onInvoicePaymentFailed`): Accept `RondelDependencies` record, then domain event types (after transformation from Contract types); return `Result<unit, string>` for error propagation; marked `internal`, not exposed in `.fsi`
 - **Unified dependencies**: All Rondel handlers accept a single `RondelDependencies` record (`{ Load: LoadRondelState; Save: SaveRondelState; Publish: PublishRondelEvent; Dispatch: DispatchOutboundCommand }`) for consistency. Implementations destructure the record to extract individual dependencies. This provides a uniform handler signature and simplifies adding new dependencies in the future.
+- **Public API surface**: Only routers (`execute`, `handle`) are exposed in `.fsi`; individual handlers are implementation details. This provides a clean, minimal API with single entry points for commands and events.
 - Dependency injection order: persistence (load, save), publish, then dispatch (outbound commands). Load/save use domain `RondelState` and `Id`; persistence adapters map to/from `Contract.Rondel.RondelState`. Outbound commands use domain types (`RondelOutboundCommand`) with per-command `toContract` transformations targeting appropriate bounded contexts.
 - Signature files define public shape first; implementations should not widen the surface in `.fs`.
 
@@ -49,12 +53,11 @@ Last verified: 2026-01-04
 - **Command dispatch**: Uses `List.fold` with `Result.bind` to sequence outbound commands (`RondelOutboundCommand` with `ChargeMovement` and `VoidCharge` cases), returning first error or `Ok ()`. Infrastructure layer receives domain commands and calls per-command `toContract` transformations to dispatch to appropriate bounded contexts.
 
 ### Open Work (current)
-- Rondel `setToStartingPositions` handler is complete with validation, state persistence, and event publishing.
-- Rondel `move` handler is complete: clockwise distance calculation, 1-3 space free moves with immediate action determination, 4-6 space paid moves with charge dispatch and pending state storage (formula: (distance - 3) * 2M), rejects 0-space (stay put) and 7+ space (exceeds max) moves. When a nation initiates a new move while a previous move is pending payment, the handler automatically voids the old charge, rejects the old pending move, and proceeds with the new move.
-- Rondel `onInvoicedPaid` handler is complete: processes payment confirmations from Accounting domain, finds pending movement by BillingId, updates nation position, removes pending entry, publishes ActionDetermined event. Idempotent: ignores events for non-existent pending movements (handles duplicate payment events or already-completed/voided movements). Fails fast on state corruption (invalid TargetSpace in pending movement).
+- Rondel public API: Two routers (`execute` for commands, `handle` for events) provide single entry points; individual handlers are internal implementation details.
+- Rondel internal handlers: `setToStartingPositions` complete with validation, state persistence, and event publishing; `move` complete with clockwise distance calculation, 1-3 space free moves with immediate action determination, 4-6 space paid moves with charge dispatch and pending state storage (formula: (distance - 3) * 2M), rejects 0-space (stay put) and 7+ space (exceeds max) moves, automatically voids old charges and rejects old pending moves when a nation initiates a new move before previous payment completes; `onInvoicedPaid` complete with idempotent payment confirmation processing (ignores events for non-existent pending movements, handles duplicate payment events or already-completed/voided movements, fails fast on state corruption); `onInvoicePaymentFailed` stubbed.
 - Implement remaining Rondel handler (`onInvoicePaymentFailed`) to complete payment flow rejection path.
 - Add public APIs for Gameplay and Accounting or trim placeholders if unused.
-- Expecto test for `onInvoicedPaid` happy path passing; add test for `onInvoicePaymentFailed` once ready to implement.
+- Tests use helper pattern: private `Rondel` record with `Execute`/`Handle` routers, `createRondel()` factory returns router record + observable collections for verification.
 
 ## Build, Test, and Development Commands
 - Restore dependencies: `dotnet restore Imperium.sln`.
@@ -86,14 +89,14 @@ Domain modules (`.fsi` and `.fs` pairs) follow a consistent sectioned structure.
 |---|---------|----------|
 | 1 | **Value Types & Enumerations** | Struct wrappers (`RondelBillingId`), DUs (`Action`, `Space`), companion modules |
 | 2 | **Domain State** | Persistent state records (`RondelState`, `PendingMovement`) |
-| 3 | **Commands** | Command DU and individual command records |
+| 3 | **Commands** | Command routing DU and individual command records |
 | 4 | **Events** | Outbound event DU and individual event records (published by this domain) |
 | 5 | **Outbound Commands** | Commands dispatched to other bounded contexts (`ChargeMovementOutboundCommand`, `VoidChargeOutboundCommand`, `RondelOutboundCommand` DU) |
-| 6 | **Incoming Events** | Inbound event DU and individual event records (received from other domains) |
+| 6 | **Incoming Events** | Inbound event routing DU and individual event records (received from other domains) |
 | 7 | **Dependencies** | Function types for DI (`LoadState`, `SaveState`, `PublishEvent`, `DispatchOutboundCommand`) and unified dependency record (`RondelDependencies`) |
 | 8 | **Transformations** | Modules with `fromContract` (Contract → Domain), `toContract` (Domain → Contract) functions (including per-outbound-command `toContract`) |
 | 9 | **Handlers (Internal Types)** | `.fs` only: internal DUs for routing/outcomes (`MoveOutcome`) |
-| 10 | **Handlers** | Command handlers, then event handlers |
+| 10 | **Handlers** | Public routers (`execute`, `handle`) followed by internal command handlers, then internal event handlers |
 
 **XML Documentation Comments:**
 - All public types and functions require `///` doc comments
@@ -137,7 +140,8 @@ Domain modules (`.fsi` and `.fs` pairs) follow a consistent sectioned structure.
 - Follow three-phase module development process documented in `docs/module_design_process.md`: define interface, write tests, implement functionality.
 - **Testing approach:**
   - **Transformation validation tests** (in `*ContractTests.fs`): Test `fromContract` transformations with Contract types to verify input validation returns appropriate errors; use domain types directly in test setup
-  - **Handler behavior tests** (in `*Tests.fs`): Create domain types directly (no transformation layer), call handlers with injected dependencies to verify correct outcomes, events, and charges
+  - **Handler behavior tests** (in `*Tests.fs`): Create domain types directly (no transformation layer), call routers (`execute`, `handle`) with union types to verify correct outcomes, events, and charges
+  - **Test helper pattern**: Use private record type grouping routers (e.g., `type private Rondel = { Execute: RondelCommand -> unit; Handle: RondelInboundEvent -> Result<unit, string> }`), create factory function that returns router record + observable collections (events, commands) for verification
   - **Separation**: Keep transformation layer testing separate from handler behavior testing for clearer test intent and reduced boilerplate
 - Current test coverage (16 tests total):
   - **RondelContractTests.fs** (5 transformation validation tests):

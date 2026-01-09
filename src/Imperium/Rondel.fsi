@@ -113,22 +113,22 @@ module Rondel =
     // Outbound Commands (to other bounded contexts)
     // ──────────────────────────────────────────────────────────────────────────
 
+    /// Union of all outbound commands dispatched to other bounded contexts.
+    type RondelOutboundCommand =
+        | ChargeMovement of ChargeMovementOutboundCommand
+        | VoidCharge of VoidChargeOutboundCommand
+
     /// Command to charge a nation for paid rondel movement (4-6 spaces).
-    type ChargeMovementOutboundCommand =
+    and ChargeMovementOutboundCommand =
         { GameId: Id
           Nation: string
           Amount: Amount
           BillingId: RondelBillingId }
 
     /// Command to void a previously initiated charge before payment completion.
-    type VoidChargeOutboundCommand =
+    and VoidChargeOutboundCommand =
         { GameId: Id
           BillingId: RondelBillingId }
-
-    /// Union of all outbound commands dispatched to other bounded contexts.
-    type RondelOutboundCommand =
-        | ChargeMovement of ChargeMovementOutboundCommand
-        | VoidCharge of VoidChargeOutboundCommand
 
     // ──────────────────────────────────────────────────────────────────────────
     // Incoming Events (from other bounded contexts)
@@ -239,22 +239,10 @@ module Rondel =
     // Handlers
     // ──────────────────────────────────────────────────────────────────────────
 
-    /// Initialize rondel for the specified game with the given nations.
-    /// All nations are positioned at their starting positions.
-    /// Publishes PositionedAtStart event. Throws if nation set is empty.
-    val setToStartingPositions: RondelDependencies -> SetToStartingPositionsCommand -> unit
+    /// Execute a rondel command. Routes to the appropriate command handler.
+    /// Throws if command execution fails (e.g., invalid state, persistence failure).
+    val execute: RondelDependencies -> RondelCommand -> unit
 
-    /// Move a nation to the specified space on the rondel.
-    /// Free moves (1-3 spaces) complete immediately with ActionDetermined event.
-    /// Paid moves (4-6 spaces) dispatch charge and await payment confirmation.
-    /// Throws for invalid moves (0 spaces, 7+ spaces, uninitialized game).
-    val move: RondelDependencies -> MoveCommand -> unit
-
-    /// Process invoice payment confirmation from Accounting domain.
-    /// Completes pending movement and publishes ActionDetermined event.
-    /// Idempotent: ignores events for non-existent pending movements.
-    val onInvoicedPaid: RondelDependencies -> InvoicePaidInboundEvent -> Result<unit, string>
-
-    /// Process invoice payment failure from Accounting domain.
-    /// Rejects movement and publishes MoveToActionSpaceRejected event.
-    val onInvoicePaymentFailed: RondelDependencies -> InvoicePaymentFailedInboundEvent -> Result<unit, string>
+    /// Handle an inbound event from other bounded contexts. Routes to the appropriate event handler.
+    /// Returns Error if event handling fails; Ok(()) on success.
+    val handle: RondelDependencies -> RondelInboundEvent -> Result<unit, string>

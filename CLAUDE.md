@@ -5,17 +5,19 @@ Last verified: 2026-01-04
 
 ## Quick Status (last verified: current)
 
-- Rondel handlers: All handlers accept unified `RondelDependencies` record (contains Load, Save, Publish, Dispatch). `setToStartingPositions` (complete), `move` (complete - handles 1-3 space free moves, 4-6 space paid moves with charge dispatch and pending state, rejects 0 and 7+ space moves; automatically voids old charges and rejects old pending moves when a nation initiates a new move before previous payment completes; PendingMovements map keyed by nation for efficient lookups), `onInvoicedPaid` (complete - idempotent payment confirmation handler; ignores duplicate payment events; fails fast on state corruption), `onInvoicePaymentFailed` (stubbed).
+- Rondel public API: Two routers (`execute` for `RondelCommand`, `handle` for `RondelInboundEvent`) provide single entry points. All internal handlers accept unified `RondelDependencies` record (contains Load, Save, Publish, Dispatch).
+- Rondel internal handlers: `setToStartingPositions` (complete), `move` (complete - handles 1-3 space free moves, 4-6 space paid moves with charge dispatch and pending state, rejects 0 and 7+ space moves; automatically voids old charges and rejects old pending moves when a nation initiates a new move before previous payment completes; PendingMovements map keyed by nation for efficient lookups), `onInvoicedPaid` (complete - idempotent payment confirmation handler; ignores duplicate payment events; fails fast on state corruption), `onInvoicePaymentFailed` (stubbed).
 - Rondel outbound commands: Domain types (`ChargeMovementOutboundCommand`, `VoidChargeOutboundCommand`, `RondelOutboundCommand` DU) with per-command `toContract` transformations targeting Accounting bounded context.
 - Accounting contract: ChargeNationForRondelMovementCommand, VoidRondelChargeCommand (commands), AccountingCommand (routing DU), AccountingEvent (payment result events).
 - Rondel state: handlers load/save domain `RondelState` by `Id`; persistence adapters map to/from `Contract.Rondel.RondelState` via `RondelState.toContract/fromContract`.
 - Gameplay and Accounting modules expose no public API yet.
-- Tests organized by concern: `RondelContractTests.fs` (5 transformation validation tests: SetToStartingPositionsCommand/MoveCommand `fromContract` input validation) and `RondelTests.fs` (11 handler behavior tests: setToStartingPositions signaling/idempotency, move with free/paid/rejected outcomes, onInvoicePaid completion). Handler tests use domain types directly (no transformation boilerplate). Property tests validate move behavior across random nations/spaces (15 iterations each). Test mocks track both charge and void command history. Total: 16 passing, 0 failing.
+- Tests organized by concern: `RondelContractTests.fs` (5 transformation validation tests: SetToStartingPositionsCommand/MoveCommand `fromContract` input validation) and `RondelTests.fs` (11 handler behavior tests using router pattern). Handler tests use `Rondel` record helper with `Execute`/`Handle` routers, `createRondel()` factory returns router record + observable collections (events, commands) for verification. Tests call routers with union types (e.g., `rondel.Execute <| SetToStartingPositions cmd`). Property tests validate move behavior across random nations/spaces (15 iterations each). Total: 16 passing, 0 failing.
 
 ## Agent Priorities
 
 - Follow the three-phase process in `docs/module_design_process.md`: define `.fsi`, write tests, then implement.
 - Handlers accept unified `RondelDependencies` record for consistency. When adding new handlers, use the same pattern.
+- Public API uses routers (`execute`, `handle`) as single entry points; individual handlers are internal implementation details.
 - Prefer minimal public surface; align `.fs` to `.fsi` without widening the API.
 
 ## CQRS & Contract Patterns (anchor details in AGENTS.md)
