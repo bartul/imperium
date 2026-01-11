@@ -427,6 +427,9 @@ module Rondel =
     // Handlers (Internal Types)
     // ──────────────────────────────────────────────────────────────────────────
 
+    /// Materialize side effects from pure command results.
+    /// Sequences IO operations (save state → publish events → dispatch commands) with Result.bind for error propagation.
+    /// Used by all command handlers to apply the results of pure business logic execution.
     let materialize deps state events commands =
         let save = deps.Save
         let publish = deps.Publish
