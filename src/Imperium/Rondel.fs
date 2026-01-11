@@ -427,74 +427,36 @@ module Rondel =
     // Handlers (Internal Types)
     // ──────────────────────────────────────────────────────────────────────────
 
-    /// Movement decision outcome (internal to move handler).
-    type internal MoveOutcome =
-        | Rejected of rejectedCommand: MoveCommand
-        | Free of targetSpace: Space * nation: string
-        | FreeWithSupersedingUnpaidMovement of targetSpace: Space * nation: string
-        | Paid of targetSpace: Space * distance: int * nation: string
-        | PaidWithSupersedingUnpaidMovement of targetSpace: Space * distance: int * nation: string
-
-    // ──────────────────────────────────────────────────────────────────────────
-    // Handlers
-    // ──────────────────────────────────────────────────────────────────────────
-
-    /// Initialize rondel for the specified game with the given nations.
-    let internal setToStartingPositions (deps: RondelDependencies) (command: SetToStartingPositionsCommand) : unit =
-        let load = deps.Load
-        let save = deps.Save
-        let publish = deps.Publish
-
-        let canNotSetStartPositionsWithNoNations command =
-            if Set.isEmpty command.Nations then
-                failwith "Cannot initialize rondel with zero nations."
-            else
-                command
-
-        let execute state (command: SetToStartingPositionsCommand) =
-            match state with
-            | Some _ -> None, [], [] // Already initialized, no-op
-            | None ->
-                let newState: RondelState =
-                    { GameId = command.GameId
-                      NationPositions = command.Nations |> Set.toSeq |> Seq.map (fun n -> n, None) |> Map.ofSeq
-                      PendingMovements = Map.empty }
-
-                let positionedAtStartEvent = PositionedAtStart { GameId = command.GameId }
-
-                Some newState, [ positionedAtStartEvent ], []
-
-        let performIO state events commands =
-            let saveState state =
-                match state with
-                | Some s -> save s
-                | None -> Ok()
-
-            let publishEvents events = events |> List.iter publish |> Ok
-
-            let executeOutboundCommands commands =
-                // setToStartingPositions does not dispatch outbound commands
-                match commands with
-                | [] -> Ok()
-                | _ -> failwith "Unexpected outbound commands in setToStartingPositions"
-
-            saveState state
-            |> Result.bind (fun () -> publishEvents events)
-            |> Result.bind (fun () -> executeOutboundCommands commands)
-            |> Result.defaultWith (fun e -> failwith $"Failed to perform IO side effects: {e}")
-
-        command
-        |> canNotSetStartPositionsWithNoNations
-        |> (fun cmd -> load cmd.GameId, cmd)
-        ||> execute
-        |||> performIO
-
-    /// Move a nation to the specified space on the rondel.
-    let internal move (deps: RondelDependencies) (command: MoveCommand) : unit =
-        let load = deps.Load
+    let materialize deps state events commands =
         let save = deps.Save
         let publish = deps.Publish
         let dispatch = deps.Dispatch
+
+        let saveState state =
+            match state with
+            | Some s -> save s
+            | None -> Ok()
+
+        let publishEvents events = events |> List.iter publish |> Ok
+
+        let executeOutboundCommands commands =
+            (Ok(), commands)
+            ||> List.fold (fun state cmd -> state |> Result.bind (fun () -> dispatch cmd))
+
+        saveState state
+        |> Result.bind (fun () -> publishEvents events)
+        |> Result.bind (fun () -> executeOutboundCommands commands)
+        |> Result.defaultWith (fun e -> failwith $"Failed to materialize side effects: {e}")
+
+    /// Internal module containing pure move logic and decision pipeline.
+    module internal Move =
+        /// Movement decision outcome (internal to move handler).
+        type MoveOutcome =
+            | Rejected of rejectedCommand: MoveCommand
+            | Free of targetSpace: Space * nation: string
+            | FreeWithSupersedingUnpaidMovement of targetSpace: Space * nation: string
+            | Paid of targetSpace: Space * distance: int * nation: string
+            | PaidWithSupersedingUnpaidMovement of targetSpace: Space * distance: int * nation: string
 
         // Decision chain functions
         let noMovesAllowedIfNotInitialized (state, validatedCommand: MoveCommand) =
@@ -646,35 +608,61 @@ module Rondel =
                 Some newState, [ existingUnpaidMoveRejectedEvent ], [ voidChargeCommand; chargeCommand ]
             | _, _ -> failwith "Unhandled move outcome."
 
-        // IO side-effect sequencer
-        let performIO state events commands =
-            let saveState state =
-                match state with
-                | Some s -> save s
-                | None -> Ok()
-
-            let publishEvents events = events |> List.iter publish |> Ok
-
-            let executeOutboundCommands commands =
-                (Ok(), commands)
-                ||> List.fold (fun state cmd -> state |> Result.bind (fun () -> dispatch cmd))
-
-            saveState state
-            |> Result.bind (fun () -> publishEvents events)
-            |> Result.bind (fun () -> executeOutboundCommands commands)
-            |> Result.defaultWith (fun e -> failwith $"Failed to perform IO side effects: {e}")
-
-        // Execute pipeline
-        let execute state command =
+        /// Pure move processing function: takes state and command, returns (state, events, commands) tuple.
+        /// Contains no IO - purely transforms input to output based on business rules.
+        let execute
+            (command: MoveCommand)
+            (state: RondelState option)
+            : RondelState option * RondelEvent list * RondelOutboundCommand list =
             noMovesAllowedIfNotInitialized (state, command)
             |> Decision.bind noMovesAllowedForNationNotInGame
             |> Decision.bind firstMoveIsFreeToAnyPosition
             |> Decision.resolve decideMovementOutcome
             |> handleMoveOutcome state
-            |||> performIO
 
-        let loadedState = load command.GameId
-        execute loadedState command
+    /// Internal module containing pure setToStartingPositions logic.
+    module internal SetToStartingPositions =
+        let private canNotSetStartPositionsWithNoNations command =
+            if Set.isEmpty command.Nations then
+                failwith "Cannot initialize rondel with zero nations."
+            else
+                command
+
+        /// Pure setToStartingPositions processing function: takes state and command, returns (state, events, commands) tuple.
+        /// Contains no IO - purely transforms input to output based on business rules.
+        let execute
+            (command: SetToStartingPositionsCommand)
+            (state: RondelState option)
+            : RondelState option * RondelEvent list * RondelOutboundCommand list =
+            let validatedCommand = canNotSetStartPositionsWithNoNations command
+
+            match state with
+            | Some _ -> None, [], [] // Already initialized, no-op
+            | None ->
+                let newState: RondelState =
+                    { GameId = validatedCommand.GameId
+                      NationPositions = validatedCommand.Nations |> Set.toSeq |> Seq.map (fun n -> n, None) |> Map.ofSeq
+                      PendingMovements = Map.empty }
+
+                let positionedAtStartEvent = PositionedAtStart { GameId = validatedCommand.GameId }
+
+                Some newState, [ positionedAtStartEvent ], []
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // Handlers
+    // ──────────────────────────────────────────────────────────────────────────
+
+    /// Initialize rondel for the specified game with the given nations.
+    let internal setToStartingPositions (deps: RondelDependencies) (command: SetToStartingPositionsCommand) : unit =
+
+        deps.Load command.GameId
+        |> SetToStartingPositions.execute command
+        |||> materialize deps
+
+    /// Move a nation to the specified space on the rondel.
+    let internal move (deps: RondelDependencies) (command: MoveCommand) : unit =
+
+        deps.Load command.GameId |> Move.execute command |||> materialize deps
 
     /// Process invoice payment confirmation from Accounting domain.
     let internal onInvoicedPaid (deps: RondelDependencies) (event: InvoicePaidInboundEvent) : Result<unit, string> =
