@@ -651,7 +651,7 @@ module Rondel =
 
                 Some newState, [ positionedAtStartEvent ], []
 
-    module internal onInvoicePaid =
+    module internal OnInvoicePaid =
         let failIfNotInitialized (state: RondelState option, event: InvoicePaidInboundEvent) =
             match state with
             | Some s -> s, event
@@ -712,7 +712,7 @@ module Rondel =
 
         event.GameId
         |> deps.Load
-        |> onInvoicePaid.handle event
+        |> OnInvoicePaid.handle event
         |||> materialize deps
         |> Ok
 
