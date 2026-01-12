@@ -651,6 +651,46 @@ module Rondel =
 
                 Some newState, [ positionedAtStartEvent ], []
 
+    module internal OnInvoicePaid =
+        let failIfNotInitialized (state: RondelState option, event: InvoicePaidInboundEvent) =
+            match state with
+            | Some s -> s, event
+            | None -> failwith "Rondel not initialized for game."
+
+        let registerPaymentAndCompleteMovement (state: RondelState, event: InvoicePaidInboundEvent) =
+            let pendingMovement =
+                state.PendingMovements
+                |> Map.toSeq
+                |> Seq.tryFind (fun (_, pm) -> pm.BillingId = event.BillingId)
+                |> Option.map snd
+
+            let emptyCommands: RondelOutboundCommand list = []
+
+            match pendingMovement with
+            | None ->
+                // No pending movement found - idempotent handling for duplicates or already completed/voided.
+                None, [], emptyCommands
+            | Some pending ->
+                let action = Space.toAction pending.TargetSpace
+
+                let newNationPosition = Some pending.TargetSpace
+
+                let newState =
+                    { state with
+                        NationPositions = state.NationPositions |> Map.add pending.Nation newNationPosition
+                        PendingMovements = state.PendingMovements |> Map.remove pending.Nation }
+
+                let actionDeterminedEvent =
+                    ActionDetermined
+                        { GameId = state.GameId
+                          Nation = pending.Nation
+                          Action = action }
+
+                Some newState, [ actionDeterminedEvent ], emptyCommands
+
+        let handle event state =
+            failIfNotInitialized (state, event) |> registerPaymentAndCompleteMovement
+
     // ──────────────────────────────────────────────────────────────────────────
     // Handlers
     // ──────────────────────────────────────────────────────────────────────────
@@ -668,64 +708,13 @@ module Rondel =
         deps.Load command.GameId |> Move.execute command |||> materialize deps
 
     /// Process invoice payment confirmation from Accounting domain.
-    let internal onInvoicedPaid (deps: RondelDependencies) (event: InvoicePaidInboundEvent) : Result<unit, string> =
-        let load = deps.Load
-        let save = deps.Save
-        let publish = deps.Publish
+    let internal onInvoicePaid (deps: RondelDependencies) (event: InvoicePaidInboundEvent) : Result<unit, string> =
 
-        let performIO state events =
-            let saveState state =
-                match state with
-                | Some s -> save s
-                | None -> Ok()
-
-            let publishEvents events = events |> List.iter publish |> Ok
-
-            saveState state
-            |> Result.bind (fun () -> publishEvents events)
-            |> Result.defaultWith (fun e -> failwith $"Failed to perform IO side effects: {e}")
-
-        let failIfNotInitialized (state: RondelState option, event: InvoicePaidInboundEvent) =
-            match state with
-            | Some s -> s, event
-            | None -> failwith "Rondel not initialized for game."
-
-        let registerPaymentAndCompleteMovement (state: RondelState, event: InvoicePaidInboundEvent) =
-            let pendingMovement =
-                state.PendingMovements
-                |> Map.toSeq
-                |> Seq.tryFind (fun (_, pm) -> pm.BillingId = event.BillingId)
-                |> Option.map snd
-
-            match pendingMovement with
-            | None ->
-                // No pending movement found - idempotent handling for duplicates or already completed/voided.
-                None, []
-            | Some pending ->
-                let action = Space.toAction pending.TargetSpace
-
-                let newNationPosition = Some pending.TargetSpace
-
-                let newState =
-                    { state with
-                        NationPositions = state.NationPositions |> Map.add pending.Nation newNationPosition
-                        PendingMovements = state.PendingMovements |> Map.remove pending.Nation }
-
-                let actionDeterminedEvent =
-                    ActionDetermined
-                        { GameId = state.GameId
-                          Nation = pending.Nation
-                          Action = action }
-
-                Some newState, [ actionDeterminedEvent ]
-
-        let execute state event =
-            failIfNotInitialized (state, event)
-            |> registerPaymentAndCompleteMovement
-            ||> performIO
-
-        let loadedState = load event.GameId
-        Ok(execute loadedState event)
+        event.GameId
+        |> deps.Load
+        |> OnInvoicePaid.handle event
+        |||> materialize deps
+        |> Ok
 
     /// Process invoice payment failure from Accounting domain.
     let internal onInvoicePaymentFailed
@@ -747,5 +736,5 @@ module Rondel =
     /// Handle an inbound event from other bounded contexts. Routes to the appropriate event handler.
     let handle (deps: RondelDependencies) (event: RondelInboundEvent) : Result<unit, string> =
         match event with
-        | InvoicePaid evt -> onInvoicedPaid deps evt
+        | InvoicePaid evt -> onInvoicePaid deps evt
         | InvoicePaymentFailed evt -> onInvoicePaymentFailed deps evt
