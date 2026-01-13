@@ -7,7 +7,7 @@ open Imperium.Primitives
 
 type private Rondel =
     { Execute: RondelCommand -> unit
-      Handle: RondelInboundEvent -> Result<unit, string> }
+      Handle: RondelInboundEvent -> unit }
 
 let private createRondel () =
     let store = Collections.Generic.Dictionary<Id, RondelState>()
@@ -854,9 +854,7 @@ let tests =
                         { GameId = gameId
                           BillingId = billingId }
 
-                    let result = rondel.Handle <| InvoicePaid invoicePaidEvent
-                    // Assert: operation succeeds
-                    Expect.isOk result "payment confirmation should succeed"
+                    rondel.Handle <| InvoicePaid invoicePaidEvent
 
                     // Assert: ActionDetermined event published for target space
                     Expect.contains

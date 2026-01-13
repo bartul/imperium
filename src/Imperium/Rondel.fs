@@ -698,29 +698,23 @@ module Rondel =
     /// Initialize rondel for the specified game with the given nations.
     let internal setToStartingPositions (deps: RondelDependencies) (command: SetToStartingPositionsCommand) : unit =
 
-        deps.Load command.GameId
+        command.GameId
+        |> deps.Load
         |> SetToStartingPositions.execute command
         |||> materialize deps
 
     /// Move a nation to the specified space on the rondel.
     let internal move (deps: RondelDependencies) (command: MoveCommand) : unit =
 
-        deps.Load command.GameId |> Move.execute command |||> materialize deps
+        command.GameId |> deps.Load |> Move.execute command |||> materialize deps
 
     /// Process invoice payment confirmation from Accounting domain.
-    let internal onInvoicePaid (deps: RondelDependencies) (event: InvoicePaidInboundEvent) : Result<unit, string> =
+    let internal onInvoicePaid (deps: RondelDependencies) (event: InvoicePaidInboundEvent) : unit =
 
-        event.GameId
-        |> deps.Load
-        |> OnInvoicePaid.handle event
-        |||> materialize deps
-        |> Ok
+        event.GameId |> deps.Load |> OnInvoicePaid.handle event |||> materialize deps
 
     /// Process invoice payment failure from Accounting domain.
-    let internal onInvoicePaymentFailed
-        (deps: RondelDependencies)
-        (event: InvoicePaymentFailedInboundEvent)
-        : Result<unit, string> =
+    let internal onInvoicePaymentFailed (deps: RondelDependencies) (event: InvoicePaymentFailedInboundEvent) : unit =
         invalidOp "Not implemented: onInvoicePaymentFailed"
 
     // ──────────────────────────────────────────────────────────────────────────
@@ -734,7 +728,8 @@ module Rondel =
         | Move cmd -> move deps cmd
 
     /// Handle an inbound event from other bounded contexts. Routes to the appropriate event handler.
-    let handle (deps: RondelDependencies) (event: RondelInboundEvent) : Result<unit, string> =
+    let handle (deps: RondelDependencies) (event: RondelInboundEvent) : unit =
+
         match event with
         | InvoicePaid evt -> onInvoicePaid deps evt
         | InvoicePaymentFailed evt -> onInvoicePaymentFailed deps evt
