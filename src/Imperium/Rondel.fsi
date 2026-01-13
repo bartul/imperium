@@ -245,4 +245,4 @@ module Rondel =
 
     /// Handle an inbound event from other bounded contexts. Routes to the appropriate event handler.
     /// Returns Error if event handling fails; Ok(()) on success.
-    val handle: RondelDependencies -> RondelInboundEvent -> Result<unit, string>
+    val handle: RondelDependencies -> RondelInboundEvent -> unit
