@@ -706,24 +706,15 @@ module Rondel =
     /// Move a nation to the specified space on the rondel.
     let internal move (deps: RondelDependencies) (command: MoveCommand) : unit =
 
-        command.GameId
-        |> deps.Load
-        |> Move.execute command
-        |||> materialize deps
+        command.GameId |> deps.Load |> Move.execute command |||> materialize deps
 
     /// Process invoice payment confirmation from Accounting domain.
     let internal onInvoicePaid (deps: RondelDependencies) (event: InvoicePaidInboundEvent) : unit =
 
-        event.GameId
-        |> deps.Load
-        |> OnInvoicePaid.handle event
-        |||> materialize deps
+        event.GameId |> deps.Load |> OnInvoicePaid.handle event |||> materialize deps
 
     /// Process invoice payment failure from Accounting domain.
-    let internal onInvoicePaymentFailed
-        (deps: RondelDependencies)
-        (event: InvoicePaymentFailedInboundEvent)
-        : unit =
+    let internal onInvoicePaymentFailed (deps: RondelDependencies) (event: InvoicePaymentFailedInboundEvent) : unit =
         invalidOp "Not implemented: onInvoicePaymentFailed"
 
     // ──────────────────────────────────────────────────────────────────────────
@@ -732,13 +723,13 @@ module Rondel =
 
     /// Execute a rondel command. Routes to the appropriate command handler.
     let execute (deps: RondelDependencies) (command: RondelCommand) : unit =
-       match command with
+        match command with
         | SetToStartingPositions cmd -> setToStartingPositions deps cmd
         | Move cmd -> move deps cmd
 
     /// Handle an inbound event from other bounded contexts. Routes to the appropriate event handler.
     let handle (deps: RondelDependencies) (event: RondelInboundEvent) : unit =
-        
+
         match event with
         | InvoicePaid evt -> onInvoicePaid deps evt
         | InvoicePaymentFailed evt -> onInvoicePaymentFailed deps evt
