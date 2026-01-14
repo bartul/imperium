@@ -12,31 +12,41 @@ type private Rondel =
 let private createRondel () =
     let store = Collections.Generic.Dictionary<Id, RondelState>()
 
-    let load (gameId: Id) =
-        match store.TryGetValue(gameId) with
-        | true, state -> Some state
-        | false, _ -> None
+    let load (gameId: Id) : Async<RondelState option> =
+        async {
+            return
+                match store.TryGetValue(gameId) with
+                | true, state -> Some state
+                | false, _ -> None
+        }
 
-    let save (state: RondelState) =
-        store.[state.GameId] <- state
-        Ok()
+    let save (state: RondelState) : Async<Result<unit, string>> =
+        async {
+            store.[state.GameId] <- state
+            return Ok()
+        }
 
     let publishedEvents = ResizeArray<RondelEvent>()
 
+    let publish (event: RondelEvent) : Async<unit> = async { publishedEvents.Add event }
+
     let dispatchedCommands = ResizeArray<RondelOutboundCommand>()
 
-    let dispatch (command: RondelOutboundCommand) =
-        dispatchedCommands.Add command
-        Ok()
+    let dispatch (command: RondelOutboundCommand) : Async<Result<unit, string>> =
+        async {
+            dispatchedCommands.Add command
+            return Ok()
+        }
 
     let deps =
         { Load = load
           Save = save
-          Publish = publishedEvents.Add
+          Publish = publish
           Dispatch = dispatch }
 
-    { Execute = execute deps
-      Handle = handle deps },
+    // Wrap async routers in synchronous interface for test convenience
+    { Execute = fun cmd -> execute deps cmd |> Async.RunSynchronously
+      Handle = fun evt -> handle deps evt |> Async.RunSynchronously },
     publishedEvents,
     dispatchedCommands
 
