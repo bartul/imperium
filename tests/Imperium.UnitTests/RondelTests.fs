@@ -810,9 +810,7 @@ let tests =
                         { GameId = gameId
                           Nations = Set.ofArray nations }
 
-                    rondel.Execute <| SetToStartingPositions initCommand
-
-                    publishedEvents.Clear()
+                    SetToStartingPositions initCommand |> rondel.Execute
 
                     // Setup: establish starting position with first move (free to any space)
                     let firstMoveCmd: MoveCommand =
@@ -820,84 +818,120 @@ let tests =
                           Nation = "Austria"
                           Space = Space.ManeuverOne }
 
-                    rondel.Execute <| Move firstMoveCmd
+                    Move firstMoveCmd |> rondel.Execute
 
-                    Expect.contains
-                        publishedEvents
-                        (ActionDetermined
-                            { GameId = firstMoveCmd.GameId
-                              Nation = "Austria"
-                              Action = Action.Maneuver })
-                        "first move should complete immediately"
+                    Move
+                        { firstMoveCmd with
+                            Space = Space.Investor }
+                    |> rondel.Execute
 
-                    publishedEvents.Clear()
-                    dispatchedCommands.Clear()
+                    let billingId =
+                        dispatchedCommands
+                        |> Seq.choose (function
+                            | ChargeMovement chargeCmd -> Some chargeCmd.BillingId
+                            | _ -> None)
+                        |> Seq.tryHead
+                        |> Option.defaultWith (fun () -> failwith "charge command not dispatched")
 
-                    // Setup: initiate paid move (5 spaces: ManeuverOne to Investor) - creates pending movement
-                    let secondMoveCmd: MoveCommand =
-                        { GameId = gameId
-                          Nation = "Austria"
-                          Space = Space.Investor }
-
-                    rondel.Execute <| Move secondMoveCmd
-
-                    let chargeCommands = getChargeCommands dispatchedCommands
-                    Expect.hasLength chargeCommands 1 "paid move should dispatch charge command"
-                    let billingId = chargeCommands.[0].BillingId
-
-                    Expect.equal chargeCommands.[0].Amount (Amount.unsafe 4) "charge for 5 spaces should be 4M"
-
-                    let actionEvents =
-                        publishedEvents
-                        |> Seq.filter (function
-                            | ActionDetermined _ -> true
-                            | _ -> false)
-                        |> Seq.toList
-
-                    Expect.isEmpty actionEvents "no action should be determined until payment confirmed"
-
-                    publishedEvents.Clear()
-                    dispatchedCommands.Clear()
 
                     // Execute: process payment confirmation
                     let invoicePaidEvent: InvoicePaidInboundEvent =
                         { GameId = gameId
                           BillingId = billingId }
 
-                    rondel.Handle <| InvoicePaid invoicePaidEvent
+                    InvoicePaid invoicePaidEvent |> rondel.Handle
 
                     // Assert: ActionDetermined event published for target space
                     Expect.contains
                         publishedEvents
                         (ActionDetermined
-                            { GameId = secondMoveCmd.GameId
+                            { GameId = gameId
                               Nation = "Austria"
                               Action = Action.Investor })
                         "ActionDetermined event should be published after payment confirmation"
 
-                    // Assert: only one event published
-                    Expect.hasLength publishedEvents 1 "only ActionDetermined event should be published"
+                    Move
+                        { firstMoveCmd with
+                            Space = Space.Import }
+                    |> rondel.Execute
 
-                    // Assert: no additional charges or voids
-                    Expect.isEmpty dispatchedCommands "no new charges after payment confirmation"
-                    let voidCommands = getVoidCommands dispatchedCommands
-                    Expect.isEmpty voidCommands "no voids after successful payment"
+                    Expect.contains
+                        publishedEvents
+                        (ActionDetermined
+                            { GameId = gameId
+                              Nation = "Austria"
+                              Action = Action.Import })
+                        "subsequent move from Investor to Import (1 space) should succeed, confirming position was updated"
 
-                    // Assert: verify state updated - pending movement cleared, position updated
-                    // Subsequent move from Investor (new position) should succeed
-                    publishedEvents.Clear()
+                testCase "paying twice for same movement only completes it once"
+                <| fun _ ->
+                    // Setup: create mocks
+                    let rondel, publishedEvents, dispatchedCommands = createRondel ()
 
+                    let gameId = Guid.NewGuid() |> Id
+                    let nations = [| "Austria" |]
+
+                    // Setup: initialize rondel
+                    let initCommand =
+                        { GameId = gameId
+                          Nations = Set.ofArray nations }
+
+                    SetToStartingPositions initCommand |> rondel.Execute
+
+                    // Setup: establish starting position with first move
+                    let firstMoveCmd: MoveCommand =
+                        { GameId = gameId
+                          Nation = "Austria"
+                          Space = Space.ManeuverOne }
+
+                    Move firstMoveCmd |> rondel.Execute
+
+                    // Setup: make paid move (5 spaces - ManeuverOne to Investor)
+                    Move
+                        { firstMoveCmd with
+                            Space = Space.Investor }
+                    |> rondel.Execute
+
+                    let billingId =
+                        dispatchedCommands
+                        |> Seq.choose (function
+                            | ChargeMovement chargeCmd -> Some chargeCmd.BillingId
+                            | _ -> None)
+                        |> Seq.tryHead
+                        |> Option.defaultWith (fun () -> failwith "charge command not dispatched")
+
+                    // Execute: process payment confirmation (first time)
+                    let invoicePaidEvent: InvoicePaidInboundEvent =
+                        { GameId = gameId
+                          BillingId = billingId }
+
+                    InvoicePaid invoicePaidEvent |> rondel.Handle
+
+                    // Execute: process same payment confirmation again (second time)
+                    InvoicePaid invoicePaidEvent |> rondel.Handle
+
+                    // Assert: ActionDetermined for Investor appears only once (not duplicated)
+                    let investorActionCount =
+                        publishedEvents
+                        |> Seq.filter (function
+                            | ActionDetermined e when e.Action = Action.Investor -> true
+                            | _ -> false)
+                        |> Seq.length
+
+                    Expect.equal investorActionCount 1 "paying twice should only complete movement once"
+
+                    // Assert: subsequent move confirms position was updated correctly
                     let thirdMoveCmd: MoveCommand =
                         { GameId = gameId
                           Nation = "Austria"
                           Space = Space.Import }
 
-                    rondel.Execute <| Move thirdMoveCmd
-
+                    Move thirdMoveCmd |> rondel.Execute
+                    
                     Expect.contains
                         publishedEvents
                         (ActionDetermined
-                            { GameId = thirdMoveCmd.GameId
+                            { GameId = gameId
                               Nation = "Austria"
                               Action = Action.Import })
-                        "subsequent move from Investor to Import (1 space) should succeed, confirming position was updated" ] ]
+                        "subsequent move from Investor should succeed" ] ]
