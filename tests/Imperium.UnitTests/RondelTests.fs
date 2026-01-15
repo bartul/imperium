@@ -934,4 +934,84 @@ let tests =
                             { GameId = gameId
                               Nation = "Austria"
                               Action = Action.Import })
-                        "subsequent move from Investor should succeed" ] ]
+                        "subsequent move from Investor should succeed"
+
+                testCase "payment for cancelled movement is ignored"
+                <| fun _ ->
+                    // Setup: create mocks
+                    let rondel, publishedEvents, dispatchedCommands = createRondel ()
+
+                    let gameId = Guid.NewGuid() |> Id
+                    let nations = [| "France" |]
+
+                    // Setup: initialize rondel
+                    let initCommand =
+                        { GameId = gameId
+                          Nations = Set.ofArray nations }
+
+                    SetToStartingPositions initCommand |> rondel.Execute
+
+                    // Setup: establish starting position
+                    let firstMoveCmd: MoveCommand =
+                        { GameId = gameId
+                          Nation = "France"
+                          Space = Space.ProductionOne }
+
+                    Move firstMoveCmd |> rondel.Execute
+
+                    // Setup: make paid move (4 spaces - ProductionOne to ProductionTwo)
+                    let paidMove: MoveCommand =
+                        { GameId = gameId
+                          Nation = "France"
+                          Space = Space.ProductionTwo }
+
+                    Move paidMove |> rondel.Execute
+
+                    let voidedBillingId =
+                        dispatchedCommands
+                        |> Seq.choose (function
+                            | ChargeMovement chargeCmd -> Some chargeCmd.BillingId
+                            | _ -> None)
+                        |> Seq.tryHead
+                        |> Option.defaultWith (fun () -> failwith "charge command not dispatched")
+
+                    // Setup: supersede with free move (2 spaces - ProductionOne to Taxation)
+                    // This voids the previous charge and rejects the pending move
+                    let freeMove: MoveCommand =
+                        { GameId = gameId
+                          Nation = "France"
+                          Space = Space.Taxation }
+
+                    Move freeMove |> rondel.Execute
+
+                    // Verify France is at Taxation after free move
+                    Expect.contains
+                        publishedEvents
+                        (ActionDetermined
+                            { GameId = gameId
+                              Nation = "France"
+                              Action = Action.Taxation })
+                        "free move should have completed to Taxation"
+
+                    // Execute: payment arrives for the voided charge
+                    let invoicePaidEvent: InvoicePaidInboundEvent =
+                        { GameId = gameId
+                          BillingId = voidedBillingId }
+
+                    InvoicePaid invoicePaidEvent |> rondel.Handle
+
+                    // Assert: current position is Taxation (from free move), not ProductionTwo
+                    let finalMove: MoveCommand =
+                        { GameId = gameId
+                          Nation = "France"
+                          Space = Space.Factory }
+
+                    Move finalMove |> rondel.Execute
+
+                    Expect.contains
+                        publishedEvents
+                        (ActionDetermined
+                            { GameId = gameId
+                              Nation = "France"
+                              Action = Action.Factory })
+                        "subsequent move from Taxation should succeed, confirming position was not changed by late payment" ] ]
