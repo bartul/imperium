@@ -927,7 +927,7 @@ let tests =
                           Space = Space.Import }
 
                     Move thirdMoveCmd |> rondel.Execute
-                    
+
                     Expect.contains
                         publishedEvents
                         (ActionDetermined
