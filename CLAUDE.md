@@ -1,18 +1,19 @@
 # CLAUDE.md
 
 This file guides Claude Code (claude.ai/code) for this repository. For shared repo facts, module summaries, and commands, see `AGENTS.md`.
-Last verified: 2026-01-04
+Last verified: 2026-01-14
 
 ## Quick Status (last verified: current)
 
-- Rondel public API: Two routers (`execute` for `RondelCommand`, `handle` for `RondelInboundEvent`) provide single entry points. All internal handlers accept unified `RondelDependencies` record (contains Load, Save, Publish, Dispatch).
-- Rondel internal structure: Handlers follow `load → execute → materialize` pattern. Pure business logic isolated in internal modules (`Move.execute`, `SetToStartingPositions.execute`) returning `(state, events, commands)` tuples. Shared `materialize` function handles all IO side effects (save, publish, dispatch).
+- Rondel public API: Two routers (`execute` for `RondelCommand`, `handle` for `RondelInboundEvent`) return `Async<unit>` for implicit CancellationToken propagation. All internal handlers accept unified `RondelDependencies` record (contains Load, Save, Publish, Dispatch - all `Async<_>` based).
+- Rondel internal structure: Handlers follow `load → execute → materialize` pattern using `async {}` CE. Pure business logic isolated in internal modules (`Move.execute`, `SetToStartingPositions.execute`) returning `(state, events, commands)` tuples. Shared `materialize` function uses `async {}` to sequence IO side effects (save, publish, dispatch).
 - Rondel internal handlers: `setToStartingPositions` (complete - delegates to `SetToStartingPositions.execute`), `move` (complete - delegates to `Move.execute` which handles 1-3 space free moves, 4-6 space paid moves with charge dispatch and pending state, rejects 0 and 7+ space moves; automatically voids old charges and rejects old pending moves when a nation initiates a new move before previous payment completes; PendingMovements map keyed by nation for efficient lookups), `onInvoicePaid` (complete - idempotent payment confirmation handler; ignores duplicate payment events; fails fast on state corruption), `onInvoicePaymentFailed` (stubbed).
 - Rondel outbound commands: Domain types (`ChargeMovementOutboundCommand`, `VoidChargeOutboundCommand`, `RondelOutboundCommand` DU) with per-command `toContract` transformations targeting Accounting bounded context.
 - Accounting contract: ChargeNationForRondelMovementCommand, VoidRondelChargeCommand (commands), AccountingCommand (routing DU), AccountingEvent (payment result events).
 - Rondel state: handlers load/save domain `RondelState` by `Id`; persistence adapters map to/from `Contract.Rondel.RondelState` via `RondelState.toContract/fromContract`.
 - Gameplay and Accounting modules expose no public API yet.
-- Tests organized by concern: `RondelContractTests.fs` (5 transformation validation tests: SetToStartingPositionsCommand/MoveCommand `fromContract` input validation) and `RondelTests.fs` (11 handler behavior tests using router pattern). Handler tests use `Rondel` record helper with `Execute`/`Handle` routers, `createRondel()` factory returns router record + observable collections (events, commands) for verification. Tests call routers with union types (e.g., `rondel.Execute <| SetToStartingPositions cmd`). Property tests validate move behavior across random nations/spaces (15 iterations each). Total: 16 passing, 0 failing.
+- AsyncExtensions module: Provides `Async.AwaitTaskWithCT` helper for calling Task-based libraries with implicit CancellationToken from async context.
+- Tests organized by concern: `RondelContractTests.fs` (5 transformation validation tests: SetToStartingPositionsCommand/MoveCommand `fromContract` input validation) and `RondelTests.fs` (11 handler behavior tests using router pattern). Handler tests use `Rondel` record helper with `Execute`/`Handle` routers (sync wrappers using `Async.RunSynchronously`), `createRondel()` factory returns router record + observable collections (events, commands) for verification. Tests call routers with union types (e.g., `rondel.Execute <| SetToStartingPositions cmd`). Property tests validate move behavior across random nations/spaces (15 iterations each). Total: 16 passing, 0 failing.
 
 ## Agent Priorities
 
@@ -23,8 +24,9 @@ Last verified: 2026-01-04
 
 ## CQRS & Contract Patterns (anchor details in AGENTS.md)
 
-- Contracts live in `Imperium.Contract`; commands/events are records/DUs; function types for DI return `Result<unit, string>` with plain-string errors.
-- Domain modules hide internal IDs and state; use two-layer architecture: transformation modules validate Contract → Domain (return `Result`), handlers accept domain types plus injected dependencies.
+- Contracts live in `Imperium.Contract`; commands/events are records/DUs.
+- Domain dependency types use `Async<_>` for implicit CancellationToken propagation (e.g., `LoadRondelState = Id -> Async<RondelState option>`, `SaveRondelState = RondelState -> Async<Result<unit, string>>`).
+- Domain modules hide internal IDs and state; use two-layer architecture: transformation modules validate Contract → Domain (return `Result`), handlers accept domain types plus injected dependencies and return `Async<unit>`.
 - Rondel spaces and rules: use `AGENTS.md` and `docs/official_rules/Imperial_English_Rules.pdf` for full detail; keep tests aligned to contracts.
 
 ## Signature Files: Function vs Value

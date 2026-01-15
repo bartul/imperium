@@ -1,9 +1,9 @@
 # Repository Guidelines
-Last verified: 2026-01-04
+Last verified: 2026-01-14
 
 ## Project Structure & Module Organization
 - `Imperium.sln` stitches together the core F# library, ASP.NET Core web host, and unit test project.
-- `src/Imperium` contains domain modules (build order: `Primitives.fs`, `Contract.fs`, `Contract.Accounting.fs`, `Contract.Rondel.fs`, `Gameplay.fs/.fsi`, `Accounting.fs/.fsi`, `Rondel.fs/.fsi`).
+- `src/Imperium` contains domain modules (build order: `Primitives.fs`, `AsyncExtensions.fs`, `Contract.fs`, `Contract.Accounting.fs`, `Contract.Rondel.fs`, `Gameplay.fs/.fsi`, `Accounting.fs/.fsi`, `Rondel.fs/.fsi`).
 - `tests/Imperium.UnitTests` contains Expecto-based unit tests; test modules mirror source structure (e.g., `RondelTests.fs` tests `Rondel.fs` handlers, `RondelContractTests.fs` tests `Rondel.fs` transformation layer).
 - **Primitives module:** Foundational types with no `.fsi` file (intentionally public)
   - `Id` - Struct wrapping `Guid` with validation; provides `create`, `newId`, `value`, `toString`, `tryParse`, and mapper helpers
@@ -33,21 +33,22 @@ Last verified: 2026-01-04
 ### Handler Signature Pattern
 - **Transformation modules** (`SetToStartingPositionsCommand.fromContract`, `MoveCommand.fromContract`, `InvoicePaidInboundEvent.fromContract`, `InvoicePaymentFailedInboundEvent.fromContract`): Modules named after domain types; accept Contract types, validate inputs, return `Result<DomainType, string>` with plain string errors
 - **Router functions (public API)**:
-  - `execute`: Routes `RondelCommand` union type to appropriate internal command handler; accepts `RondelDependencies` record, then `RondelCommand`; throws exceptions for business rule violations, returns `unit`
-  - `handle`: Routes `RondelInboundEvent` union type to appropriate internal event handler; accepts `RondelDependencies` record, then `RondelInboundEvent`; returns `unit`, throws exceptions on errors
-- **Internal command handlers** (`setToStartingPositions`, `move`): Accept `RondelDependencies` record, then domain command types; throw exceptions for business rule violations, return `unit`; marked `internal`, not exposed in `.fsi`
-- **Internal event handlers** (`onInvoicePaid`, `onInvoicePaymentFailed`): Accept `RondelDependencies` record, then domain event types (after transformation from Contract types); return `unit`, throw exceptions on errors; marked `internal`, not exposed in `.fsi`
-- **Unified dependencies**: All Rondel handlers accept a single `RondelDependencies` record (`{ Load: LoadRondelState; Save: SaveRondelState; Publish: PublishRondelEvent; Dispatch: DispatchOutboundCommand }`) for consistency. Implementations destructure the record to extract individual dependencies. This provides a uniform handler signature and simplifies adding new dependencies in the future.
+  - `execute`: Routes `RondelCommand` union type to appropriate internal command handler; accepts `RondelDependencies` record, then `RondelCommand`; returns `Async<unit>` for implicit CancellationToken propagation; throws exceptions for business rule violations
+  - `handle`: Routes `RondelInboundEvent` union type to appropriate internal event handler; accepts `RondelDependencies` record, then `RondelInboundEvent`; returns `Async<unit>`; throws exceptions on errors
+- **Internal command handlers** (`setToStartingPositions`, `move`): Accept `RondelDependencies` record, then domain command types; return `Async<unit>`; throw exceptions for business rule violations; marked `internal`, not exposed in `.fsi`
+- **Internal event handlers** (`onInvoicePaid`, `onInvoicePaymentFailed`): Accept `RondelDependencies` record, then domain event types (after transformation from Contract types); return `Async<unit>`, throw exceptions on errors; marked `internal`, not exposed in `.fsi`
+- **Unified dependencies**: All Rondel handlers accept a single `RondelDependencies` record with `Async<_>` based dependency types (`{ Load: Id -> Async<RondelState option>; Save: RondelState -> Async<Result<unit, string>>; Publish: RondelEvent -> Async<unit>; Dispatch: RondelOutboundCommand -> Async<Result<unit, string>> }`) for consistency and implicit CancellationToken propagation. Implementations use `async {}` CE with `let!`/`do!` bindings. This provides uniform async handling and simplifies adding new dependencies in the future.
 - **Public API surface**: Only routers (`execute`, `handle`) are exposed in `.fsi`; individual handlers are implementation details. This provides a clean, minimal API with single entry points for commands and events.
 - Dependency injection order: persistence (load, save), publish, then dispatch (outbound commands). Load/save use domain `RondelState` and `Id`; persistence adapters map to/from `Contract.Rondel.RondelState`. Outbound commands use domain types (`RondelOutboundCommand`) with per-command `toContract` transformations targeting appropriate bounded contexts.
 - Signature files define public shape first; implementations should not widen the surface in `.fs`.
+- **AsyncExtensions module**: Provides `Async.AwaitTaskWithCT` helper for calling Task-based libraries (e.g., EF Core, Marten, Azure SDK) with the implicit CancellationToken from async context. Usage: `let! result = Async.AwaitTaskWithCT (fun ct -> library.MethodAsync(arg, ct))`.
 
 ### Rondel Implementation Patterns
-- **Two-layer architecture**: Transformation layer (validates inputs, returns `Result`) + Handler layer (validates business rules, throws exceptions, returns `unit`)
+- **Two-layer architecture**: Transformation layer (validates inputs, returns `Result`) + Handler layer (validates business rules, throws exceptions, returns `Async<unit>`)
 - **Transformation modules** (`SetToStartingPositionsCommand`, `MoveCommand`): Named after domain command types; use `Result` monad to validate Contract inputs (GameId, Space names) and construct domain types
-- **Handler pipeline pattern**: Handlers follow consistent three-stage pipeline using simple forward pipes (`|>`, `|||>`): `load state → execute pure logic → materialize side effects`. Internal handlers delegate to pure functions in dedicated modules (`Move.execute`, `SetToStartingPositions.execute`), maintaining separation between business rules and IO.
+- **Handler pipeline pattern**: Handlers follow consistent three-stage pipeline using `async {}` CE: `load state (let!) → execute pure logic → materialize side effects (do!)`. Internal handlers delegate to pure functions in dedicated modules (`Move.execute`, `SetToStartingPositions.execute`), maintaining separation between business rules and IO.
 - **Pure execution modules**: Each command handler has a corresponding internal module (`Move`, `SetToStartingPositions`) containing pure business logic functions. The `execute` function in each module accepts command and state, returns `(state, events, commands)` tuple with no IO. This enables testing business rules without mocking IO dependencies.
-- **Materialize pattern**: Shared `materialize` function sequences IO side effects (save state → publish events → dispatch commands) using `Result.bind` for error propagation (short-circuits on first error), then uses `Result.defaultWith` to unwrap and throw on IO failures. All handlers use the same materialization logic for consistency.
+- **Materialize pattern**: Shared `materialize` function uses `async {}` CE to sequence IO side effects (save state → publish events → dispatch commands). Each dependency call uses `let!`/`do!` bindings; errors in `Result` types are pattern-matched and thrown as exceptions. All handlers use the same materialization logic for consistency. CancellationToken flows implicitly through the async context.
 - **Record construction**: Use type annotation for contract state construction: `let newState : Contract.Rondel.RondelState = { GameId = ...; NationPositions = ...; PendingMovements = ... }`. F# records use `{ }` syntax directly, not `TypeName { }`.
 - **MoveOutcome type**: Internal discriminated union with named fields carrying complete context (targetSpace, distance, nation, rejectedCommand). All cases encapsulate necessary data, eliminating closure dependencies on outer scope variables for cleaner functional design.
 - **Decision chain**: Validates moves through `Decision` monad (`noMovesAllowedIfNotInitialized` → `noMovesAllowedForNationNotInGame` → `firstMoveIsFreeToAnyPosition` → `decideMovementOutcome`) producing `MoveOutcome`.
@@ -55,12 +56,12 @@ Last verified: 2026-01-04
 - **Command dispatch**: Uses `List.fold` with `Result.bind` to sequence outbound commands (`RondelOutboundCommand` with `ChargeMovement` and `VoidCharge` cases), returning first error or `Ok ()`. Infrastructure layer receives domain commands and calls per-command `toContract` transformations to dispatch to appropriate bounded contexts.
 
 ### Open Work (current)
-- Rondel public API: Two routers (`execute` for commands, `handle` for events) provide single entry points; individual handlers are internal implementation details.
-- Rondel internal structure: Handlers follow `load → execute → materialize` pattern. Pure business logic isolated in internal modules (`Move.execute`, `SetToStartingPositions.execute`) returning `(state, events, commands)` tuples. Shared `materialize` function handles all IO side effects (save, publish, dispatch).
+- Rondel public API: Two routers (`execute` for commands, `handle` for events) return `Async<unit>` for implicit CancellationToken propagation; individual handlers are internal implementation details.
+- Rondel internal structure: Handlers follow `load → execute → materialize` pattern using `async {}` CE. Pure business logic isolated in internal modules (`Move.execute`, `SetToStartingPositions.execute`) returning `(state, events, commands)` tuples. Shared `materialize` function uses `async {}` to sequence IO side effects (save, publish, dispatch).
 - Rondel internal handlers: `setToStartingPositions` complete (delegates to `SetToStartingPositions.execute` for pure validation and state creation); `move` complete (delegates to `Move.execute` for clockwise distance calculation, 1-3 space free moves with immediate action determination, 4-6 space paid moves with charge dispatch and pending state storage (formula: (distance - 3) * 2M), rejects 0-space (stay put) and 7+ space (exceeds max) moves, automatically voids old charges and rejects old pending moves when a nation initiates a new move before previous payment completes); `onInvoicePaid` complete with idempotent payment confirmation processing (ignores events for non-existent pending movements, handles duplicate payment events or already-completed/voided movements, fails fast on state corruption); `onInvoicePaymentFailed` stubbed.
 - Implement remaining Rondel handler (`onInvoicePaymentFailed`) to complete payment flow rejection path.
 - Add public APIs for Gameplay and Accounting or trim placeholders if unused.
-- Tests use helper pattern: private `Rondel` record with `Execute`/`Handle` routers, `createRondel()` factory returns router record + observable collections for verification.
+- Tests use helper pattern: private `Rondel` record with `Execute`/`Handle` routers (sync wrappers using `Async.RunSynchronously`), `createRondel()` factory returns router record with async dependencies + observable collections for verification.
 
 ## Build, Test, and Development Commands
 - Restore dependencies: `dotnet restore Imperium.sln`.
@@ -96,7 +97,7 @@ Domain modules (`.fsi` and `.fs` pairs) follow a consistent sectioned structure.
 | 4 | **Events** | Outbound event DU and individual event records (published by this domain) |
 | 5 | **Outbound Commands** | Commands dispatched to other bounded contexts (`ChargeMovementOutboundCommand`, `VoidChargeOutboundCommand`, `RondelOutboundCommand` DU) |
 | 6 | **Incoming Events** | Inbound event routing DU and individual event records (received from other domains) |
-| 7 | **Dependencies** | Function types for DI (`LoadState`, `SaveState`, `PublishEvent`, `DispatchOutboundCommand`) and unified dependency record (`RondelDependencies`) |
+| 7 | **Dependencies** | Function types for DI (`LoadState`, `SaveState`, `PublishEvent`, `DispatchOutboundCommand`) using `Async<_>` for implicit CancellationToken propagation and unified dependency record (`RondelDependencies`) |
 | 8 | **Transformations** | Modules with `fromContract` (Contract → Domain), `toContract` (Domain → Contract) functions (including per-outbound-command `toContract`) |
 | 9 | **Handlers (Internal Types)** | `.fs` only: shared `materialize` function (sequences IO side effects), internal modules with pure `execute` functions (`Move.execute`, `SetToStartingPositions.execute`), internal DUs for routing/outcomes (`MoveOutcome`) |
 | 10 | **Handlers** | Public routers (`execute`, `handle`) followed by internal command handlers (delegate to pure module functions), then internal event handlers |
@@ -144,7 +145,7 @@ Domain modules (`.fsi` and `.fs` pairs) follow a consistent sectioned structure.
 - **Testing approach:**
   - **Transformation validation tests** (in `*ContractTests.fs`): Test `fromContract` transformations with Contract types to verify input validation returns appropriate errors; use domain types directly in test setup
   - **Handler behavior tests** (in `*Tests.fs`): Create domain types directly (no transformation layer), call routers (`execute`, `handle`) with union types to verify correct outcomes, events, and charges
-  - **Test helper pattern**: Use private record type grouping routers (e.g., `type private Rondel = { Execute: RondelCommand -> unit; Handle: RondelInboundEvent -> unit }`), create factory function that returns router record + observable collections (events, commands) for verification
+  - **Test helper pattern**: Use private record type grouping routers (e.g., `type private Rondel = { Execute: RondelCommand -> unit; Handle: RondelInboundEvent -> unit }`) with sync wrappers (`Async.RunSynchronously`), create factory function that returns router record with async dependencies wrapped in `async {}` + observable collections (events, commands) for verification
   - **Separation**: Keep transformation layer testing separate from handler behavior testing for clearer test intent and reduced boilerplate
 - Current test coverage (16 tests total):
   - **RondelContractTests.fs** (5 transformation validation tests):

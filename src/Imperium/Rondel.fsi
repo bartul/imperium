@@ -154,17 +154,21 @@ module Rondel =
     // ──────────────────────────────────────────────────────────────────────────
 
     /// Load rondel state by GameId. Returns None if game not initialized.
-    type LoadRondelState = Id -> RondelState option
+    /// CancellationToken flows implicitly through Async context.
+    type LoadRondelState = Id -> Async<RondelState option>
 
     /// Save rondel state. Returns Error if persistence fails.
-    type SaveRondelState = RondelState -> Result<unit, string>
+    /// CancellationToken flows implicitly through Async context.
+    type SaveRondelState = RondelState -> Async<Result<unit, string>>
 
     /// Publish rondel domain events to the event bus.
-    type PublishRondelEvent = RondelEvent -> unit
+    /// CancellationToken flows implicitly through Async context.
+    type PublishRondelEvent = RondelEvent -> Async<unit>
 
     /// Dispatch outbound commands to other bounded contexts (e.g., Accounting).
     /// Infrastructure handles conversion to contract types and actual dispatch.
-    type DispatchOutboundCommand = RondelOutboundCommand -> Result<unit, string>
+    /// CancellationToken flows implicitly through Async context.
+    type DispatchOutboundCommand = RondelOutboundCommand -> Async<Result<unit, string>>
 
     /// Unified dependencies for all Rondel handlers.
     /// All handlers receive the same dependencies record for consistency,
@@ -240,9 +244,11 @@ module Rondel =
     // ──────────────────────────────────────────────────────────────────────────
 
     /// Execute a rondel command. Routes to the appropriate command handler.
+    /// CancellationToken flows implicitly through Async context.
     /// Throws if command execution fails (e.g., invalid state, persistence failure).
-    val execute: RondelDependencies -> RondelCommand -> unit
+    val execute: RondelDependencies -> RondelCommand -> Async<unit>
 
     /// Handle an inbound event from other bounded contexts. Routes to the appropriate event handler.
+    /// CancellationToken flows implicitly through Async context.
     /// Returns unit on success; raises exceptions on failure.
-    val handle: RondelDependencies -> RondelInboundEvent -> unit
+    val handle: RondelDependencies -> RondelInboundEvent -> Async<unit>
