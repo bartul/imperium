@@ -1064,7 +1064,7 @@ let tests =
                          |> Seq.exists (function
                              | ActionDetermined _ -> true
                              | _ -> false))
-                        "ActionDetermined event should not be published after rejection" 
+                        "ActionDetermined event should not be published after rejection"
 
                     // Assert: subsequent move from original position succeeds (confirms pending removed and position unchanged)
                     Move
@@ -1078,4 +1078,76 @@ let tests =
                             { GameId = gameId
                               Nation = "Austria"
                               Action = Action.Import })
-                        "subsequent move from ManeuverOne to Import (2 spaces) should succeed, confirming position was not changed by failed payment" ] ]
+                        "subsequent move from ManeuverOne to Import (2 spaces) should succeed, confirming position was not changed by failed payment"
+
+                testCase "processing payment failure twice only removes pending once"
+                <| fun _ ->
+                    // Setup: create mocks
+                    let rondel, publishedEvents, dispatchedCommands = createRondel ()
+
+                    let gameId = Guid.NewGuid() |> Id
+                    let nations = [| "Austria" |]
+
+                    // Setup: initialize rondel
+                    SetToStartingPositions
+                        { GameId = gameId
+                          Nations = Set.ofArray nations }
+                    |> rondel.Execute
+
+                    // Setup: establish starting position
+                    let moveOnRondel: MoveCommand =
+                        { GameId = gameId
+                          Nation = "Austria"
+                          Space = Space.ManeuverOne }
+
+                    Move moveOnRondel |> rondel.Execute
+
+                    // Setup: make paid move (4 spaces - ManeuverOne to Taxation)
+                    Move
+                        { moveOnRondel with
+                            Space = Space.Taxation }
+                    |> rondel.Execute
+
+                    let billingId =
+                        dispatchedCommands
+                        |> Seq.choose (function
+                            | ChargeMovement chargeCmd -> Some chargeCmd.BillingId
+                            | _ -> None)
+                        |> Seq.tryHead
+                        |> Option.defaultWith (fun () -> failwith "charge command not dispatched")
+
+                    // Execute: process payment failure (first time)
+                    InvoicePaymentFailed
+                        { GameId = gameId
+                          BillingId = billingId }
+                    |> rondel.Handle
+
+                    // Execute: process same payment failure again (second time)
+                    InvoicePaymentFailed
+                        { GameId = gameId
+                          BillingId = billingId }
+                    |> rondel.Handle
+
+                    // Assert: MoveToActionSpaceRejected for Taxation appears only once (not duplicated)
+                    Expect.hasLength
+                        (publishedEvents
+                         |> Seq.filter (function
+                             | MoveToActionSpaceRejected e when e.Space = Space.Taxation -> true
+                             | _ -> false)
+                         |> Seq.toList)
+                        1
+                        "processing payment failure twice should only reject movement once"
+
+                    // Assert: subsequent move confirms position remained at ManeuverOne
+                    Move
+                        { moveOnRondel with
+                            Space = Space.Import }
+                    |> rondel.Execute
+
+                    Expect.contains
+                        publishedEvents
+                        (ActionDetermined
+                            { GameId = gameId
+                              Nation = "Austria"
+                              Action = Action.Import })
+                        "subsequent move from ManeuverOne should succeed" ] ]
