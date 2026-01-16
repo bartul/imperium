@@ -147,11 +147,11 @@ Domain modules (`.fsi` and `.fs` pairs) follow a consistent sectioned structure.
   - **Handler behavior tests** (in `*Tests.fs`): Create domain types directly (no transformation layer), call routers (`execute`, `handle`) with union types to verify correct outcomes, events, and charges
   - **Test helper pattern**: Use private record type grouping routers (e.g., `type private Rondel = { Execute: RondelCommand -> unit; Handle: RondelInboundEvent -> unit }`) with sync wrappers (`Async.RunSynchronously`), create factory function that returns router record with async dependencies wrapped in `async {}` + observable collections (events, commands) for verification
   - **Separation**: Keep transformation layer testing separate from handler behavior testing for clearer test intent and reduced boilerplate
-- Current test coverage (18 tests total):
+- Current test coverage (19 tests total):
   - **RondelContractTests.fs** (5 transformation validation tests):
     - SetToStartingPositionsCommand.fromContract: rejects Guid.Empty; rejects empty nations array; accepts duplicate nations (Set deduplicates to 2 from 3)
     - MoveCommand.fromContract: rejects unknown rondel space; rejects Guid.Empty
-  - **RondelTests.fs** (13 handler behavior tests):
+  - **RondelTests.fs** (14 handler behavior tests):
     - setToStartingPositions: signals setup for roster; setting twice does not signal again
     - move: cannot begin before starting positions are chosen
     - move: nation's first move may choose any rondel space (property test, 15 iterations)
@@ -164,6 +164,7 @@ Domain modules (`.fsi` and `.fs` pairs) follow a consistent sectioned structure.
     - onInvoicePaid: completes pending movement and publishes ActionDetermined event
     - onInvoicePaid: paying twice for same movement only completes it once
     - onInvoicePaid: payment for cancelled movement is ignored
+    - onInvoicePaymentFailed: payment failure removes pending movement and publishes rejection
 
 ## Branch Naming Guidelines
 

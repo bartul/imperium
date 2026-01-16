@@ -1004,4 +1004,78 @@ let tests =
                             { GameId = gameId
                               Nation = "France"
                               Action = Action.Factory })
-                        "subsequent move from Taxation should succeed, confirming position was not changed by late payment" ] ]
+                        "subsequent move from Taxation should succeed, confirming position was not changed by late payment" ]
+          testList
+              "onInvoicePaymentFailed"
+              [ testCase "payment failure removes pending movement and publishes rejection"
+                <| fun _ ->
+                    // Setup: create mocks
+                    let rondel, publishedEvents, dispatchedCommands = createRondel ()
+
+                    let gameId = Guid.NewGuid() |> Id
+                    let nations = [| "Austria" |]
+
+                    // Setup: initialize rondel
+                    SetToStartingPositions
+                        { GameId = gameId
+                          Nations = Set.ofArray nations }
+                    |> rondel.Execute
+
+                    // Setup: establish starting position
+                    let moveOnRondel: MoveCommand =
+                        { GameId = gameId
+                          Nation = "Austria"
+                          Space = Space.ManeuverOne }
+
+                    Move moveOnRondel |> rondel.Execute
+
+                    // Setup: make paid move (5 spaces - ManeuverOne to Investor)
+                    Move
+                        { moveOnRondel with
+                            Space = Space.Investor }
+                    |> rondel.Execute
+
+                    let billingId =
+                        dispatchedCommands
+                        |> Seq.choose (function
+                            | ChargeMovement chargeCmd -> Some chargeCmd.BillingId
+                            | _ -> None)
+                        |> Seq.tryHead
+                        |> Option.defaultWith (fun () -> failwith "charge command not dispatched")
+
+                    // Execute: process payment failure
+                    InvoicePaymentFailed
+                        { GameId = gameId
+                          BillingId = billingId }
+                    |> rondel.Handle
+
+                    // Assert: MoveToActionSpaceRejected event published for target space
+                    Expect.contains
+                        publishedEvents
+                        (MoveToActionSpaceRejected
+                            { GameId = gameId
+                              Nation = "Austria"
+                              Space = Space.Investor })
+                        "MoveToActionSpaceRejected event should be published after payment failure"
+
+                    // Assert: no action determined (failed payment does not complete movement)
+                    Expect.isFalse
+                        (publishedEvents
+                         |> Seq.exists (function
+                             | ActionDetermined _ -> true
+                             | _ -> false))
+                        "ActionDetermined event should not be published after rejection" 
+
+                    // Assert: subsequent move from original position succeeds (confirms pending removed and position unchanged)
+                    Move
+                        { moveOnRondel with
+                            Space = Space.Import }
+                    |> rondel.Execute
+
+                    Expect.contains
+                        publishedEvents
+                        (ActionDetermined
+                            { GameId = gameId
+                              Nation = "Austria"
+                              Action = Action.Import })
+                        "subsequent move from ManeuverOne to Import (2 spaces) should succeed, confirming position was not changed by failed payment" ] ]
