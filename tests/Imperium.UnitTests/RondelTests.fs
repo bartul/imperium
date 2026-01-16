@@ -1232,4 +1232,83 @@ let tests =
                             { GameId = gameId
                               Nation = "France"
                               Action = Action.Factory })
-                        "subsequent move from Taxation should succeed, confirming position was not changed by late payment failure" ] ]
+                        "subsequent move from Taxation should succeed, confirming position was not changed by late payment failure"
+
+                testCase "payment failure after successful payment is ignored"
+                <| fun _ ->
+                    // Setup: create mocks
+                    let rondel, publishedEvents, dispatchedCommands = createRondel ()
+
+                    let gameId = Guid.NewGuid() |> Id
+                    let nations = [| "Britain" |]
+
+                    // Setup: initialize rondel
+                    SetToStartingPositions
+                        { GameId = gameId
+                          Nations = Set.ofArray nations }
+                    |> rondel.Execute
+
+                    // Setup: establish starting position
+                    let moveOnRondel: MoveCommand =
+                        { GameId = gameId
+                          Nation = "Britain"
+                          Space = Space.Import }
+
+                    Move moveOnRondel |> rondel.Execute
+
+                    // Setup: make paid move (6 spaces - Import to ProductionTwo)
+                    Move
+                        { moveOnRondel with
+                            Space = Space.ProductionTwo }
+                    |> rondel.Execute
+
+                    let billingId =
+                        dispatchedCommands
+                        |> Seq.choose (function
+                            | ChargeMovement chargeCmd -> Some chargeCmd.BillingId
+                            | _ -> None)
+                        |> Seq.tryHead
+                        |> Option.defaultWith (fun () -> failwith "charge command not dispatched")
+
+                    // Setup: complete payment successfully
+                    InvoicePaid
+                        { GameId = gameId
+                          BillingId = billingId }
+                    |> rondel.Handle
+
+                    // Verify Britain is at ProductionTwo after successful payment
+                    Expect.contains
+                        publishedEvents
+                        (ActionDetermined
+                            { GameId = gameId
+                              Nation = "Britain"
+                              Action = Action.Production })
+                        "paid move should have completed to ProductionTwo"
+
+                    // Execute: payment failure arrives after successful payment
+                    InvoicePaymentFailed
+                        { GameId = gameId
+                          BillingId = billingId }
+                    |> rondel.Handle
+
+                    // Assert: no rejection event (payment already succeeded)
+                    Expect.isEmpty 
+                        (publishedEvents
+                         |> Seq.filter (function
+                             | MoveToActionSpaceRejected e when e.Space = Space.ProductionTwo -> true
+                             | _ -> false))
+                        "ProductionTwo should not be rejected (payment already succeeded)"
+
+                    // Assert: position remains at ProductionTwo
+                    Move
+                        { moveOnRondel with
+                            Space = Space.ManeuverTwo }
+                    |> rondel.Execute
+
+                    Expect.contains
+                        publishedEvents
+                        (ActionDetermined
+                            { GameId = gameId
+                              Nation = "Britain"
+                              Action = Action.Maneuver })
+                        "subsequent move from ProductionTwo should succeed, confirming position was not changed by late payment failure" ] ]
