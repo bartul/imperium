@@ -1005,7 +1005,7 @@ let tests =
                               Nation = "France"
                               Action = Action.Factory })
                         "subsequent move from Taxation should succeed, confirming position was not changed by late payment" ]
-          testList
+          ptestList
               "onInvoicePaymentFailed"
               [ testCase "payment failure removes pending movement and publishes rejection"
                 <| fun _ ->

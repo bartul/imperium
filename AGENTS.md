@@ -164,10 +164,10 @@ Domain modules (`.fsi` and `.fs` pairs) follow a consistent sectioned structure.
     - onInvoicePaid: completes pending movement and publishes ActionDetermined event
     - onInvoicePaid: paying twice for same movement only completes it once
     - onInvoicePaid: payment for cancelled movement is ignored
-    - onInvoicePaymentFailed: payment failure removes pending movement and publishes rejection
-    - onInvoicePaymentFailed: processing payment failure twice only removes pending once
-    - onInvoicePaymentFailed: payment failure for voided charge is ignored
-    - onInvoicePaymentFailed: payment failure after successful payment is ignored
+    - onInvoicePaymentFailed: payment failure removes pending movement and publishes rejection (pending)
+    - onInvoicePaymentFailed: processing payment failure twice only removes pending once (pending)
+    - onInvoicePaymentFailed: payment failure for voided charge is ignored (pending)
+    - onInvoicePaymentFailed: payment failure after successful payment is ignored (pending)
 
 ## Branch Naming Guidelines
 
