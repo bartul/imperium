@@ -1150,4 +1150,86 @@ let tests =
                             { GameId = gameId
                               Nation = "Austria"
                               Action = Action.Import })
-                        "subsequent move from ManeuverOne should succeed" ] ]
+                        "subsequent move from ManeuverOne should succeed"
+
+                testCase "payment failure for voided charge is ignored"
+                <| fun _ ->
+                    // Setup: create mocks
+                    let rondel, publishedEvents, dispatchedCommands = createRondel ()
+
+                    let gameId = Guid.NewGuid() |> Id
+                    let nations = [| "France" |]
+
+                    // Setup: initialize rondel
+                    SetToStartingPositions
+                        { GameId = gameId
+                          Nations = Set.ofArray nations }
+                    |> rondel.Execute
+
+                    // Setup: establish starting position
+                    let moveOnRondel: MoveCommand =
+                        { GameId = gameId
+                          Nation = "France"
+                          Space = Space.ProductionOne }
+
+                    Move moveOnRondel |> rondel.Execute
+
+                    // Setup: make paid move (4 spaces - ProductionOne to ProductionTwo)
+                    Move
+                        { moveOnRondel with
+                            Space = Space.ProductionTwo }
+                    |> rondel.Execute
+
+                    let voidedBillingId =
+                        dispatchedCommands
+                        |> Seq.choose (function
+                            | ChargeMovement chargeCmd -> Some chargeCmd.BillingId
+                            | _ -> None)
+                        |> Seq.tryHead
+                        |> Option.defaultWith (fun () -> failwith "charge command not dispatched")
+
+                    // Setup: supersede with free move (2 spaces - ProductionOne to Taxation)
+                    // This voids the previous charge and rejects the pending move
+                    Move
+                        { moveOnRondel with
+                            Space = Space.Taxation }
+                    |> rondel.Execute
+
+                    // Verify France is at Taxation after free move
+                    Expect.contains
+                        publishedEvents
+                        (ActionDetermined
+                            { GameId = gameId
+                              Nation = "France"
+                              Action = Action.Taxation })
+                        "free move should have completed to Taxation"
+
+                    // Execute: payment failure arrives for the voided charge
+                    InvoicePaymentFailed
+                        { GameId = gameId
+                          BillingId = voidedBillingId }
+                    |> rondel.Handle
+
+                    // Assert: no additional rejection event (already rejected during voiding)
+                    Expect.hasLength
+                        (publishedEvents
+                         |> Seq.filter (function
+                             | MoveToActionSpaceRejected e when e.Space = Space.ProductionTwo -> true
+                             | _ -> false)
+                         |> Seq.toList)
+                        1
+                        "ProductionTwo should only be rejected once (during voiding, not again on payment failure)"
+
+                    // Assert: current position is Taxation (from free move), not ProductionTwo
+                    Move
+                        { moveOnRondel with
+                            Space = Space.Factory }
+                    |> rondel.Execute
+
+                    Expect.contains
+                        publishedEvents
+                        (ActionDetermined
+                            { GameId = gameId
+                              Nation = "France"
+                              Action = Action.Factory })
+                        "subsequent move from Taxation should succeed, confirming position was not changed by late payment failure" ] ]
