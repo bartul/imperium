@@ -806,22 +806,22 @@ let tests =
                     let nations = [| "Austria" |]
 
                     // Setup: initialize rondel
-                    let initCommand =
+                    SetToStartingPositions
                         { GameId = gameId
                           Nations = Set.ofArray nations }
+                    |> rondel.Execute
 
-                    SetToStartingPositions initCommand |> rondel.Execute
-
-                    // Setup: establish starting position with first move (free to any space)
-                    let firstMoveCmd: MoveCommand =
+                    // Setup: establish starting position
+                    let moveOnRondel: MoveCommand =
                         { GameId = gameId
                           Nation = "Austria"
                           Space = Space.ManeuverOne }
 
-                    Move firstMoveCmd |> rondel.Execute
+                    Move moveOnRondel |> rondel.Execute
 
+                    // Setup: make paid move (5 spaces - ManeuverOne to Investor)
                     Move
-                        { firstMoveCmd with
+                        { moveOnRondel with
                             Space = Space.Investor }
                     |> rondel.Execute
 
@@ -833,13 +833,11 @@ let tests =
                         |> Seq.tryHead
                         |> Option.defaultWith (fun () -> failwith "charge command not dispatched")
 
-
                     // Execute: process payment confirmation
-                    let invoicePaidEvent: InvoicePaidInboundEvent =
+                    InvoicePaid
                         { GameId = gameId
                           BillingId = billingId }
-
-                    InvoicePaid invoicePaidEvent |> rondel.Handle
+                    |> rondel.Handle
 
                     // Assert: ActionDetermined event published for target space
                     Expect.contains
@@ -850,8 +848,9 @@ let tests =
                               Action = Action.Investor })
                         "ActionDetermined event should be published after payment confirmation"
 
+                    // Assert: subsequent move confirms position was updated correctly
                     Move
-                        { firstMoveCmd with
+                        { moveOnRondel with
                             Space = Space.Import }
                     |> rondel.Execute
 
