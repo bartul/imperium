@@ -806,22 +806,22 @@ let tests =
                     let nations = [| "Austria" |]
 
                     // Setup: initialize rondel
-                    let initCommand =
+                    SetToStartingPositions
                         { GameId = gameId
                           Nations = Set.ofArray nations }
+                    |> rondel.Execute
 
-                    SetToStartingPositions initCommand |> rondel.Execute
-
-                    // Setup: establish starting position with first move (free to any space)
-                    let firstMoveCmd: MoveCommand =
+                    // Setup: establish starting position
+                    let moveOnRondel: MoveCommand =
                         { GameId = gameId
                           Nation = "Austria"
                           Space = Space.ManeuverOne }
 
-                    Move firstMoveCmd |> rondel.Execute
+                    Move moveOnRondel |> rondel.Execute
 
+                    // Setup: make paid move (5 spaces - ManeuverOne to Investor)
                     Move
-                        { firstMoveCmd with
+                        { moveOnRondel with
                             Space = Space.Investor }
                     |> rondel.Execute
 
@@ -833,13 +833,11 @@ let tests =
                         |> Seq.tryHead
                         |> Option.defaultWith (fun () -> failwith "charge command not dispatched")
 
-
                     // Execute: process payment confirmation
-                    let invoicePaidEvent: InvoicePaidInboundEvent =
+                    InvoicePaid
                         { GameId = gameId
                           BillingId = billingId }
-
-                    InvoicePaid invoicePaidEvent |> rondel.Handle
+                    |> rondel.Handle
 
                     // Assert: ActionDetermined event published for target space
                     Expect.contains
@@ -850,8 +848,9 @@ let tests =
                               Action = Action.Investor })
                         "ActionDetermined event should be published after payment confirmation"
 
+                    // Assert: subsequent move confirms position was updated correctly
                     Move
-                        { firstMoveCmd with
+                        { moveOnRondel with
                             Space = Space.Import }
                     |> rondel.Execute
 
@@ -872,23 +871,22 @@ let tests =
                     let nations = [| "Austria" |]
 
                     // Setup: initialize rondel
-                    let initCommand =
+                    SetToStartingPositions
                         { GameId = gameId
                           Nations = Set.ofArray nations }
+                    |> rondel.Execute
 
-                    SetToStartingPositions initCommand |> rondel.Execute
-
-                    // Setup: establish starting position with first move
-                    let firstMoveCmd: MoveCommand =
+                    // Setup: establish starting position
+                    let moveOnRondel: MoveCommand =
                         { GameId = gameId
                           Nation = "Austria"
                           Space = Space.ManeuverOne }
 
-                    Move firstMoveCmd |> rondel.Execute
+                    Move moveOnRondel |> rondel.Execute
 
                     // Setup: make paid move (5 spaces - ManeuverOne to Investor)
                     Move
-                        { firstMoveCmd with
+                        { moveOnRondel with
                             Space = Space.Investor }
                     |> rondel.Execute
 
@@ -901,14 +899,16 @@ let tests =
                         |> Option.defaultWith (fun () -> failwith "charge command not dispatched")
 
                     // Execute: process payment confirmation (first time)
-                    let invoicePaidEvent: InvoicePaidInboundEvent =
+                    InvoicePaid
                         { GameId = gameId
                           BillingId = billingId }
-
-                    InvoicePaid invoicePaidEvent |> rondel.Handle
+                    |> rondel.Handle
 
                     // Execute: process same payment confirmation again (second time)
-                    InvoicePaid invoicePaidEvent |> rondel.Handle
+                    InvoicePaid
+                        { GameId = gameId
+                          BillingId = billingId }
+                    |> rondel.Handle
 
                     // Assert: ActionDetermined for Investor appears only once (not duplicated)
                     let investorActionCount =
@@ -921,12 +921,10 @@ let tests =
                     Expect.equal investorActionCount 1 "paying twice should only complete movement once"
 
                     // Assert: subsequent move confirms position was updated correctly
-                    let thirdMoveCmd: MoveCommand =
-                        { GameId = gameId
-                          Nation = "Austria"
-                          Space = Space.Import }
-
-                    Move thirdMoveCmd |> rondel.Execute
+                    Move
+                        { moveOnRondel with
+                            Space = Space.Import }
+                    |> rondel.Execute
 
                     Expect.contains
                         publishedEvents
@@ -945,27 +943,24 @@ let tests =
                     let nations = [| "France" |]
 
                     // Setup: initialize rondel
-                    let initCommand =
+                    SetToStartingPositions
                         { GameId = gameId
                           Nations = Set.ofArray nations }
-
-                    SetToStartingPositions initCommand |> rondel.Execute
+                    |> rondel.Execute
 
                     // Setup: establish starting position
-                    let firstMoveCmd: MoveCommand =
+                    let moveOnRondel: MoveCommand =
                         { GameId = gameId
                           Nation = "France"
                           Space = Space.ProductionOne }
 
-                    Move firstMoveCmd |> rondel.Execute
+                    Move moveOnRondel |> rondel.Execute
 
                     // Setup: make paid move (4 spaces - ProductionOne to ProductionTwo)
-                    let paidMove: MoveCommand =
-                        { GameId = gameId
-                          Nation = "France"
-                          Space = Space.ProductionTwo }
-
-                    Move paidMove |> rondel.Execute
+                    Move
+                        { moveOnRondel with
+                            Space = Space.ProductionTwo }
+                    |> rondel.Execute
 
                     let voidedBillingId =
                         dispatchedCommands
@@ -977,12 +972,10 @@ let tests =
 
                     // Setup: supersede with free move (2 spaces - ProductionOne to Taxation)
                     // This voids the previous charge and rejects the pending move
-                    let freeMove: MoveCommand =
-                        { GameId = gameId
-                          Nation = "France"
-                          Space = Space.Taxation }
-
-                    Move freeMove |> rondel.Execute
+                    Move
+                        { moveOnRondel with
+                            Space = Space.Taxation }
+                    |> rondel.Execute
 
                     // Verify France is at Taxation after free move
                     Expect.contains
@@ -994,19 +987,16 @@ let tests =
                         "free move should have completed to Taxation"
 
                     // Execute: payment arrives for the voided charge
-                    let invoicePaidEvent: InvoicePaidInboundEvent =
+                    InvoicePaid
                         { GameId = gameId
                           BillingId = voidedBillingId }
-
-                    InvoicePaid invoicePaidEvent |> rondel.Handle
+                    |> rondel.Handle
 
                     // Assert: current position is Taxation (from free move), not ProductionTwo
-                    let finalMove: MoveCommand =
-                        { GameId = gameId
-                          Nation = "France"
-                          Space = Space.Factory }
-
-                    Move finalMove |> rondel.Execute
+                    Move
+                        { moveOnRondel with
+                            Space = Space.Factory }
+                    |> rondel.Execute
 
                     Expect.contains
                         publishedEvents
