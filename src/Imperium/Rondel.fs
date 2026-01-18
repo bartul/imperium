@@ -789,3 +789,47 @@ module Rondel =
         match event with
         | InvoicePaid evt -> onInvoicePaid deps evt
         | InvoicePaymentFailed evt -> onInvoicePaymentFailed deps evt
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // Queries
+    // ──────────────────────────────────────────────────────────────────────────
+
+    type GetNationPositionsQuery = { GameId: Id }
+
+    type GetRondelOverviewQuery = { GameId: Id }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // Query Results
+    // ──────────────────────────────────────────────────────────────────────────
+
+    type NationPosition =
+        { Nation: string
+          CurrentSpace: Space option
+          PendingSpace: Space option }
+
+    type NationPositionsResult =
+        { GameId: Id
+          Positions: NationPosition list }
+
+    type RondelOverviewResult =
+        { GameId: Id
+          Nations: string list
+          IsInitialized: bool }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // Query Dependencies
+    // ──────────────────────────────────────────────────────────────────────────
+
+    type LoadRondelStateForQuery = Id -> Async<RondelState option>
+
+    type RondelQueryDependencies = { Load: LoadRondelStateForQuery }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // Query Handlers (stub - to be implemented in Phase 2)
+    // ──────────────────────────────────────────────────────────────────────────
+
+    let getNationPositions (deps: RondelQueryDependencies) (query: GetNationPositionsQuery) : Async<NationPositionsResult option> =
+        failwith "Not implemented"
+
+    let getRondelOverview (deps: RondelQueryDependencies) (query: GetRondelOverviewQuery) : Async<RondelOverviewResult option> =
+        failwith "Not implemented"
