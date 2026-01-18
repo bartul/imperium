@@ -58,8 +58,7 @@ Last verified: 2026-01-14
 ### Open Work (current)
 - Rondel public API: Two routers (`execute` for commands, `handle` for events) return `Async<unit>` for implicit CancellationToken propagation; individual handlers are internal implementation details.
 - Rondel internal structure: Handlers follow `load → execute → materialize` pattern using `async {}` CE. Pure business logic isolated in internal modules (`Move.execute`, `SetToStartingPositions.execute`) returning `(state, events, commands)` tuples. Shared `materialize` function uses `async {}` to sequence IO side effects (save, publish, dispatch).
-- Rondel internal handlers: `setToStartingPositions` complete (delegates to `SetToStartingPositions.execute` for pure validation and state creation); `move` complete (delegates to `Move.execute` for clockwise distance calculation, 1-3 space free moves with immediate action determination, 4-6 space paid moves with charge dispatch and pending state storage (formula: (distance - 3) * 2M), rejects 0-space (stay put) and 7+ space (exceeds max) moves, automatically voids old charges and rejects old pending moves when a nation initiates a new move before previous payment completes); `onInvoicePaid` complete with idempotent payment confirmation processing (ignores events for non-existent pending movements, handles duplicate payment events or already-completed/voided movements, fails fast on state corruption); `onInvoicePaymentFailed` stubbed.
-- Implement remaining Rondel handler (`onInvoicePaymentFailed`) to complete payment flow rejection path.
+- Rondel internal handlers: `setToStartingPositions` complete (delegates to `SetToStartingPositions.execute` for pure validation and state creation); `move` complete (delegates to `Move.execute` for clockwise distance calculation, 1-3 space free moves with immediate action determination, 4-6 space paid moves with charge dispatch and pending state storage (formula: (distance - 3) * 2M), rejects 0-space (stay put) and 7+ space (exceeds max) moves, automatically voids old charges and rejects old pending moves when a nation initiates a new move before previous payment completes); `onInvoicePaid` complete with idempotent payment confirmation processing (ignores events for non-existent pending movements, handles duplicate payment events or already-completed/voided movements, fails fast on state corruption); `onInvoicePaymentFailed` complete (delegates to `OnInvoicePaymentFailed.handle` for payment failure processing; removes pending movements when payment fails; emits `MoveToActionSpaceRejected` event; includes idempotent handling for duplicate or already-processed events).
 - Add public APIs for Gameplay and Accounting or trim placeholders if unused.
 - Tests use helper pattern: private `Rondel` record with `Execute`/`Handle` routers (sync wrappers using `Async.RunSynchronously`), `createRondel()` factory returns router record with async dependencies + observable collections for verification.
 
@@ -147,7 +146,7 @@ Domain modules (`.fsi` and `.fs` pairs) follow a consistent sectioned structure.
   - **Handler behavior tests** (in `*Tests.fs`): Create domain types directly (no transformation layer), call routers (`execute`, `handle`) with union types to verify correct outcomes, events, and charges
   - **Test helper pattern**: Use private record type grouping routers (e.g., `type private Rondel = { Execute: RondelCommand -> unit; Handle: RondelInboundEvent -> unit }`) with sync wrappers (`Async.RunSynchronously`), create factory function that returns router record with async dependencies wrapped in `async {}` + observable collections (events, commands) for verification
   - **Separation**: Keep transformation layer testing separate from handler behavior testing for clearer test intent and reduced boilerplate
-- Current test coverage (22 tests total):
+- Current test coverage (22 tests total, all passing):
   - **RondelContractTests.fs** (5 transformation validation tests):
     - SetToStartingPositionsCommand.fromContract: rejects Guid.Empty; rejects empty nations array; accepts duplicate nations (Set deduplicates to 2 from 3)
     - MoveCommand.fromContract: rejects unknown rondel space; rejects Guid.Empty
@@ -164,10 +163,10 @@ Domain modules (`.fsi` and `.fs` pairs) follow a consistent sectioned structure.
     - onInvoicePaid: completes pending movement and publishes ActionDetermined event
     - onInvoicePaid: paying twice for same movement only completes it once
     - onInvoicePaid: payment for cancelled movement is ignored
-    - onInvoicePaymentFailed: payment failure removes pending movement and publishes rejection (pending)
-    - onInvoicePaymentFailed: processing payment failure twice only removes pending once (pending)
-    - onInvoicePaymentFailed: payment failure for voided charge is ignored (pending)
-    - onInvoicePaymentFailed: payment failure after successful payment is ignored (pending)
+    - onInvoicePaymentFailed: payment failure removes pending movement and publishes rejection
+    - onInvoicePaymentFailed: processing payment failure twice only removes pending once
+    - onInvoicePaymentFailed: payment failure for voided charge is ignored
+    - onInvoicePaymentFailed: payment failure after successful payment is ignored
 
 ## Branch Naming Guidelines
 

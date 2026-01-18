@@ -700,6 +700,39 @@ module Rondel =
         let handle event state =
             failIfNotInitialized (state, event) |> registerPaymentAndCompleteMovement
 
+    module internal OnInvoicePaymentFailed =
+        let failIfNotInitialized (state: RondelState option, event: InvoicePaymentFailedInboundEvent) =
+            match state with
+            | Some s -> s, event
+            | None -> failwith "Rondel not initialized for game."
+
+        let handle
+            (event: InvoicePaymentFailedInboundEvent)
+            (state: RondelState option)
+            : RondelState option * RondelEvent list * RondelOutboundCommand list =
+            let state, _ = failIfNotInitialized (state, event)
+
+            let pendingMovement =
+                state.PendingMovements
+                |> Map.toSeq
+                |> Seq.tryFind (fun (_, pending) -> pending.BillingId = event.BillingId)
+                |> Option.map snd
+
+            match pendingMovement with
+            | None -> None, [], [] // No pending movement found - idempotent handling for duplicates or already completed/voided.
+            | Some pending ->
+                let newState =
+                    { state with
+                        PendingMovements = state.PendingMovements |> Map.remove pending.Nation }
+
+                let moveRejectedEvent =
+                    MoveToActionSpaceRejected
+                        { GameId = state.GameId
+                          Nation = pending.Nation
+                          Space = pending.TargetSpace }
+
+                Some newState, [ moveRejectedEvent ], []
+
     // ──────────────────────────────────────────────────────────────────────────
     // Handlers
     // ──────────────────────────────────────────────────────────────────────────
@@ -736,8 +769,11 @@ module Rondel =
         (deps: RondelDependencies)
         (event: InvoicePaymentFailedInboundEvent)
         : Async<unit> =
-        async { return invalidOp "Not implemented: onInvoicePaymentFailed" }
-
+        async {
+            let! state = deps.Load event.GameId
+            let newState, events, commands = OnInvoicePaymentFailed.handle event state
+            do! materialize deps newState events commands
+        }
     // ──────────────────────────────────────────────────────────────────────────
     // Public Routers
     // ──────────────────────────────────────────────────────────────────────────
