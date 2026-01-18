@@ -180,6 +180,48 @@ module Rondel =
           Dispatch: DispatchOutboundCommand }
 
     // ──────────────────────────────────────────────────────────────────────────
+    // Queries
+    // ──────────────────────────────────────────────────────────────────────────
+
+    /// Query for nation positions in a game.
+    type GetNationPositionsQuery = { GameId: Id }
+
+    /// Query for basic rondel overview.
+    type GetRondelOverviewQuery = { GameId: Id }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // Query Results
+    // ──────────────────────────────────────────────────────────────────────────
+
+    /// A nation's position on the rondel.
+    type NationPosition =
+        { Nation: string
+          CurrentSpace: Space option
+          PendingSpace: Space option }
+
+    /// Result of GetNationPositions query.
+    type NationPositionsResult =
+        { GameId: Id
+          Positions: NationPosition list }
+
+    /// Result of GetRondelOverview query.
+    type RondelOverviewResult =
+        { GameId: Id
+          Nations: string list
+          IsInitialized: bool }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // Query Dependencies
+    // ──────────────────────────────────────────────────────────────────────────
+
+    /// Load rondel state for queries. Same as write-side Load.
+    /// Infrastructure may optimize with dedicated read store.
+    type LoadRondelStateForQuery = Id -> Async<RondelState option>
+
+    /// Dependencies for query handlers.
+    type RondelQueryDependencies = { Load: LoadRondelStateForQuery }
+
+    // ──────────────────────────────────────────────────────────────────────────
     // Transformations (Contract <-> Domain)
     // ──────────────────────────────────────────────────────────────────────────
 
@@ -252,3 +294,15 @@ module Rondel =
     /// CancellationToken flows implicitly through Async context.
     /// Returns unit on success; raises exceptions on failure.
     val handle: RondelDependencies -> RondelInboundEvent -> Async<unit>
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // Query Handlers
+    // ──────────────────────────────────────────────────────────────────────────
+
+    /// Get nation positions for a game.
+    /// Returns None if game not found.
+    val getNationPositions: RondelQueryDependencies -> GetNationPositionsQuery -> Async<NationPositionsResult option>
+
+    /// Get rondel overview for a game.
+    /// Returns None if game not found.
+    val getRondelOverview: RondelQueryDependencies -> GetRondelOverviewQuery -> Async<RondelOverviewResult option>
