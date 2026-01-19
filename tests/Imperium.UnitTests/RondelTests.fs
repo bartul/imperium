@@ -1411,7 +1411,7 @@ let tests =
 
                     Expect.isNone result "Should return None for unknown game"
 
-                ptestCase "returns overview for initialized game"
+                testCase "returns overview for initialized game"
                 <| fun _ ->
                     let rondel, _, _ = createRondel ()
                     let gameId = Guid.NewGuid() |> Id

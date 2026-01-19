@@ -855,4 +855,12 @@ module Rondel =
         (deps: RondelQueryDependencies)
         (query: GetRondelOverviewQuery)
         : Async<RondelOverviewResult option> =
-        async { return None }
+        async {
+            let! state = deps.Load query.GameId
+
+            return
+                state
+                |> Option.map (fun s ->
+                    { GameId = query.GameId
+                      NationNames = s.NationPositions |> Map.toList |> List.map fst })
+        }
