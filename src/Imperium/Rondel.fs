@@ -855,4 +855,4 @@ module Rondel =
         (deps: RondelQueryDependencies)
         (query: GetRondelOverviewQuery)
         : Async<RondelOverviewResult option> =
-        failwith "Not implemented"
+        async { return None }

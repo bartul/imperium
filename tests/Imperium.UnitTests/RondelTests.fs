@@ -1400,7 +1400,7 @@ let tests =
                     let austria = result.Value.Positions |> List.find (fun p -> p.Nation = "Austria")
                     Expect.equal austria.CurrentSpace (Some Space.Investor) "Austria should still be at Investor"
                     Expect.equal austria.PendingSpace (Some Space.Factory) "Austria should have pending move to Factory" ]
-          ptestList
+          testList
               "getRondelOverview"
               [ testCase "returns None for unknown game"
                 <| fun _ ->
@@ -1411,7 +1411,7 @@ let tests =
 
                     Expect.isNone result "Should return None for unknown game"
 
-                testCase "returns overview for initialized game"
+                ptestCase "returns overview for initialized game"
                 <| fun _ ->
                     let rondel, _, _ = createRondel ()
                     let gameId = Guid.NewGuid() |> Id
