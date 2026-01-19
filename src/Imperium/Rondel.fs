@@ -835,6 +835,12 @@ module Rondel =
               CurrentSpace = position
               PendingSpace = pendingMovement |> Option.map _.TargetSpace }
 
+        let mapPositions currentPositions pendingMovements =
+            currentPositions
+            |> Map.toList
+            |> List.map (fun (nation, currentPosition) ->
+                mapPosition nation currentPosition (pendingMovements |> Map.tryFind nation))
+
         async {
             let! state = deps.Load query.GameId
 
@@ -842,10 +848,7 @@ module Rondel =
                 state
                 |> Option.map (fun s ->
                     { GameId = query.GameId
-                      Positions =
-                        s.NationPositions
-                        |> Map.toList
-                        |> List.map (fun (nation, currentPosition) -> mapPosition nation currentPosition (s.PendingMovements |> Map.tryFind nation))})
+                      Positions = mapPositions s.NationPositions s.PendingMovements })
         }
 
     let getRondelOverview
