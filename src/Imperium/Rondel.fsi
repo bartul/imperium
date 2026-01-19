@@ -206,9 +206,7 @@ module Rondel =
 
     /// Result of GetRondelOverview query.
     type RondelOverviewResult =
-        { GameId: Id
-          Nations: string list
-          IsInitialized: bool }
+        { GameId: Id; NationNames: string list }
 
     // ──────────────────────────────────────────────────────────────────────────
     // Query Dependencies

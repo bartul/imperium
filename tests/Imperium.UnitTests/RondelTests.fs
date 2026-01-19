@@ -7,7 +7,9 @@ open Imperium.Primitives
 
 type private Rondel =
     { Execute: RondelCommand -> unit
-      Handle: RondelInboundEvent -> unit }
+      Handle: RondelInboundEvent -> unit
+      GetNationPositions: GetNationPositionsQuery -> NationPositionsResult option
+      GetRondelOverview: GetRondelOverviewQuery -> RondelOverviewResult option }
 
 let private createRondel () =
     let store = Collections.Generic.Dictionary<Id, RondelState>()
@@ -44,9 +46,13 @@ let private createRondel () =
           Publish = publish
           Dispatch = dispatch }
 
+    let queryDeps: RondelQueryDependencies = { Load = load }
+
     // Wrap async routers in synchronous interface for test convenience
     { Execute = fun cmd -> execute deps cmd |> Async.RunSynchronously
-      Handle = fun evt -> handle deps evt |> Async.RunSynchronously },
+      Handle = fun evt -> handle deps evt |> Async.RunSynchronously
+      GetNationPositions = fun q -> getNationPositions queryDeps q |> Async.RunSynchronously
+      GetRondelOverview = fun q -> getRondelOverview queryDeps q |> Async.RunSynchronously },
     publishedEvents,
     dispatchedCommands
 
@@ -1311,4 +1317,111 @@ let tests =
                             { GameId = gameId
                               Nation = "Britain"
                               Action = Action.Maneuver })
-                        "subsequent move from ProductionTwo should succeed, confirming position was not changed by late payment failure" ] ]
+                        "subsequent move from ProductionTwo should succeed, confirming position was not changed by late payment failure" ]
+          testList
+              "getNationPositions"
+              [ testCase "returns None for unknown game"
+                <| fun _ ->
+                    let rondel, _, _ = createRondel ()
+                    let gameId = Guid.NewGuid() |> Id
+
+                    let result = rondel.GetNationPositions { GameId = gameId }
+
+                    Expect.isNone result "Should return None for unknown game"
+
+                testCase "returns positions for initialized game with no moves"
+                <| fun _ ->
+                    let rondel, _, _ = createRondel ()
+                    let gameId = Guid.NewGuid() |> Id
+                    let nations = Set.ofList [ "France"; "Germany" ]
+
+                    rondel.Execute <| SetToStartingPositions { GameId = gameId; Nations = nations }
+
+                    let result = rondel.GetNationPositions { GameId = gameId }
+
+                    Expect.isSome result "Should return Some for initialized game"
+                    let r = result.Value
+                    Expect.equal r.GameId gameId "GameId should match"
+                    Expect.equal r.Positions.Length 2 "Should have 2 nations"
+
+                    let france = r.Positions |> List.find (fun p -> p.Nation = "France")
+                    Expect.isNone france.CurrentSpace "France should have no current space"
+                    Expect.isNone france.PendingSpace "France should have no pending space"
+
+                testCase "returns current position after free move"
+                <| fun _ ->
+                    let rondel, _, _ = createRondel ()
+                    let gameId = Guid.NewGuid() |> Id
+
+                    rondel.Execute
+                    <| SetToStartingPositions
+                        { GameId = gameId
+                          Nations = Set.ofList [ "France" ] }
+
+                    rondel.Execute
+                    <| Move
+                        { GameId = gameId
+                          Nation = "France"
+                          Space = Space.Factory }
+
+                    let result = rondel.GetNationPositions { GameId = gameId }
+
+                    Expect.isSome result "Should return Some"
+                    let france = result.Value.Positions |> List.find (fun p -> p.Nation = "France")
+                    Expect.equal france.CurrentSpace (Some Space.Factory) "France should be at Factory"
+                    Expect.isNone france.PendingSpace "France should have no pending space"
+
+                testCase "returns pending space for paid move awaiting payment"
+                <| fun _ ->
+                    let rondel, _, _ = createRondel ()
+                    let gameId = Guid.NewGuid() |> Id
+
+                    rondel.Execute
+                    <| SetToStartingPositions
+                        { GameId = gameId
+                          Nations = Set.ofList [ "Austria" ] }
+
+                    // First move to establish position
+                    rondel.Execute
+                    <| Move
+                        { GameId = gameId
+                          Nation = "Austria"
+                          Space = Space.Investor }
+                    // Second move: 5 spaces (paid) - Investor to Factory
+                    rondel.Execute
+                    <| Move
+                        { GameId = gameId
+                          Nation = "Austria"
+                          Space = Space.Factory }
+
+                    let result = rondel.GetNationPositions { GameId = gameId }
+
+                    Expect.isSome result "Should return Some"
+                    let austria = result.Value.Positions |> List.find (fun p -> p.Nation = "Austria")
+                    Expect.equal austria.CurrentSpace (Some Space.Investor) "Austria should still be at Investor"
+                    Expect.equal austria.PendingSpace (Some Space.Factory) "Austria should have pending move to Factory" ]
+          testList
+              "getRondelOverview"
+              [ testCase "returns None for unknown game"
+                <| fun _ ->
+                    let rondel, _, _ = createRondel ()
+                    let gameId = Guid.NewGuid() |> Id
+
+                    let result = rondel.GetRondelOverview { GameId = gameId }
+
+                    Expect.isNone result "Should return None for unknown game"
+
+                testCase "returns overview for initialized game"
+                <| fun _ ->
+                    let rondel, _, _ = createRondel ()
+                    let gameId = Guid.NewGuid() |> Id
+                    let nations = Set.ofList [ "France"; "Germany"; "Austria" ]
+
+                    rondel.Execute <| SetToStartingPositions { GameId = gameId; Nations = nations }
+
+                    let result = rondel.GetRondelOverview { GameId = gameId }
+
+                    Expect.isSome result "Should return Some for initialized game"
+                    let r = result.Value
+                    Expect.equal r.GameId gameId "GameId should match"
+                    Expect.equal (r.NationNames |> List.sort) [ "Austria"; "France"; "Germany" ] "Nations should match" ] ]

@@ -812,9 +812,7 @@ module Rondel =
           Positions: NationPosition list }
 
     type RondelOverviewResult =
-        { GameId: Id
-          Nations: string list
-          IsInitialized: bool }
+        { GameId: Id; NationNames: string list }
 
     // ──────────────────────────────────────────────────────────────────────────
     // Query Dependencies
@@ -828,8 +826,41 @@ module Rondel =
     // Query Handlers (stub - to be implemented in Phase 2)
     // ──────────────────────────────────────────────────────────────────────────
 
-    let getNationPositions (deps: RondelQueryDependencies) (query: GetNationPositionsQuery) : Async<NationPositionsResult option> =
-        failwith "Not implemented"
+    let getNationPositions
+        (deps: RondelQueryDependencies)
+        (query: GetNationPositionsQuery)
+        : Async<NationPositionsResult option> =
+        let mapPosition nation position pendingMovement =
+            { Nation = nation
+              CurrentSpace = position
+              PendingSpace = pendingMovement |> Option.map _.TargetSpace }
 
-    let getRondelOverview (deps: RondelQueryDependencies) (query: GetRondelOverviewQuery) : Async<RondelOverviewResult option> =
-        failwith "Not implemented"
+        let mapPositions currentPositions pendingMovements =
+            currentPositions
+            |> Map.toList
+            |> List.map (fun (nation, currentPosition) ->
+                mapPosition nation currentPosition (pendingMovements |> Map.tryFind nation))
+
+        async {
+            let! state = deps.Load query.GameId
+
+            return
+                state
+                |> Option.map (fun s ->
+                    { GameId = query.GameId
+                      Positions = mapPositions s.NationPositions s.PendingMovements })
+        }
+
+    let getRondelOverview
+        (deps: RondelQueryDependencies)
+        (query: GetRondelOverviewQuery)
+        : Async<RondelOverviewResult option> =
+        async {
+            let! state = deps.Load query.GameId
+
+            return
+                state
+                |> Option.map (fun s ->
+                    { GameId = query.GameId
+                      NationNames = s.NationPositions |> Map.toList |> List.map fst })
+        }
