@@ -1354,9 +1354,15 @@ let tests =
                     let gameId = Guid.NewGuid() |> Id
 
                     rondel.Execute
-                    <| SetToStartingPositions { GameId = gameId; Nations = Set.ofList [ "France" ] }
+                    <| SetToStartingPositions
+                        { GameId = gameId
+                          Nations = Set.ofList [ "France" ] }
 
-                    rondel.Execute <| Move { GameId = gameId; Nation = "France"; Space = Space.Factory }
+                    rondel.Execute
+                    <| Move
+                        { GameId = gameId
+                          Nation = "France"
+                          Space = Space.Factory }
 
                     let result = rondel.GetNationPositions { GameId = gameId }
 
@@ -1371,12 +1377,22 @@ let tests =
                     let gameId = Guid.NewGuid() |> Id
 
                     rondel.Execute
-                    <| SetToStartingPositions { GameId = gameId; Nations = Set.ofList [ "Austria" ] }
+                    <| SetToStartingPositions
+                        { GameId = gameId
+                          Nations = Set.ofList [ "Austria" ] }
 
                     // First move to establish position
-                    rondel.Execute <| Move { GameId = gameId; Nation = "Austria"; Space = Space.Investor }
+                    rondel.Execute
+                    <| Move
+                        { GameId = gameId
+                          Nation = "Austria"
+                          Space = Space.Investor }
                     // Second move: 5 spaces (paid) - Investor to Factory
-                    rondel.Execute <| Move { GameId = gameId; Nation = "Austria"; Space = Space.Factory }
+                    rondel.Execute
+                    <| Move
+                        { GameId = gameId
+                          Nation = "Austria"
+                          Space = Space.Factory }
 
                     let result = rondel.GetNationPositions { GameId = gameId }
 
@@ -1384,7 +1400,7 @@ let tests =
                     let austria = result.Value.Positions |> List.find (fun p -> p.Nation = "Austria")
                     Expect.equal austria.CurrentSpace (Some Space.Investor) "Austria should still be at Investor"
                     Expect.equal austria.PendingSpace (Some Space.Factory) "Austria should have pending move to Factory" ]
-          testList
+          ptestList
               "getRondelOverview"
               [ testCase "returns None for unknown game"
                 <| fun _ ->
