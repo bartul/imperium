@@ -813,8 +813,7 @@ module Rondel =
 
     type RondelOverviewResult =
         { GameId: Id
-          Nations: string list
-          IsInitialized: bool }
+          NationNames: string list }
 
     // ──────────────────────────────────────────────────────────────────────────
     // Query Dependencies
