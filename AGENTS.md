@@ -22,7 +22,7 @@ Last verified: 2026-01-14
   - Event handlers: Accept domain event types (after transformation), return `unit` (throw exceptions for errors)
   - All handlers take dependency injections explicitly (e.g., `load`, `save`, `publish`, specialized services)
   - `Gameplay` and `Accounting` have no public API currently (placeholder values only)
-  - `Rondel` exposes: transformation modules (SetToStartingPositionsCommand, MoveCommand, InvoicePaidInboundEvent, InvoicePaymentFailedInboundEvent, ChargeMovementOutboundCommand, VoidChargeOutboundCommand), domain command types (SetToStartingPositionsCommand with `Set<string>` Nations, MoveCommand with Space), domain outbound command types (ChargeMovementOutboundCommand, VoidChargeOutboundCommand, RondelOutboundCommand DU), domain inbound event types (InvoicePaidInboundEvent, InvoicePaymentFailedInboundEvent with `Id` and `RondelBillingId`), command routing DU (RondelCommand), inbound event routing DU (RondelInboundEvent), Space type, RondelBillingId type with value accessor, dependency types (LoadRondelState, SaveRondelState, PublishRondelEvent, DispatchOutboundCommand, RondelDependencies record), `execute` router (routes RondelCommand to internal handlers), `handle` router (routes RondelInboundEvent to internal handlers)
+  - `Rondel` exposes: transformation modules (SetToStartingPositionsCommand, MoveCommand, InvoicePaidInboundEvent, InvoicePaymentFailedInboundEvent, ChargeMovementOutboundCommand, VoidChargeOutboundCommand), domain command types (SetToStartingPositionsCommand with `Set<string>` Nations, MoveCommand with Space), domain outbound command types (ChargeMovementOutboundCommand, VoidChargeOutboundCommand, RondelOutboundCommand DU), domain inbound event types (InvoicePaidInboundEvent, InvoicePaymentFailedInboundEvent with `Id` and `RondelBillingId`), command routing DU (RondelCommand), inbound event routing DU (RondelInboundEvent), Space type, RondelBillingId type with value accessor, dependency types (LoadRondelState, SaveRondelState, PublishRondelEvent, DispatchOutboundCommand, RondelDependencies record), `execute` router (routes RondelCommand to internal handlers), `handle` router (routes RondelInboundEvent to internal handlers), query types (GetNationPositionsQuery, GetRondelOverviewQuery, NationPositionView, RondelPositionsView, RondelView), query dependency types (LoadRondelStateForQuery, RondelQueryDependencies), query handlers (`getNationPositions`, `getRondelOverview`)
   - `Contract.Rondel.RondelState`: Serializable DTOs (Guid/string) for persistence. NationPositions is `Map<string, string option>` at the serialization boundary and PendingMovements is keyed by nation name for O(log n) lookups.
   - `Rondel.RondelState`: Domain state uses strong types (`Id`, `Space option`, `RondelBillingId`). NationPositions is `Map<string, Space option>` and PendingMovement uses `Space` TargetSpace + `RondelBillingId` BillingId. Transformations live in `Rondel.fs` (`RondelState.toContract/fromContract`), not in a separate adapter.
 - `src/Imperium.Web` bootstraps the HTTP layer (`Program.fs`). Reference the core project via the existing project reference instead of duplicating logic.
@@ -144,13 +144,13 @@ Domain modules (`.fsi` and `.fs` pairs) follow a consistent sectioned structure.
 - **Testing approach:**
   - **Transformation validation tests** (in `*ContractTests.fs`): Test `fromContract` transformations with Contract types to verify input validation returns appropriate errors; use domain types directly in test setup
   - **Handler behavior tests** (in `*Tests.fs`): Create domain types directly (no transformation layer), call routers (`execute`, `handle`) with union types to verify correct outcomes, events, and charges
-  - **Test helper pattern**: Use private record type grouping routers (e.g., `type private Rondel = { Execute: RondelCommand -> unit; Handle: RondelInboundEvent -> unit }`) with sync wrappers (`Async.RunSynchronously`), create factory function that returns router record with async dependencies wrapped in `async {}` + observable collections (events, commands) for verification
+  - **Test helper pattern**: Use private record type grouping routers (e.g., `type private Rondel = { Execute: RondelCommand -> unit; Handle: RondelInboundEvent -> unit; GetNationPositions: GetNationPositionsQuery -> RondelPositionsView option; GetRondelOverview: GetRondelOverviewQuery -> RondelView option }`) with sync wrappers (`Async.RunSynchronously`), create factory function that returns router record with async dependencies wrapped in `async {}` + observable collections (events, commands) for verification
   - **Separation**: Keep transformation layer testing separate from handler behavior testing for clearer test intent and reduced boilerplate
-- Current test coverage (22 tests total, all passing):
+- Current test coverage (28 tests total, all passing):
   - **RondelContractTests.fs** (5 transformation validation tests):
     - SetToStartingPositionsCommand.fromContract: rejects Guid.Empty; rejects empty nations array; accepts duplicate nations (Set deduplicates to 2 from 3)
     - MoveCommand.fromContract: rejects unknown rondel space; rejects Guid.Empty
-  - **RondelTests.fs** (17 handler behavior tests):
+  - **RondelTests.fs** (23 handler behavior tests):
     - setToStartingPositions: signals setup for roster; setting twice does not signal again
     - move: cannot begin before starting positions are chosen
     - move: nation's first move may choose any rondel space (property test, 15 iterations)
@@ -167,6 +167,8 @@ Domain modules (`.fsi` and `.fs` pairs) follow a consistent sectioned structure.
     - onInvoicePaymentFailed: processing payment failure twice only removes pending once
     - onInvoicePaymentFailed: payment failure for voided charge is ignored
     - onInvoicePaymentFailed: payment failure after successful payment is ignored
+    - getNationPositions: returns None for unknown game; returns positions for initialized game; returns current position after free move; returns pending space for paid move awaiting payment
+    - getRondelOverview: returns None for unknown game; returns overview for initialized game
 
 ## Branch Naming Guidelines
 
