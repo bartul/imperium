@@ -193,16 +193,16 @@ module Rondel =
     // Query Results
     // ──────────────────────────────────────────────────────────────────────────
 
-    /// A nation's position on the rondel.
-    type NationPositionView =
-        { Nation: string
-          CurrentSpace: Space option
-          PendingSpace: Space option }
-
     /// Result of GetNationPositions query.
     type RondelPositionsView =
         { GameId: Id
           Positions: NationPositionView list }
+
+    /// A nation's position on the rondel.
+    and NationPositionView =
+        { Nation: string
+          CurrentSpace: Space option
+          PendingSpace: Space option }
 
     /// Result of GetRondelOverview query.
     type RondelView =

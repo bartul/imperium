@@ -802,14 +802,15 @@ module Rondel =
     // Query Results
     // ──────────────────────────────────────────────────────────────────────────
 
-    type NationPositionView =
-        { Nation: string
-          CurrentSpace: Space option
-          PendingSpace: Space option }
 
     type RondelPositionsView =
         { GameId: Id
           Positions: NationPositionView list }
+
+    and NationPositionView =
+        { Nation: string
+          CurrentSpace: Space option
+          PendingSpace: Space option }
 
     type RondelView =
         { GameId: Id; NationNames: string list }
@@ -851,10 +852,7 @@ module Rondel =
                       Positions = mapPositions s.NationPositions s.PendingMovements })
         }
 
-    let getRondelOverview
-        (deps: RondelQueryDependencies)
-        (query: GetRondelOverviewQuery)
-        : Async<RondelView option> =
+    let getRondelOverview (deps: RondelQueryDependencies) (query: GetRondelOverviewQuery) : Async<RondelView option> =
         async {
             let! state = deps.Load query.GameId
 
