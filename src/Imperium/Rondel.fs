@@ -802,16 +802,16 @@ module Rondel =
     // Query Results
     // ──────────────────────────────────────────────────────────────────────────
 
-    type NationPosition =
+    type NationPositionView =
         { Nation: string
           CurrentSpace: Space option
           PendingSpace: Space option }
 
-    type NationPositionsResult =
+    type RondelPositionsView =
         { GameId: Id
-          Positions: NationPosition list }
+          Positions: NationPositionView list }
 
-    type RondelOverviewResult =
+    type RondelView =
         { GameId: Id; NationNames: string list }
 
     // ──────────────────────────────────────────────────────────────────────────
@@ -823,13 +823,13 @@ module Rondel =
     type RondelQueryDependencies = { Load: LoadRondelStateForQuery }
 
     // ──────────────────────────────────────────────────────────────────────────
-    // Query Handlers (stub - to be implemented in Phase 2)
+    // Query Handlers
     // ──────────────────────────────────────────────────────────────────────────
 
     let getNationPositions
         (deps: RondelQueryDependencies)
         (query: GetNationPositionsQuery)
-        : Async<NationPositionsResult option> =
+        : Async<RondelPositionsView option> =
         let mapPosition nation position pendingMovement =
             { Nation = nation
               CurrentSpace = position
@@ -854,7 +854,7 @@ module Rondel =
     let getRondelOverview
         (deps: RondelQueryDependencies)
         (query: GetRondelOverviewQuery)
-        : Async<RondelOverviewResult option> =
+        : Async<RondelView option> =
         async {
             let! state = deps.Load query.GameId
 

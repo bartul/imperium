@@ -8,8 +8,8 @@ open Imperium.Primitives
 type private Rondel =
     { Execute: RondelCommand -> unit
       Handle: RondelInboundEvent -> unit
-      GetNationPositions: GetNationPositionsQuery -> NationPositionsResult option
-      GetRondelOverview: GetRondelOverviewQuery -> RondelOverviewResult option }
+      GetNationPositions: GetNationPositionsQuery -> RondelPositionsView option
+      GetRondelOverview: GetRondelOverviewQuery -> RondelView option }
 
 let private createRondel () =
     let store = Collections.Generic.Dictionary<Id, RondelState>()

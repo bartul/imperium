@@ -194,18 +194,18 @@ module Rondel =
     // ──────────────────────────────────────────────────────────────────────────
 
     /// A nation's position on the rondel.
-    type NationPosition =
+    type NationPositionView =
         { Nation: string
           CurrentSpace: Space option
           PendingSpace: Space option }
 
     /// Result of GetNationPositions query.
-    type NationPositionsResult =
+    type RondelPositionsView =
         { GameId: Id
-          Positions: NationPosition list }
+          Positions: NationPositionView list }
 
     /// Result of GetRondelOverview query.
-    type RondelOverviewResult =
+    type RondelView =
         { GameId: Id; NationNames: string list }
 
     // ──────────────────────────────────────────────────────────────────────────
@@ -299,8 +299,8 @@ module Rondel =
 
     /// Get nation positions for a game.
     /// Returns None if game not found.
-    val getNationPositions: RondelQueryDependencies -> GetNationPositionsQuery -> Async<NationPositionsResult option>
+    val getNationPositions: RondelQueryDependencies -> GetNationPositionsQuery -> Async<RondelPositionsView option>
 
     /// Get rondel overview for a game.
     /// Returns None if game not found.
-    val getRondelOverview: RondelQueryDependencies -> GetRondelOverviewQuery -> Async<RondelOverviewResult option>
+    val getRondelOverview: RondelQueryDependencies -> GetRondelOverviewQuery -> Async<RondelView option>
