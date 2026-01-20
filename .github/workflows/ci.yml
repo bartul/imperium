@@ -36,16 +36,16 @@ jobs:
       run: dotnet tool restore
 
     - name: Restore dependencies
-      run: dotnet restore Imperium.sln
+      run: dotnet restore Imperium.slnx
 
     - name: Build (warnings as errors)
       id: build
-      run: dotnet build Imperium.sln --no-restore --configuration Release
+      run: dotnet build Imperium.slnx --no-restore --configuration Release
 
     - name: Run tests
       id: test
       run: |
-        dotnet test Imperium.sln \
+        dotnet test Imperium.slnx \
           --no-build \
           --configuration Release \
           --verbosity normal \
