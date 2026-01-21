@@ -2,7 +2,10 @@
   "name": "Imperium Codespace",
   "image": "mcr.microsoft.com/devcontainers/dotnet:1-10.0-noble",
   "features": {
-    "ghcr.io/devcontainers/features/github-cli:1": {}
+    "ghcr.io/devcontainers/features/github-cli:1": {},
+    "ghcr.io/devcontainers/features/common-utils:2": {
+      "configureZshAsDefaultShell": true
+    }
   },
   "postCreateCommand": "dotnet tool restore && dotnet restore Imperium.sln",
   "forwardPorts": [5000, 5001],
