@@ -21,7 +21,12 @@
         "anthropic.claude-vscode"
       ],
       "settings": {
-        "dotnetAcquisitionExtension.enableTelemetry": false
+        "dotnetAcquisitionExtension.enableTelemetry": false,
+        "editor.formatOnSave": true,
+        "editor.defaultFormatter": "ms-dotnettools.csharp",
+        "[fsharp]": {
+          "editor.defaultFormatter": "Ionide.ionide-fsharp"
+        }
       }
     },
     "codespaces": {
