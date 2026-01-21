@@ -1,5 +1,5 @@
 # Repository Guidelines
-Last verified: 2026-01-14
+Last verified: 2026-01-21
 
 ## Project Structure & Module Organization
 - `Imperium.sln` stitches together the core F# library, ASP.NET Core web host, and unit test project.
@@ -26,7 +26,8 @@ Last verified: 2026-01-14
   - `Contract.Rondel.RondelState`: Serializable DTOs (Guid/string) for persistence. NationPositions is `Map<string, string option>` at the serialization boundary and PendingMovements is keyed by nation name for O(log n) lookups.
   - `Rondel.RondelState`: Domain state uses strong types (`Id`, `Space option`, `RondelBillingId`). NationPositions is `Map<string, Space option>` and PendingMovement uses `Space` TargetSpace + `RondelBillingId` BillingId. Transformations live in `Rondel.fs` (`RondelState.toContract/fromContract`), not in a separate adapter.
 - `src/Imperium.Web` bootstraps the HTTP layer (`Program.fs`). Reference the core project via the existing project reference instead of duplicating logic.
-- `docs/` stores reference rulebooks; official rule PDFs live in `docs/official_rules/`. Leave build artefacts inside each project's `bin/` and `obj/` directories untouched.
+- `src/Imperium.Terminal` (planned): Terminal UI app with Hex1b, MailboxProcessor hosting, in-memory store, cross-context Bus. See `docs/rondel_multi_environment_architecture.md` for Phase 1 design.
+- `docs/` stores reference rulebooks; official rule PDFs live in `docs/official_rules/`. Architecture docs in `docs/rondel_multi_environment_architecture.md`. Leave build artefacts inside each project's `bin/` and `obj/` directories untouched.
 - Rondel spaces (board order): `Investor`, `Import`, `ProductionOne`, `ManeuverOne`, `Taxation`, `Factory`, `ProductionTwo`, `ManeuverTwo`.
 - Rondel rules source: mechanic follows the boardgame "rondel" described in `docs/Imperial_English_Rules.pdf`. Keep only a quick cheat sheet here; see the PDF for full details. Key movement: clockwise, cannot stay put; 1–3 spaces free, 4–6 cost 2M per additional space beyond the first 3 free spaces (4 spaces = 2M, 5 spaces = 4M, 6 spaces = 6M; max distance 6), first turn may start anywhere. Actions: Factory (build own city for 5M, no hostile upright armies), Production (each unoccupied home factory produces 1 unit), Import (buy up to 3 units for 1M each in home provinces), Maneuver (fleets adjacent sea; armies adjacent land or via fleets; rail within home; 3 armies can destroy a factory; place flags in newly occupied regions), Investor (pay bond interest; investor card gets 2M and may invest; Swiss bank owners may also invest; passing executes investor steps 2–3), Taxation (tax: 2M per unoccupied factory, 1M per flag; dividend if tax track increases; add power points; treasury collects tax minus 1M per army/fleet). Game ends at 25 power points; score = bond interest x nation factor + personal cash.
 
@@ -61,6 +62,16 @@ Last verified: 2026-01-14
 - Rondel internal handlers: `setToStartingPositions` complete (delegates to `SetToStartingPositions.execute` for pure validation and state creation); `move` complete (delegates to `Move.execute` for clockwise distance calculation, 1-3 space free moves with immediate action determination, 4-6 space paid moves with charge dispatch and pending state storage (formula: (distance - 3) * 2M), rejects 0-space (stay put) and 7+ space (exceeds max) moves, automatically voids old charges and rejects old pending moves when a nation initiates a new move before previous payment completes); `onInvoicePaid` complete with idempotent payment confirmation processing (ignores events for non-existent pending movements, handles duplicate payment events or already-completed/voided movements, fails fast on state corruption); `onInvoicePaymentFailed` complete (delegates to `OnInvoicePaymentFailed.handle` for payment failure processing; removes pending movements when payment fails; emits `MoveToActionSpaceRejected` event; includes idempotent handling for duplicate or already-processed events).
 - Add public APIs for Gameplay and Accounting or trim placeholders if unused.
 - Tests use helper pattern: private `Rondel` record with `Execute`/`Handle` routers (sync wrappers using `Async.RunSynchronously`), `createRondel()` factory returns router record with async dependencies + observable collections for verification.
+
+### Multi-Environment Architecture (Phase 1: Terminal App)
+- See `docs/rondel_multi_environment_architecture.md` for full architecture and design decisions.
+- **Terminal app** (`Imperium.Terminal`): In-process app with Hex1b TUI, MailboxProcessor hosting, in-memory store.
+- **Key patterns:**
+  - Records of functions with factory modules (matches `RondelDependencies` style)
+  - `Bus` for cross-bounded-context events using subscription builder pattern
+  - Each BC has a `Host` that registers subscriptions and handles event transformation
+  - MailboxProcessor serializes commands/events per BC; queries bypass for direct store access
+- **Technology choices (terminal):** Hex1b TUI (fallback: Spectre.Console + FsSpectre), subscription builder bus (fallback: explicit typed channels), direct function calls for in-process messaging.
 
 ## Build, Test, and Development Commands
 - Restore dependencies: `dotnet restore Imperium.sln`.

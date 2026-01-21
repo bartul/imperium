@@ -1,7 +1,7 @@
 # CLAUDE.md
 
 This file guides Claude Code (claude.ai/code) for this repository. For shared repo facts, module summaries, and commands, see `AGENTS.md`.
-Last verified: 2026-01-14
+Last verified: 2026-01-21
 
 ## Quick Status (last verified: current)
 
@@ -11,7 +11,8 @@ Last verified: 2026-01-14
 - Rondel outbound commands: Domain types (`ChargeMovementOutboundCommand`, `VoidChargeOutboundCommand`, `RondelOutboundCommand` DU) with per-command `toContract` transformations targeting Accounting bounded context.
 - Accounting contract: ChargeNationForRondelMovementCommand, VoidRondelChargeCommand (commands), AccountingCommand (routing DU), AccountingEvent (payment result events).
 - Rondel state: handlers load/save domain `RondelState` by `Id`; persistence adapters map to/from `Contract.Rondel.RondelState` via `RondelState.toContract/fromContract`.
-- Gameplay and Accounting modules expose no public API yet.
+- Gameplay and Accounting modules expose no public API yet. Accounting will get minimal implementation in terminal app for paid move flow.
+- Multi-environment architecture planned: Terminal app (Phase 1) with Hex1b TUI, MailboxProcessor hosting, Bus for cross-BC events. See `docs/rondel_multi_environment_architecture.md`.
 - AsyncExtensions module: Provides `Async.AwaitTaskWithCT` helper for calling Task-based libraries with implicit CancellationToken from async context.
 - Tests organized by concern: `RondelContractTests.fs` (5 transformation validation tests: SetToStartingPositionsCommand/MoveCommand `fromContract` input validation) and `RondelTests.fs` (23 handler behavior tests using router pattern). Handler tests use `Rondel` record helper with `Execute`/`Handle`/`GetNationPositions`/`GetRondelOverview` routers (sync wrappers using `Async.RunSynchronously`), `createRondel()` factory returns router record + observable collections (events, commands) for verification. Tests call routers with union types (e.g., `rondel.Execute <| SetToStartingPositions cmd`). Property tests validate move behavior across random nations/spaces (15 iterations each). Total: 28 tests, all passing.
 
