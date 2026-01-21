@@ -26,13 +26,57 @@
         "editor.defaultFormatter": "ms-dotnettools.csharp",
         "[fsharp]": {
           "editor.defaultFormatter": "Ionide.ionide-fsharp"
-        }
+        },
+        "editor.fontFamily": "Cascadia Code, Fira Code, Menlo, Consolas",
+        "editor.fontSize": 14,
+        "editor.fontLigatures": true,
+        "editor.lineNumbers": "off",
+        "editor.glyphMargin": true,
+        "editor.codeLens": false,
+        "editor.tabSize": 4,
+        "editor.insertSpaces": true,
+        "editor.detectIndentation": true,
+        "editor.minimap.enabled": false,
+        "editor.formatOnType": true,
+        "editor.renderWhitespace": "selection",
+        "editor.guides.indentation": false,
+        "editor.inlineSuggest.enabled": true,
+        "editor.stickyScroll.enabled": false,
+        "editor.accessibilitySupport": "off",
+        "files.autoSave": "afterDelay",
+        "files.associations": {
+          "*.fs": "fsharp"
+        },
+        "FSharp.enableTouchBar": false,
+        "FSharp.lineLens.enabled": "always",
+        "FSharp.inlineValues.enabled": true,
+        "FSharp.inlayHints.typeAnnotations": false,
+        "FSharp.infoPanelReplaceHover": true,
+        "FSharp.smartIndent": true,
+        "FSharp.inlayHints.parameterNames": false,
+        "csharp.preview.improvedLaunchExperience": true,
+        "github.copilot.enable": {
+          "*": true
+        },
+        "security.workspace.trust.untrustedFiles": "open",
+        "git.decorations.enabled": false,
+        "git.blame.editorDecoration.enabled": false,
+        "workbench.editor.showTabs": "single",
+        "workbench.startupEditor": "none",
+        "workbench.colorTheme": "Solarized Light",
+        "workbench.preferredDarkColorTheme": "Solarized Dark",
+        "workbench.preferredLightColorTheme": "Solarized Light",
+        "workbench.activityBar.location": "hidden",
+        "window.commandCenter": false,
+        "window.autoDetectColorScheme": true,
+        "workbench.layoutControl.enabled": false,
+        "workbench.editor.editorActionsLocation": "hidden",
+        "zenMode.showTabs": "none",
+        "zenMode.centerLayout": false,
+        "zenMode.hideStatusBar": false
       }
     },
     "codespaces": {
-      "openFiles": [
-        "AGENTS.md"
-      ]
     }
   },
   "containerEnv": {
