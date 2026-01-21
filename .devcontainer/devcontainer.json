@@ -4,7 +4,7 @@
   "features": {
     "ghcr.io/devcontainers/features/github-cli:1": {},
     "ghcr.io/devcontainers/features/common-utils:2": {
-      "configureZshAsDefaultShell": true
+      "configureFishAsDefaultShell": true
     }
   },
   "postCreateCommand": "dotnet tool restore && dotnet restore Imperium.sln",
