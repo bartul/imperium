@@ -1,6 +1,7 @@
 namespace Imperium
 
 open Imperium.Primitives
+open FsToolkit.ErrorHandling
 
 module Accounting =
 
@@ -46,19 +47,40 @@ module Accounting =
 
     module ChargeNationForRondelMovementCommand =
         let fromContract
-            (_: Contract.Accounting.ChargeNationForRondelMovementCommand)
+            (cmd: Contract.Accounting.ChargeNationForRondelMovementCommand)
             : Result<ChargeNationForRondelMovementCommand, string> =
-            Error "Not implemented"
+            result {
+                let! gameId = Id.create cmd.GameId
+                let! billingId = Id.create cmd.BillingId
+
+                return
+                    { GameId = gameId
+                      Nation = cmd.Nation
+                      Amount = cmd.Amount
+                      BillingId = billingId }
+            }
 
     module VoidRondelChargeCommand =
         let fromContract
-            (_: Contract.Accounting.VoidRondelChargeCommand)
+            (cmd: Contract.Accounting.VoidRondelChargeCommand)
             : Result<VoidRondelChargeCommand, string> =
-            Error "Not implemented"
+            result {
+                let! gameId = Id.create cmd.GameId
+                let! billingId = Id.create cmd.BillingId
+                return { GameId = gameId; BillingId = billingId }
+            }
 
     module AccountingEvent =
-        let toContract (_: AccountingEvent) : Contract.Accounting.AccountingEvent =
-            failwith "Not implemented"
+        let toContract (event: AccountingEvent) : Contract.Accounting.AccountingEvent =
+            match event with
+            | RondelInvoicePaid evt ->
+                Contract.Accounting.RondelInvoicePaid
+                    { GameId = Id.value evt.GameId
+                      BillingId = Id.value evt.BillingId }
+            | RondelInvoicePaymentFailed evt ->
+                Contract.Accounting.RondelInvoicePaymentFailed
+                    { GameId = Id.value evt.GameId
+                      BillingId = Id.value evt.BillingId }
 
     // ──────────────────────────────────────────────────────────────────────────
     // Handlers
