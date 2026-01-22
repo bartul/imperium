@@ -7,7 +7,7 @@
       "configureFishAsDefaultShell": true
     }
   },
-  "postCreateCommand": "dotnet tool restore && dotnet restore Imperium.sln",
+  "postCreateCommand": "sudo chown -R vscode:vscode /home/vscode/.nuget && dotnet tool restore && dotnet restore Imperium.sln",
   "forwardPorts": [5000, 5001],
   "mounts": [
     "source=nuget,target=/home/vscode/.nuget/packages,type=volume"
