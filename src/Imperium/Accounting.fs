@@ -86,5 +86,23 @@ module Accounting =
     // Handlers
     // ──────────────────────────────────────────────────────────────────────────
 
-    let execute (_: AccountingDependencies) (_: AccountingCommand) : Async<unit> =
+    /// Process charge command by auto-approving and publishing paid event.
+    let internal chargeNationForRondelMovement
+        (deps: AccountingDependencies)
+        (cmd: ChargeNationForRondelMovementCommand)
+        : Async<unit> =
+        async {
+            let event: AccountingEvent =
+                RondelInvoicePaid { GameId = cmd.GameId; BillingId = cmd.BillingId }
+
+            do! deps.Publish event
+        }
+
+    /// Process void command (skeleton does nothing).
+    let internal voidRondelCharge (_: AccountingDependencies) (_: VoidRondelChargeCommand) : Async<unit> =
         async { return () }
+
+    let execute (deps: AccountingDependencies) (cmd: AccountingCommand) : Async<unit> =
+        match cmd with
+        | ChargeNationForRondelMovement c -> chargeNationForRondelMovement deps c
+        | VoidRondelCharge c -> voidRondelCharge deps c
