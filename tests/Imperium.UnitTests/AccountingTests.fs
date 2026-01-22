@@ -52,7 +52,9 @@ let tests =
                     let gameId = Guid.NewGuid() |> Id
                     let billingId = Guid.NewGuid() |> Id
 
-                    let command: VoidRondelChargeCommand = { GameId = gameId; BillingId = billingId }
+                    let command: VoidRondelChargeCommand =
+                        { GameId = gameId
+                          BillingId = billingId }
 
                     accounting.Execute(VoidRondelCharge command)
 

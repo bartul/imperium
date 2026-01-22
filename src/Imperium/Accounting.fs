@@ -61,13 +61,14 @@ module Accounting =
             }
 
     module VoidRondelChargeCommand =
-        let fromContract
-            (cmd: Contract.Accounting.VoidRondelChargeCommand)
-            : Result<VoidRondelChargeCommand, string> =
+        let fromContract (cmd: Contract.Accounting.VoidRondelChargeCommand) : Result<VoidRondelChargeCommand, string> =
             result {
                 let! gameId = Id.create cmd.GameId
                 let! billingId = Id.create cmd.BillingId
-                return { GameId = gameId; BillingId = billingId }
+
+                return
+                    { GameId = gameId
+                      BillingId = billingId }
             }
 
     module AccountingEvent =
@@ -93,7 +94,9 @@ module Accounting =
         : Async<unit> =
         async {
             let event: AccountingEvent =
-                RondelInvoicePaid { GameId = cmd.GameId; BillingId = cmd.BillingId }
+                RondelInvoicePaid
+                    { GameId = cmd.GameId
+                      BillingId = cmd.BillingId }
 
             do! deps.Publish event
         }

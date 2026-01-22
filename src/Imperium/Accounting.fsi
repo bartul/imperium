@@ -58,7 +58,8 @@ module Accounting =
         /// Validate and transform Contract command to Domain command.
         /// Returns Error if GameId or BillingId is invalid.
         val fromContract:
-            Contract.Accounting.ChargeNationForRondelMovementCommand -> Result<ChargeNationForRondelMovementCommand, string>
+            Contract.Accounting.ChargeNationForRondelMovementCommand ->
+                Result<ChargeNationForRondelMovementCommand, string>
 
     /// Transforms Contract VoidRondelChargeCommand to Domain type.
     module VoidRondelChargeCommand =
