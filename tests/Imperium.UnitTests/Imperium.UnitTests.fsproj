@@ -6,6 +6,8 @@
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="AccountingContractTests.fs" />
+    <Compile Include="AccountingTests.fs" />
     <Compile Include="GameplayTests.fs" />
     <Compile Include="RondelContractTests.fs" />
     <Compile Include="RondelTests.fs" />
