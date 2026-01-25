@@ -11,6 +11,7 @@
     <Compile Include="GameplayTests.fs" />
     <Compile Include="RondelContractTests.fs" />
     <Compile Include="RondelTests.fs" />
+    <Compile Include="RondelHostTests.fs" />
     <Compile Include="Main.fs" />
   </ItemGroup>
   <ItemGroup>
@@ -22,5 +23,6 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\Imperium\Imperium.fsproj" />
+    <ProjectReference Include="..\..\src\Imperium.Terminal\Imperium.Terminal.fsproj" />
   </ItemGroup>
 </Project>

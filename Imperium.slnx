@@ -5,6 +5,7 @@
     <Platform Name="x86" />
   </Configurations>
   <Folder Name="/src/">
+    <Project Path="src/Imperium.Terminal/Imperium.Terminal.fsproj" />
     <Project Path="src/Imperium.Web/Imperium.Web.fsproj" />
   </Folder>
   <Folder Name="/tests/">
