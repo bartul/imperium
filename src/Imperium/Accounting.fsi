@@ -53,7 +53,7 @@ module Accounting =
     // Transformations (Contract <-> Domain)
     // ──────────────────────────────────────────────────────────────────────────
 
-    /// Transforms Contract ChargeNationForRondelMovementCommand to Domain type.
+    /// Transforms Contract ChargeNationForRondelMovementCommand to a Domain type.
     module ChargeNationForRondelMovementCommand =
         /// Validate and transform Contract command to Domain command.
         /// Returns Error if GameId or BillingId is invalid.
@@ -61,13 +61,13 @@ module Accounting =
             Contract.Accounting.ChargeNationForRondelMovementCommand ->
                 Result<ChargeNationForRondelMovementCommand, string>
 
-    /// Transforms Contract VoidRondelChargeCommand to Domain type.
+    /// Transforms Contract VoidRondelChargeCommand to a Domain type.
     module VoidRondelChargeCommand =
         /// Validate and transform Contract command to Domain command.
         /// Returns Error if GameId or BillingId is invalid.
         val fromContract: Contract.Accounting.VoidRondelChargeCommand -> Result<VoidRondelChargeCommand, string>
 
-    /// Transforms Domain AccountingEvent to Contract type for publication.
+    /// Transforms Domain AccountingEvent to a Contract type for publication.
     module AccountingEvent =
         /// Transform Domain event to Contract event for cross-boundary communication.
         val toContract: AccountingEvent -> Contract.Accounting.AccountingEvent
