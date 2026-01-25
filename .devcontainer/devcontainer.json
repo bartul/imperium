@@ -13,8 +13,23 @@
   "customizations": {
     "vscode": {
       "extensions": [
+        "andenetalexander.vim-cheatsheet",
+        "anthropic.claude-code",
+        "davidanson.vscode-markdownlint",
+        "dbaeumer.vscode-eslint",
+        "editorconfig.editorconfig",
+        "github.copilot",
+        "github.copilot-chat",
+        "github.vscode-pull-request-github",
+        "humao.rest-client",
         "Ionide.ionide-fsharp",
+        "ms-azuretools.azure-dev",
+        "ms-dotnettools.csdevkit",
         "ms-dotnettools.csharp",
+        "ms-dotnettools.vscode-dotnet-runtime",
+        "streetsidesoftware.code-spell-checker",
+        "vintharas.learn-vim",
+        "vscodevim.vim",
         "anthropic.claude-vscode"
       ],
       "settings": {
