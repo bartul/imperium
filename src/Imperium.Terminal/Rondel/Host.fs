@@ -1,26 +1,33 @@
-module Imperium.Terminal.Rondel.Host
+namespace Imperium.Terminal.Rondel
 
+open Imperium.Accounting
 open Imperium.Rondel
-open Imperium.Terminal.Bus
+open Imperium.Terminal
 open Imperium.Terminal.Rondel.Store
 
 // ──────────────────────────────────────────────────────────────────────────
 // Types
 // ──────────────────────────────────────────────────────────────────────────
 
+/// Thunk for dispatching commands to Accounting - resolves at call time to break circular deps
+type DispatchToAccounting = unit -> AccountingCommand -> Async<Result<unit, string>>
+
 /// Host for Rondel bounded context with MailboxProcessor serialization
 type RondelHost =
-    { /// Commands serialized through MailboxProcessor
-      ExecuteCommand: RondelCommand -> Async<Result<unit, string>>
-      /// Queries bypass mailbox, read directly from store
-      QueryPositions: GetNationPositionsQuery -> Async<RondelPositionsView option>
-      /// Queries bypass mailbox, read directly from store
-      QueryOverview: GetRondelOverviewQuery -> Async<RondelView option> }
+    {
+        /// Commands serialized through MailboxProcessor
+        Execute: RondelCommand -> Async<unit>
+        /// Queries bypass mailbox, read directly from the store
+        QueryPositions: GetNationPositionsQuery -> Async<RondelPositionsView option>
+        /// Queries bypass mailbox, read directly from the store
+        QueryOverview: GetRondelOverviewQuery -> Async<RondelView option>
+    }
 
-// ──────────────────────────────────────────────────────────────────────────
-// Factory
-// ──────────────────────────────────────────────────────────────────────────
+module RondelHost =
+    // ──────────────────────────────────────────────────────────────────────────
+    // Factory
+    // ──────────────────────────────────────────────────────────────────────────
 
-/// Creates a new RondelHost with MailboxProcessor serialization
-let create (store: RondelStore) (bus: Bus) : RondelHost =
-    failwith "Not implemented"
+    /// Creates a new RondelHost with MailboxProcessor serialization
+    let create (store: RondelStore) (bus: IBus) (dispatchToAccounting: DispatchToAccounting) : RondelHost =
+        failwith "Not implemented"

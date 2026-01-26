@@ -412,7 +412,41 @@ src/Imperium.Terminal/
 **Key constraints:**
 - MailboxProcessor serializes commands and inbound events (writes) per bounded context
 - Queries access stores directly for minimal latency
-- Bus enables cross-context event communication with subscription builder pattern
+- Bus enables cross-context event communication (events only)
+- Command dispatch uses direct function calls via thunk injection
+
+### Events vs Commands
+
+| Concern | Mechanism | Rationale |
+|---------|-----------|-----------|
+| **Events** | Bus (pub/sub) | Broadcast to multiple subscribers, loose coupling |
+| **Commands** | Direct function call | Targeted single handler, type safe, no boxing |
+
+Terminal uses **domain event types** directly (not contract types) for cross-BC communication since everything is in-process. This simplifies the architecture by avoiding transformation layers.
+
+### Breaking Circular Dependencies
+
+F# doesn't allow circular module dependencies. When RondelHost dispatches commands to AccountingHost (and potentially vice versa in the future), we use **lazy/thunk injection**:
+
+```fsharp
+// Host accepts a thunk that resolves the target at call time
+type DispatchToAccounting = unit -> (AccountingCommand -> Async<Result<unit, string>>)
+
+module RondelHost =
+    let create store bus (getAccountingExecute: DispatchToAccounting) : RondelHost = ...
+
+// Composition root uses recursive lazy values to break the cycle
+let rec rondelHost =
+    lazy (RondelHost.create store bus (fun () -> accountingHost.Value.Execute))
+and accountingHost =
+    lazy (AccountingHost.create bus (Some (fun () -> rondelHost.Value.Execute)))
+```
+
+**Benefits:**
+- Type safe (no boxing/casting for commands)
+- Direct function calls at runtime
+- Easy to stub for testing
+- F# idiomatic pattern for breaking cycles
 
 ```
 ┌───────────────────────────────────────────────────────────────────────────┐
@@ -427,42 +461,42 @@ src/Imperium.Terminal/
 ┌─────────────────────────────────────┐  ┌─────────────────────────────────┐
 │           RondelHost                │  │         AccountingHost          │
 │                                     │  │                                 │
-│  Registers subscriptions:           │  │  Registers subscriptions:       │
-│  • InvoicePaidEvent → transform →   │  │  • ChargeMovement →             │
+│  Subscribes to events:              │  │  Receives commands via thunk:   │
+│  • RondelInvoicePaidEvent →         │  │  • ChargeMovement →             │
 │    Rondel.handle(InvoicePaid)       │  │    process & publish            │
-│  • PaymentFailedEvent → transform → │  │    InvoicePaidEvent             │
+│  • RondelInvoicePaymentFailedEvent →│  │    RondelInvoicePaidEvent       │
 │    Rondel.handle(PaymentFailed)     │  │  • VoidCharge →                 │
 │                                     │  │    process void                 │
 │  Publishes via bus:                 │  │                                 │
 │  • RondelEvent (domain events)      │  │  Publishes via bus:             │
-│  • ChargeMovement (dispatch)        │  │  • InvoicePaidEvent             │
-│  • VoidCharge (dispatch)            │  │  • PaymentFailedEvent           │
+│                                     │  │  • RondelInvoicePaidEvent       │
+│  Dispatches via thunk:              │  │  • RondelInvoicePaymentFailed   │
+│  • ChargeMovement → Accounting      │  │                                 │
+│  • VoidCharge → Accounting          │  │                                 │
 │                                     │  │                                 │
 │  ┌───────────────────────────────┐  │  │  ┌───────────────────────────┐  │
 │  │ MailboxProcessor (sequential) │  │  │  │ MailboxProcessor          │  │
 │  └───────────────────────────────┘  │  │  └───────────────────────────┘  │
-└────────────────┬────────────────────┘  └───────────────┬─────────────────┘
+└───────────┬───────────────┬─────────┘  └────────────┬────────────────────┘
+            │               │                         │
+            │ dispatch      │ publish/subscribe       │ publish
+            │ (direct call) │ (events)                │ (events)
+            │               ▼                         ▼
+            │    ┌────────────────────────────────────────────────────────┐
+            │    │                    Bus (events only)                   │
+            │    │                                                        │
+            │    │  • Publish: obj -> Async<unit>                         │
+            │    │  • Register: Type -> (obj -> Async<unit>) -> unit      │
+            │    └────────────────────────────────────────────────────────┘
+            │
+            └──────────────────────────► AccountingHost.Execute (thunk)
+
                  │                                       │
-                 │ publish / subscribe                   │
-                 ▼                                       ▼
-┌───────────────────────────────────────────────────────────────────────────┐
-│                         Bus (cross-cutting infra)                         │
-│                                                                           │
-│  • Publish: obj -> Async<unit>                                            │
-│  • Register: Type -> (obj -> Async<unit>) -> unit                         │
-│                                                                           │
-│  subscription helper: transform + handle combined                         │
-│  ┌─────────────────────────────────────────────────────────────────────┐  │
-│  │ bus.Register typeof<InvoicePaidEvent>                               │  │
-│  │   (subscription fromContract (InvoicePaid >> handle))               │  │
-│  └─────────────────────────────────────────────────────────────────────┘  │
-└───────────────────────────────────────────────────────────────────────────┘
-                 │                                       │
-                 │ load/save                             │ load/save
+                 │ load/save                             │ (stateless)
                  ▼                                       ▼
 ┌─────────────────────────────────────┐  ┌─────────────────────────────────┐
-│      RondelStore (record)           │  │      AccountingStore (record)   │
-│      • InMemoryRondelStore.create() │  │      • InMemoryAccounting...()  │
+│      RondelStore (record)           │  │      (no store - auto-approve)  │
+│      • InMemoryRondelStore.create() │  │                                 │
 └─────────────────────────────────────┘  └─────────────────────────────────┘
 ```
 

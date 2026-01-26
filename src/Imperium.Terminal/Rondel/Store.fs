@@ -18,5 +18,4 @@ type RondelStore =
 module InMemoryRondelStore =
 
     /// Creates a new in-memory RondelStore instance
-    let create () : RondelStore =
-        failwith "Not implemented"
+    let create () : RondelStore = failwith "Not implemented"

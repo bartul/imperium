@@ -70,11 +70,23 @@ Last verified: 2026-01-21
 - See `docs/rondel_multi_environment_architecture.md` for full architecture and design decisions.
 - **Terminal app** (`Imperium.Terminal`): In-process app with Hex1b TUI, MailboxProcessor hosting, in-memory store.
 - **Key patterns:**
-  - Records of functions with factory modules (matches `RondelDependencies` style)
-  - `Bus` for cross-bounded-context events using subscription builder pattern
-  - Each BC has a `Host` that registers subscriptions and handles event transformation
+  - `IBus` interface for cross-bounded-context **events** (pub/sub with generic `Publish<'T>` and `Subscribe<'T>`)
+  - Thunk injection for cross-BC **commands** (breaks circular dependencies, type-safe direct calls)
+  - Each BC has a `Host` (e.g., `RondelHost`, `AccountingHost`) with `Execute` entry point
   - MailboxProcessor serializes commands/events per BC; queries bypass for direct store access
-- **Technology choices (terminal):** Hex1b TUI (fallback: Spectre.Console + FsSpectre), subscription builder bus (fallback: explicit typed channels), direct function calls for in-process messaging.
+  - Domain events used directly (not contract types) since everything is in-process
+- **Project structure:**
+  ```
+  src/Imperium.Terminal/
+  ├── Bus.fs                    # IBus interface and factory
+  ├── Rondel/
+  │   ├── Store.fs              # RondelStore with InMemoryRondelStore
+  │   └── Host.fs               # RondelHost with DispatchToAccounting thunk
+  ├── Accounting/
+  │   └── Host.fs               # AccountingHost skeleton
+  └── Program.fs
+  ```
+- **Technology choices (terminal):** Hex1b TUI (fallback: Spectre.Console + FsSpectre), direct function calls for in-process messaging.
 
 ## Build, Test, and Development Commands
 - Restore dependencies: `dotnet restore Imperium.sln`.

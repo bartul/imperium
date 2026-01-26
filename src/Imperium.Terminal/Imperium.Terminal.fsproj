@@ -7,6 +7,7 @@
     <Compile Include="Bus.fs" />
     <Compile Include="Rondel/Store.fs" />
     <Compile Include="Rondel/Host.fs" />
+    <Compile Include="Accounting\Host.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>
   <ItemGroup>
