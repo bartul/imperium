@@ -14,11 +14,7 @@ module Accounting =
         | VoidRondelCharge of VoidRondelChargeCommand
 
     /// Command to charge a nation for rondel movement.
-    and ChargeNationForRondelMovementCommand =
-        { GameId: Id
-          Nation: string
-          Amount: Amount
-          BillingId: Id }
+    and ChargeNationForRondelMovementCommand = { GameId: Id; Nation: string; Amount: Amount; BillingId: Id }
 
     /// Command to void a previously initiated rondel charge.
     and VoidRondelChargeCommand = { GameId: Id; BillingId: Id }

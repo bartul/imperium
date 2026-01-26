@@ -7,9 +7,7 @@ open Imperium.Rondel
 // ──────────────────────────────────────────────────────────────────────────
 
 /// Store for Rondel bounded context persistence
-type RondelStore =
-    { Load: LoadRondelState
-      Save: SaveRondelState }
+type RondelStore = { Load: LoadRondelState; Save: SaveRondelState }
 
 // ──────────────────────────────────────────────────────────────────────────
 // In-Memory Implementation

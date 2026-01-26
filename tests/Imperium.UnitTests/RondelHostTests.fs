@@ -59,9 +59,7 @@ let tests =
               let host, _, _, store, _ = createRondelHost ()
               let gameId = Id.newId ()
 
-              SetToStartingPositions
-                  { GameId = gameId
-                    Nations = set [ "A" ] }
+              SetToStartingPositions { GameId = gameId; Nations = set [ "A" ] }
               |> host.Execute
 
               Expect.isSome (store.Load gameId) "command should reach domain and persist"
@@ -71,15 +69,10 @@ let tests =
               let host, publishedEvents, _, _, _ = createRondelHost ()
               let gameId = Id.newId ()
 
-              SetToStartingPositions
-                  { GameId = gameId
-                    Nations = set [ "A" ] }
+              SetToStartingPositions { GameId = gameId; Nations = set [ "A" ] }
               |> host.Execute
 
-              Move
-                  { GameId = gameId
-                    Nation = "A"
-                    Space = Space.ManeuverOne }
+              Move { GameId = gameId; Nation = "A"; Space = Space.ManeuverOne }
               |> host.Execute
 
               Expect.isNonEmpty publishedEvents "domain events should flow to bus"
@@ -89,22 +82,12 @@ let tests =
               let host, _, dispatchedCommands, _, _ = createRondelHost ()
               let gameId = Id.newId ()
 
-              SetToStartingPositions
-                  { GameId = gameId
-                    Nations = set [ "A" ] }
+              SetToStartingPositions { GameId = gameId; Nations = set [ "A" ] }
               |> host.Execute
 
-              Move
-                  { GameId = gameId
-                    Nation = "A"
-                    Space = Space.Taxation }
-              |> host.Execute
+              Move { GameId = gameId; Nation = "A"; Space = Space.Taxation } |> host.Execute
 
-              Move
-                  { GameId = gameId
-                    Nation = "A"
-                    Space = Space.Import }
-              |> host.Execute
+              Move { GameId = gameId; Nation = "A"; Space = Space.Import } |> host.Execute
 
               Expect.isNonEmpty dispatchedCommands "outbound commands should flow to thunk"
 
@@ -113,22 +96,12 @@ let tests =
               let host, publishedEvents, dispatchedCommands, _, bus = createRondelHost ()
               let gameId = Id.newId ()
 
-              SetToStartingPositions
-                  { GameId = gameId
-                    Nations = set [ "A" ] }
+              SetToStartingPositions { GameId = gameId; Nations = set [ "A" ] }
               |> host.Execute
 
-              Move
-                  { GameId = gameId
-                    Nation = "A"
-                    Space = Space.Taxation }
-              |> host.Execute
+              Move { GameId = gameId; Nation = "A"; Space = Space.Taxation } |> host.Execute
 
-              Move
-                  { GameId = gameId
-                    Nation = "A"
-                    Space = Space.Import }
-              |> host.Execute
+              Move { GameId = gameId; Nation = "A"; Space = Space.Import } |> host.Execute
 
               let billingId =
                   dispatchedCommands
@@ -138,11 +111,7 @@ let tests =
                   |> Seq.tryHead
                   |> Option.defaultWith (fun () -> failwith "charge command not dispatched")
 
-              bus.Publish(
-                  Accounting.RondelInvoicePaid
-                      { GameId = gameId
-                        BillingId = billingId }
-              )
+              bus.Publish(Accounting.RondelInvoicePaid { GameId = gameId; BillingId = billingId })
 
               let move =
                   publishedEvents
@@ -162,9 +131,7 @@ let tests =
 
               let gameId = Id.newId ()
 
-              SetToStartingPositions
-                  { GameId = gameId
-                    Nations = set [ "A" ] }
+              SetToStartingPositions { GameId = gameId; Nations = set [ "A" ] }
               |> host.Execute
 
               let result = host.QueryPositions { GameId = Id.newId () }

@@ -12,11 +12,7 @@ module Accounting =
     /// Charge a nation for rondel movement.
     type ChargeNationForRondelMovement = ChargeNationForRondelMovementCommand -> Result<unit, string>
 
-    and ChargeNationForRondelMovementCommand =
-        { GameId: Guid
-          Nation: string
-          Amount: Amount
-          BillingId: Guid }
+    and ChargeNationForRondelMovementCommand = { GameId: Guid; Nation: string; Amount: Amount; BillingId: Guid }
 
     /// Void a previously initiated rondel charge before payment completion.
     type VoidRondelCharge = VoidRondelChargeCommand -> Result<unit, string>

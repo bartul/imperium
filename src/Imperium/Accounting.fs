@@ -13,11 +13,7 @@ module Accounting =
         | ChargeNationForRondelMovement of ChargeNationForRondelMovementCommand
         | VoidRondelCharge of VoidRondelChargeCommand
 
-    and ChargeNationForRondelMovementCommand =
-        { GameId: Id
-          Nation: string
-          Amount: Amount
-          BillingId: Id }
+    and ChargeNationForRondelMovementCommand = { GameId: Id; Nation: string; Amount: Amount; BillingId: Id }
 
     and VoidRondelChargeCommand = { GameId: Id; BillingId: Id }
 
@@ -53,11 +49,7 @@ module Accounting =
                 let! gameId = Id.create cmd.GameId
                 let! billingId = Id.create cmd.BillingId
 
-                return
-                    { GameId = gameId
-                      Nation = cmd.Nation
-                      Amount = cmd.Amount
-                      BillingId = billingId }
+                return { GameId = gameId; Nation = cmd.Nation; Amount = cmd.Amount; BillingId = billingId }
             }
 
     module VoidRondelChargeCommand =
@@ -66,9 +58,7 @@ module Accounting =
                 let! gameId = Id.create cmd.GameId
                 let! billingId = Id.create cmd.BillingId
 
-                return
-                    { GameId = gameId
-                      BillingId = billingId }
+                return { GameId = gameId; BillingId = billingId }
             }
 
     module AccountingEvent =
@@ -76,12 +66,10 @@ module Accounting =
             match event with
             | RondelInvoicePaid evt ->
                 Contract.Accounting.RondelInvoicePaid
-                    { GameId = Id.value evt.GameId
-                      BillingId = Id.value evt.BillingId }
+                    { GameId = Id.value evt.GameId; BillingId = Id.value evt.BillingId }
             | RondelInvoicePaymentFailed evt ->
                 Contract.Accounting.RondelInvoicePaymentFailed
-                    { GameId = Id.value evt.GameId
-                      BillingId = Id.value evt.BillingId }
+                    { GameId = Id.value evt.GameId; BillingId = Id.value evt.BillingId }
 
     // ──────────────────────────────────────────────────────────────────────────
     // Handlers
@@ -94,9 +82,7 @@ module Accounting =
         : Async<unit> =
         async {
             let event: AccountingEvent =
-                RondelInvoicePaid
-                    { GameId = cmd.GameId
-                      BillingId = cmd.BillingId }
+                RondelInvoicePaid { GameId = cmd.GameId; BillingId = cmd.BillingId }
 
             do! deps.Publish event
         }
