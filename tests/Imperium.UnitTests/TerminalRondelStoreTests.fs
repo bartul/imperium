@@ -3,7 +3,7 @@ module Imperium.UnitTests.TerminalRondelStoreTests
 open Expecto
 open Imperium.Primitives
 open Imperium.Rondel
-open Imperium.Terminal
+open Imperium.Terminal.Rondel
 
 // ──────────────────────────────────────────────────────────────────────────
 // Tests

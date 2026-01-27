@@ -1,4 +1,4 @@
-namespace Imperium.Terminal
+namespace Imperium.Terminal.Rondel
 
 open System.Collections.Concurrent
 open Imperium.Primitives
