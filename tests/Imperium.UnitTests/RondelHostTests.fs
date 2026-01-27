@@ -5,7 +5,6 @@ open Imperium.Primitives
 open Imperium.Rondel
 open Imperium.Terminal
 open Imperium.Terminal.Rondel
-open Imperium.Terminal.Rondel.Store
 
 module Accounting = Imperium.Accounting
 

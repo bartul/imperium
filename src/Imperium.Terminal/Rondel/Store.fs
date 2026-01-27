@@ -1,4 +1,4 @@
-module Imperium.Terminal.Rondel.Store
+namespace Imperium.Terminal
 
 open Imperium.Rondel
 

@@ -3,7 +3,6 @@ namespace Imperium.Terminal.Rondel
 open Imperium.Accounting
 open Imperium.Rondel
 open Imperium.Terminal
-open Imperium.Terminal.Rondel.Store
 
 // ──────────────────────────────────────────────────────────────────────────
 // Types
