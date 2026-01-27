@@ -2,7 +2,7 @@
 
 This document describes the architecture for completing the rondel query implementation with support for two runtime environments.
 
-Last updated: 2026-01-21
+Last updated: 2026-01-27
 
 ---
 
@@ -377,6 +377,19 @@ let configureWebServices (services: IServiceCollection) =
 ## Phase 1: Terminal Application
 
 First implementation phase - build a working terminal app to validate the architecture.
+
+### Implementation Status
+
+| Component | Status | Notes |
+|-----------|--------|-------|
+| `Bus.fs` | ✅ Complete | Generic `Publish<'T>`/`Subscribe<'T>`, typed handler lists (no boxing) |
+| `Rondel/Store.fs` | ✅ Complete | `RondelStore` record + `InMemoryRondelStore` (ConcurrentDictionary) |
+| `Rondel/Host.fs` | ✅ Complete | MailboxProcessor, event subscriptions, query handlers, thunk dispatch |
+| `Accounting/Host.fs` | ❌ Skeleton | Needs implementation |
+| `Program.fs` | ❌ Not started | Composition root |
+| TUI (Hex1b) | ❌ Not started | UI layer |
+
+**Tests:** 12 Terminal tests passing (4 Bus, 3 Store, 5 Host)
 
 ### Goals
 

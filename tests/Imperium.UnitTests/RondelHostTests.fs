@@ -12,6 +12,18 @@ module Accounting = Imperium.Accounting
 // Test Helpers
 // ──────────────────────────────────────────────────────────────────────────
 
+let private waitFor (check: unit -> bool) =
+    let rec loop delay attempts =
+        if check () then
+            ()
+        elif attempts <= 0 then
+            failwith "waitFor timed out"
+        else
+            System.Threading.Thread.Sleep(delay: int)
+            loop (delay * 2) (attempts - 1)
+
+    loop 5 12
+
 let private createRondelHost () =
     let publishedEvents = ResizeArray<obj>()
     let dispatchedCommands = ResizeArray<Accounting.AccountingCommand>()
@@ -53,7 +65,7 @@ let private createRondelHost () =
 let tests =
     testList
         "Terminal.RondelHost"
-        [ ptestCase "wires command execution to domain"
+        [ testCase "wires command execution to domain"
           <| fun _ ->
               let host, _, _, store, _ = createRondelHost ()
               let gameId = Id.newId ()
@@ -61,9 +73,10 @@ let tests =
               SetToStartingPositions { GameId = gameId; Nations = set [ "A" ] }
               |> host.Execute
 
+              waitFor (fun () -> (store.Load gameId).IsSome)
               Expect.isSome (store.Load gameId) "command should reach domain and persist"
 
-          ptestCase "wires domain events to bus"
+          testCase "wires domain events to bus"
           <| fun _ ->
               let host, publishedEvents, _, _, _ = createRondelHost ()
               let gameId = Id.newId ()
@@ -74,9 +87,10 @@ let tests =
               Move { GameId = gameId; Nation = "A"; Space = Space.ManeuverOne }
               |> host.Execute
 
+              waitFor (fun () -> publishedEvents.Count > 0)
               Expect.isNonEmpty publishedEvents "domain events should flow to bus"
 
-          ptestCase "wires outbound commands to dispatch thunk"
+          testCase "wires outbound commands to dispatch thunk"
           <| fun _ ->
               let host, _, dispatchedCommands, _, _ = createRondelHost ()
               let gameId = Id.newId ()
@@ -88,9 +102,10 @@ let tests =
 
               Move { GameId = gameId; Nation = "A"; Space = Space.Import } |> host.Execute
 
+              waitFor (fun () -> dispatchedCommands.Count > 0)
               Expect.isNonEmpty dispatchedCommands "outbound commands should flow to thunk"
 
-          ptestCase "wires bus events to domain handler"
+          testCase "wires bus events to domain handler"
           <| fun _ ->
               let host, publishedEvents, dispatchedCommands, _, bus = createRondelHost ()
               let gameId = Id.newId ()
@@ -102,6 +117,8 @@ let tests =
 
               Move { GameId = gameId; Nation = "A"; Space = Space.Import } |> host.Execute
 
+              waitFor (fun () -> dispatchedCommands.Count > 0)
+
               let billingId =
                   dispatchedCommands
                   |> Seq.choose (function
@@ -110,11 +127,11 @@ let tests =
                   |> Seq.tryHead
                   |> Option.defaultWith (fun () -> failwith "charge command not dispatched")
 
-              bus.Publish(Accounting.RondelInvoicePaid { GameId = gameId; BillingId = billingId })
+              bus.Publish({ GameId = gameId; BillingId = billingId }: Accounting.RondelInvoicePaidEvent)
 
-              let move =
+              let hasActionDetermined () =
                   publishedEvents
-                  |> Seq.tryFind (fun e ->
+                  |> Seq.exists (fun e ->
                       match e with
                       | :? RondelEvent as rc ->
                           match rc with
@@ -122,17 +139,20 @@ let tests =
                           | _ -> false
                       | _ -> false)
 
-              Expect.isSome move "domain should receive bus event"
+              waitFor hasActionDetermined
+              Expect.isTrue (hasActionDetermined ()) "domain should receive bus event"
 
-          ptestCase "wires queries to store"
+          testCase "wires queries to store"
           <| fun _ ->
-              let host, _, _, _, _ = createRondelHost ()
+              let host, _, _, store, _ = createRondelHost ()
 
               let gameId = Id.newId ()
 
               SetToStartingPositions { GameId = gameId; Nations = set [ "A" ] }
               |> host.Execute
 
-              let result = host.QueryPositions { GameId = Id.newId () }
+              waitFor (fun () -> (store.Load gameId).IsSome)
 
-              Expect.isSome result "query should read from store (not empty = Some)" ]
+              let result = host.QueryPositions { GameId = gameId }
+
+              Expect.isSome result "query should read from store" ]
