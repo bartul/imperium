@@ -13,14 +13,14 @@ open Imperium.Terminal
 let tests =
     testList
         "Terminal.RondelStore"
-        [ ptestCase "load returns None for unknown game"
+        [ testCase "load returns None for unknown game"
           <| fun _ ->
               let store = InMemoryRondelStore.create ()
               let result = store.Load(Id.newId ()) |> Async.RunSynchronously
 
               Expect.isNone result "unknown game should return None"
 
-          ptestCase "save then load returns saved state"
+          testCase "save then load returns saved state"
           <| fun _ ->
               let store = InMemoryRondelStore.create ()
               let gameId = Id.newId ()
@@ -36,7 +36,7 @@ let tests =
               Expect.isSome loaded "saved state should be loadable"
               Expect.equal loaded.Value.GameId gameId "loaded state should match"
 
-          ptestCase "save overwrites existing state"
+          testCase "save overwrites existing state"
           <| fun _ ->
               let store = InMemoryRondelStore.create ()
               let gameId = Id.newId ()
@@ -57,7 +57,4 @@ let tests =
 
               Expect.isSome loaded "state should exist"
 
-              Expect.equal
-                  loaded.Value.NationPositions.["Austria"]
-                  (Some Space.Taxation)
-                  "should have updated position" ]
+              Expect.equal loaded.Value.NationPositions.["Austria"] (Some Space.Taxation) "should have updated position" ]

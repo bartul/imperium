@@ -1,5 +1,7 @@
 namespace Imperium.Terminal
 
+open System.Collections.Concurrent
+open Imperium.Primitives
 open Imperium.Rondel
 
 // ──────────────────────────────────────────────────────────────────────────
@@ -16,4 +18,19 @@ type RondelStore = { Load: LoadRondelState; Save: SaveRondelState }
 module InMemoryRondelStore =
 
     /// Creates a new in-memory RondelStore instance
-    let create () : RondelStore = failwith "Not implemented"
+    let create () : RondelStore =
+        let states = ConcurrentDictionary<Id, RondelState>()
+
+        { Load =
+            fun id ->
+                async {
+                    match states.TryGetValue(id) with
+                    | true, state -> return Some state
+                    | false, _ -> return None
+                }
+          Save =
+            fun state ->
+                async {
+                    states.[state.GameId] <- state
+                    return Ok()
+                } }
