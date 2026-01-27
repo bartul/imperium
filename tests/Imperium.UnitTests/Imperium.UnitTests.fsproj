@@ -12,6 +12,7 @@
     <Compile Include="RondelContractTests.fs" />
     <Compile Include="RondelTests.fs" />
     <Compile Include="RondelHostTests.fs" />
+    <Compile Include="TerminalBusTests.fs" />
     <Compile Include="Main.fs" />
   </ItemGroup>
   <ItemGroup>

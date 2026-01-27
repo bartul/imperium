@@ -5,6 +5,6 @@ open Expecto
 [<EntryPoint>]
 let main args =
     let allTests =
-        testList "AllTests" [ Gameplay.tests; Rondel.tests; RondelHostTests.tests ]
+        testList "AllTests" [ Gameplay.tests; Rondel.tests; RondelHostTests.tests; TerminalBusTests.tests ]
 
     runTestsWithCLIArgs [] args allTests
