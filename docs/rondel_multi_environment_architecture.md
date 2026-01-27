@@ -507,37 +507,38 @@ Uses records of functions with factory modules - matches domain patterns (`Ronde
 // Bus.fs
 // ──────────────────────────────────────────────────────────────────────────
 
-/// Cross-cutting event bus for bounded context communication
+// Cross-cutting event bus for bounded context communication
 type IBus =
     abstract Publish<'T> : 'T -> Async<unit>
     abstract Subscribe<'T> : ('T -> Async<unit>) -> unit
 
 module Bus =
     open System
-    open System.Collections.Generic
+    open System.Collections.Concurrent
 
     /// Creates a new IBus instance
-    /// Uses Dictionary<Type, ResizeArray<handler>> for type-keyed dispatch
+    /// Uses typed handler lists to avoid boxing events on publish
     let create () : IBus =
-        let handlers = Dictionary<Type, ResizeArray<obj -> Async<unit>>>()
+        let handlers = ConcurrentDictionary<Type, obj>()
 
         { new IBus with
             member _.Publish<'T>(event: 'T) =
                 async {
                     match handlers.TryGetValue(typeof<'T>) with
-                    | true, handlerList ->
-                        for handler in handlerList do
-                            do! handler (box event)
+                    | true, list ->
+                        let typedList = list :?> ResizeArray<'T -> Async<unit>>
+
+                        for handler in typedList do
+                            do! handler event
                     | false, _ -> ()
                 }
 
             member _.Subscribe<'T>(handler: 'T -> Async<unit>) =
-                let eventType = typeof<'T>
+                let list =
+                    handlers.GetOrAdd(typeof<'T>, fun _ -> ResizeArray<'T -> Async<unit>>() :> obj)
+                    :?> ResizeArray<'T -> Async<unit>>
 
-                if not (handlers.ContainsKey eventType) then
-                    handlers.[eventType] <- ResizeArray<obj -> Async<unit>>()
-
-                handlers.[eventType].Add(fun obj -> handler (unbox<'T> obj)) }
+                list.Add(handler) }
 
 // ──────────────────────────────────────────────────────────────────────────
 // Infrastructure/InMemoryRondelStore.fs
