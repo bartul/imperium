@@ -70,7 +70,7 @@ Last verified: 2026-01-21
 - See `docs/rondel_multi_environment_architecture.md` for full architecture and design decisions.
 - **Terminal app** (`Imperium.Terminal`): In-process app with Hex1b TUI, MailboxProcessor hosting, in-memory store.
 - **Key patterns:**
-  - `IBus` interface for cross-bounded-context **events** (pub/sub with generic `Publish<'T>` and `Subscribe<'T>`)
+  - `IBus` interface for cross-bounded-context **events** (pub/sub with generic `Publish<'T>` and `Subscribe<'T>`); implementation uses `Dictionary<Type, ResizeArray<handler>>` for type-keyed dispatch
   - Thunk injection for cross-BC **commands** (breaks circular dependencies, type-safe direct calls)
   - Each BC has a `Host` (e.g., `RondelHost`, `AccountingHost`) with `Execute` entry point
   - MailboxProcessor serializes commands/events per BC; queries bypass for direct store access

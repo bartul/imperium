@@ -276,8 +276,7 @@ module RondelView =
 
 | Component | Choice | Rationale |
 |-----------|--------|-----------|
-| **Event Bus** | Subscription Builder Pattern | Type-keyed bus with `subscription` helper combining transform + handle. Hosts register handlers declaratively. |
-| **Event Bus Fallback** | Explicit Channels | If builder pattern proves problematic (boxing overhead, type issues), fall back to strongly-typed channels per event. |
+| **Event Bus** | IBus Interface | Generic `Publish<'T>` and `Subscribe<'T>` methods. Dictionary-based type-keyed dispatch. No boxing at API boundary. |
 | **TUI Framework** | Hex1b | React/Flutter-inspired declarative widgets. Persistent layout with diff-based updates. Good for real-time game dashboard. |
 | **TUI Fallback** | Spectre.Console + FsSpectre | If Hex1b proves problematic (pre-1.0, C# API friction), fall back to Spectre with computation expressions. |
 
@@ -390,15 +389,14 @@ First implementation phase - build a working terminal app to validate the archit
 ```
 src/Imperium.Terminal/
 ├── Imperium.Terminal.fsproj
+├── Bus.fs                            # IBus interface and factory (Dictionary-based)
+├── Rondel/
+│   ├── Store.fs                      # RondelStore record + InMemoryRondelStore factory
+│   └── Host.fs                       # RondelHost with DispatchToAccounting thunk
+├── Accounting/
+│   └── Host.fs                       # AccountingHost skeleton
 ├── Program.fs                        # Entry point, composition root
-├── Infrastructure/
-│   ├── Bus.fs                        # Cross-cutting event bus (subscription builder pattern)
-│   ├── InMemoryRondelStore.fs        # RondelStore record + factory module
-│   └── InMemoryAccountingStore.fs    # AccountingStore record + factory module
-├── Hosting/
-│   ├── RondelHost.fs                 # RondelHost - registers subscriptions, transforms events
-│   └── AccountingHost.fs             # AccountingHost - minimal implementation for paid moves
-└── UI/
+└── UI/                               # (future)
     ├── Widgets.fs                    # F# wrappers for Hex1b widgets
     ├── RondelBoard.fs                # Rondel wheel visualization
     ├── NationList.fs                 # Nation positions panel
@@ -506,46 +504,40 @@ Uses records of functions with factory modules - matches domain patterns (`Ronde
 
 ```fsharp
 // ──────────────────────────────────────────────────────────────────────────
-// Infrastructure/Bus.fs
+// Bus.fs
 // ──────────────────────────────────────────────────────────────────────────
 
-/// Cross-cutting event bus using subscription builder pattern
-type Bus = {
-    Publish: obj -> Async<unit>
-    Register: System.Type -> (obj -> Async<unit>) -> unit
-}
+/// Cross-cutting event bus for bounded context communication
+type IBus =
+    abstract Publish<'T> : 'T -> Async<unit>
+    abstract Subscribe<'T> : ('T -> Async<unit>) -> unit
 
 module Bus =
+    open System
     open System.Collections.Generic
 
-    let create () : Bus =
-        let handlers = Dictionary<System.Type, ResizeArray<obj -> Async<unit>>>()
+    /// Creates a new IBus instance
+    /// Uses Dictionary<Type, ResizeArray<handler>> for type-keyed dispatch
+    let create () : IBus =
+        let handlers = Dictionary<Type, ResizeArray<obj -> Async<unit>>>()
 
-        { Publish = fun event -> async {
-              match handlers.TryGetValue(event.GetType()) with
-              | true, subs -> for h in subs do do! h event
-              | false, _ -> () }
+        { new IBus with
+            member _.Publish<'T>(event: 'T) =
+                async {
+                    match handlers.TryGetValue(typeof<'T>) with
+                    | true, handlerList ->
+                        for handler in handlerList do
+                            do! handler (box event)
+                    | false, _ -> ()
+                }
 
-          Register = fun eventType handler ->
-              match handlers.TryGetValue(eventType) with
-              | true, subs -> subs.Add(handler)
-              | false, _ ->
-                  let subs = ResizeArray([handler])
-                  handlers.[eventType] <- subs }
+            member _.Subscribe<'T>(handler: 'T -> Async<unit>) =
+                let eventType = typeof<'T>
 
-    /// Helper: combine transform + handle, skip on transform error
-    let subscription (transform: 'TContract -> Result<'TDomain, string>)
-                     (handle: 'TDomain -> Async<unit>)
-                     : obj -> Async<unit> =
-        fun (o: obj) -> async {
-            match transform (o :?> 'TContract) with
-            | Ok domain -> do! handle domain
-            | Error _ -> ()
-        }
+                if not (handlers.ContainsKey eventType) then
+                    handlers.[eventType] <- ResizeArray<obj -> Async<unit>>()
 
-    /// Type-safe publish helper
-    let publish<'T> (bus: Bus) (event: 'T) : Async<unit> =
-        bus.Publish(box event)
+                handlers.[eventType].Add(fun obj -> handler (unbox<'T> obj)) }
 
 // ──────────────────────────────────────────────────────────────────────────
 // Infrastructure/InMemoryRondelStore.fs
