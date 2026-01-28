@@ -386,10 +386,15 @@ First implementation phase - build a working terminal app to validate the archit
 | `Rondel/Store.fs` | ✅ Complete | `RondelStore` record + `InMemoryRondelStore` (ConcurrentDictionary) |
 | `Rondel/Host.fs` | ✅ Complete | MailboxProcessor, event subscriptions, query handlers, thunk dispatch |
 | `Accounting/Host.fs` | ✅ Complete | MailboxProcessor, publishes inner event types to bus |
-| `Program.fs` | ❌ Not started | Composition root |
-| TUI (Hex1b) | ❌ Not started | UI layer |
+| `Program.fs` | ✅ Complete | Composition root with lazy hosts, REPL for testing |
+| TUI (Hex1b) | ❌ Not started | UI layer (future work) |
 
 **Tests:** 14 Terminal tests passing (4 Bus, 3 Store, 5 RondelHost, 2 AccountingHost)
+
+**Future work:**
+- Integration tests exercising full RondelHost ↔ AccountingHost flow (paid move → charge → payment → completion)
+- File-based persistence for production use
+- Hex1b TUI for interactive gameplay
 
 ### Goals
 
