@@ -83,10 +83,11 @@ Last verified: 2026-01-21
   │   ├── Store.fs              # RondelStore with InMemoryRondelStore
   │   └── Host.fs               # RondelHost (complete) with MailboxProcessor, event subscriptions, query handlers
   ├── Accounting/
-  │   └── Host.fs               # AccountingHost skeleton
+  │   └── Host.fs               # AccountingHost (complete) with MailboxProcessor, publishes inner events
   └── Program.fs
   ```
 - **RondelHost implementation:** MailboxProcessor handles `Command` and `InboundEvent` messages; subscribes to `RondelInvoicePaidEvent`/`RondelInvoicePaymentFailedEvent` (domain types); converts using `RondelBillingId.ofId`; dispatches to Accounting via thunk; queries call domain handlers directly.
+- **AccountingHost implementation:** MailboxProcessor handles commands; publishes inner event types (`RondelInvoicePaidEvent`, `RondelInvoicePaymentFailedEvent`) directly to bus for RondelHost subscriptions.
 - **Technology choices (terminal):** Hex1b TUI (fallback: Spectre.Console + FsSpectre), direct function calls for in-process messaging.
 
 ## Build, Test, and Development Commands
@@ -173,7 +174,7 @@ Domain modules (`.fsi` and `.fs` pairs) follow a consistent sectioned structure.
   - **Handler behavior tests** (in `*Tests.fs`): Create domain types directly (no transformation layer), call routers (`execute`, `handle`) with union types to verify correct outcomes, events, and charges
   - **Test helper pattern**: Use private record type grouping routers (e.g., `type private Rondel = { Execute: RondelCommand -> unit; Handle: RondelInboundEvent -> unit; GetNationPositions: GetNationPositionsQuery -> RondelPositionsView option; GetRondelOverview: GetRondelOverviewQuery -> RondelView option }`) with sync wrappers (`Async.RunSynchronously`), create factory function that returns router record with async dependencies wrapped in `async {}` + observable collections (events, commands) for verification
   - **Separation**: Keep transformation layer testing separate from handler behavior testing for clearer test intent and reduced boilerplate
-- Current test coverage (48 tests total, all passing):
+- Current test coverage (50 tests total, all passing):
   - **AccountingContractTests.fs** (6 transformation validation tests):
     - ChargeNationForRondelMovementCommand.fromContract: requires valid GameId; requires valid BillingId; accepts valid command
     - VoidRondelChargeCommand.fromContract: requires valid GameId; requires valid BillingId; accepts valid command
@@ -217,6 +218,9 @@ Domain modules (`.fsi` and `.fs` pairs) follow a consistent sectioned structure.
     - wires outbound commands to dispatch thunk
     - wires bus events to domain handler
     - wires queries to store
+  - **AccountingHostTests.fs** (2 plumbing tests):
+    - wires command execution to domain
+    - publishes events to bus
 
 ## Branch Naming Guidelines
 

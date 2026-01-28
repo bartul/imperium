@@ -385,11 +385,11 @@ First implementation phase - build a working terminal app to validate the archit
 | `Bus.fs` | ✅ Complete | Generic `Publish<'T>`/`Subscribe<'T>`, typed handler lists (no boxing) |
 | `Rondel/Store.fs` | ✅ Complete | `RondelStore` record + `InMemoryRondelStore` (ConcurrentDictionary) |
 | `Rondel/Host.fs` | ✅ Complete | MailboxProcessor, event subscriptions, query handlers, thunk dispatch |
-| `Accounting/Host.fs` | ❌ Skeleton | Needs implementation |
+| `Accounting/Host.fs` | ✅ Complete | MailboxProcessor, publishes inner event types to bus |
 | `Program.fs` | ❌ Not started | Composition root |
 | TUI (Hex1b) | ❌ Not started | UI layer |
 
-**Tests:** 12 Terminal tests passing (4 Bus, 3 Store, 5 Host)
+**Tests:** 14 Terminal tests passing (4 Bus, 3 Store, 5 RondelHost, 2 AccountingHost)
 
 ### Goals
 
