@@ -64,7 +64,7 @@ let tests =
               // Command should execute without throwing
               ()
 
-          ptestCase "publishes events to bus"
+          testCase "publishes events to bus"
           <| fun _ ->
               let host, publishedEvents, _ = createAccountingHost ()
               let gameId = Id.newId ()

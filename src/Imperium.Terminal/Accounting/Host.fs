@@ -7,7 +7,12 @@ type AccountingHost = { Execute: AccountingCommand -> Async<unit> }
 
 module AccountingHost =
     let create (bus: IBus) : AccountingHost =
-        let deps: AccountingDependencies = { Publish = fun _ -> async { return () } }
+        let publish (evt: AccountingEvent) =
+            match evt with
+            | RondelInvoicePaid inner -> bus.Publish inner
+            | RondelInvoicePaymentFailed inner -> bus.Publish inner
+
+        let deps: AccountingDependencies = { Publish = publish }
 
         let mailbox =
             MailboxProcessor.Start(fun inbox ->
