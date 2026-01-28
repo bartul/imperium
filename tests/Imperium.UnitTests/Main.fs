@@ -11,6 +11,7 @@ let main args =
               Rondel.tests
               RondelHostTests.tests
               TerminalBusTests.tests
-              TerminalRondelStoreTests.tests ]
+              TerminalRondelStoreTests.tests
+              AccountingHostTests.tests ]
 
     runTestsWithCLIArgs [] args allTests
