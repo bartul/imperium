@@ -36,9 +36,7 @@ let private createAccountingHost () =
 
     let host = AccountingHost.create bus
 
-    {| Execute = fun cmd -> host.Execute cmd |> Async.RunSynchronously |},
-    publishedEvents,
-    bus
+    {| Execute = fun cmd -> host.Execute cmd |> Async.RunSynchronously |}, publishedEvents, bus
 
 // ──────────────────────────────────────────────────────────────────────────
 // Tests - Plumbing verification only
@@ -55,10 +53,7 @@ let tests =
               let billingId = Id.newId ()
 
               ChargeNationForRondelMovement
-                  { GameId = gameId
-                    Nation = "Austria"
-                    Amount = Amount.unsafe 2
-                    BillingId = billingId }
+                  { GameId = gameId; Nation = "Austria"; Amount = Amount.unsafe 2; BillingId = billingId }
               |> host.Execute
 
               // Command should execute without throwing
@@ -71,10 +66,7 @@ let tests =
               let billingId = Id.newId ()
 
               ChargeNationForRondelMovement
-                  { GameId = gameId
-                    Nation = "Austria"
-                    Amount = Amount.unsafe 2
-                    BillingId = billingId }
+                  { GameId = gameId; Nation = "Austria"; Amount = Amount.unsafe 2; BillingId = billingId }
               |> host.Execute
 
               waitFor (fun () -> publishedEvents.Count > 0)
