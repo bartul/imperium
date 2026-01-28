@@ -48,7 +48,7 @@ let private createAccountingHost () =
 let tests =
     testList
         "Terminal.AccountingHost"
-        [ ptestCase "wires command execution to domain"
+        [ testCase "wires command execution to domain"
           <| fun _ ->
               let host, _, _ = createAccountingHost ()
               let gameId = Id.newId ()
