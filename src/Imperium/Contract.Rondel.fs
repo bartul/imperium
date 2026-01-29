@@ -9,10 +9,7 @@ module Rondel =
     // Commands
     type SetToStartingPositionsCommand = { GameId: Guid; Nations: string array }
 
-    and MoveCommand =
-        { GameId: Guid
-          Nation: string
-          Space: string }
+    and MoveCommand = { GameId: Guid; Nation: string; Space: string }
 
     // Events
     /// Integration events published by Rondel bounded context to inform other domains of Rondel movement changes.
@@ -25,25 +22,14 @@ module Rondel =
     and PositionedAtStart = { GameId: Guid }
 
     /// Nation successfully moved to a space and the corresponding action was determined.
-    and ActionDetermined =
-        { GameId: Guid
-          Nation: string
-          Action: string }
+    and ActionDetermined = { GameId: Guid; Nation: string; Action: string }
 
     /// Nation's movement rejected due to payment failure.
-    and MoveToActionSpaceRejected =
-        { GameId: Guid
-          Nation: string
-          Space: string }
+    and MoveToActionSpaceRejected = { GameId: Guid; Nation: string; Space: string }
 
     // State for persistence
 
     type RondelState =
-        { GameId: Guid
-          NationPositions: Map<string, string option>
-          PendingMovements: Map<string, PendingMovement> }
+        { GameId: Guid; NationPositions: Map<string, string option>; PendingMovements: Map<string, PendingMovement> }
 
-    and PendingMovement =
-        { Nation: string
-          TargetSpace: string
-          BillingId: Guid }
+    and PendingMovement = { Nation: string; TargetSpace: string; BillingId: Guid }

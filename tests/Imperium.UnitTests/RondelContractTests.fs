@@ -15,8 +15,7 @@ let tests =
               [ testCase "requires a game id"
                 <| fun _ ->
                     let contractCommand: ContractRondel.SetToStartingPositionsCommand =
-                        { GameId = Guid.Empty
-                          Nations = [| "France" |] }
+                        { GameId = Guid.Empty; Nations = [| "France" |] }
 
                     // Transformation should fail with Guid.Empty
                     let transformResult = SetToStartingPositionsCommand.fromContract contractCommand
@@ -24,8 +23,7 @@ let tests =
                 testCase "requires at least one nation"
                 <| fun _ ->
                     let contractCommand: ContractRondel.SetToStartingPositionsCommand =
-                        { GameId = Guid.NewGuid()
-                          Nations = [||] }
+                        { GameId = Guid.NewGuid(); Nations = [||] }
 
                     // Transformation should reject empty roster
                     let transformResult = SetToStartingPositionsCommand.fromContract contractCommand
@@ -33,8 +31,7 @@ let tests =
                 testCase "ignores duplicate nations"
                 <| fun _ ->
                     let contractCommand: ContractRondel.SetToStartingPositionsCommand =
-                        { GameId = Guid.NewGuid()
-                          Nations = [| "France"; "France"; "Germany" |] }
+                        { GameId = Guid.NewGuid(); Nations = [| "France"; "France"; "Germany" |] }
 
                     // Transformation should succeed - Set automatically deduplicates
                     let transformResult = SetToStartingPositionsCommand.fromContract contractCommand
@@ -48,9 +45,7 @@ let tests =
                 <| fun _ ->
                     // Execute: attempt to move to an invalid space
                     let contractMoveCommand: ContractRondel.MoveCommand =
-                        { GameId = Guid.NewGuid()
-                          Nation = "France"
-                          Space = "InvalidSpace" }
+                        { GameId = Guid.NewGuid(); Nation = "France"; Space = "InvalidSpace" }
 
                     // Transformation should fail for unknown space
                     let transformResult = MoveCommand.fromContract contractMoveCommand
@@ -60,9 +55,7 @@ let tests =
                 <| fun _ ->
                     // Execute: attempt to move with empty game id
                     let contractMoveCommand: ContractRondel.MoveCommand =
-                        { GameId = Guid.Empty
-                          Nation = "France"
-                          Space = "Factory" }
+                        { GameId = Guid.Empty; Nation = "France"; Space = "Factory" }
 
                     // Transformation should fail for invalid GameId
                     let transformResult = MoveCommand.fromContract contractMoveCommand

@@ -29,10 +29,7 @@ let tests =
                     let billingId = Guid.NewGuid() |> Id
 
                     let command: ChargeNationForRondelMovementCommand =
-                        { GameId = gameId
-                          Nation = "France"
-                          Amount = Amount.unsafe 4
-                          BillingId = billingId }
+                        { GameId = gameId; Nation = "France"; Amount = Amount.unsafe 4; BillingId = billingId }
 
                     accounting.Execute(ChargeNationForRondelMovement command)
 
@@ -52,9 +49,7 @@ let tests =
                     let gameId = Guid.NewGuid() |> Id
                     let billingId = Guid.NewGuid() |> Id
 
-                    let command: VoidRondelChargeCommand =
-                        { GameId = gameId
-                          BillingId = billingId }
+                    let command: VoidRondelChargeCommand = { GameId = gameId; BillingId = billingId }
 
                     accounting.Execute(VoidRondelCharge command)
 

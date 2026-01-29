@@ -15,7 +15,7 @@ Last verified: 2026-01-21
   - Contract function types for dependency injection (e.g., `ChargeNationForRondelMovement = ChargeNationForRondelMovementCommand -> Result<unit, string>`) - domain handlers use domain `DispatchOutboundCommand` dependency instead
   - Events use record types (e.g., `RondelEvent = | PositionedAtStart of PositionedAtStart` where `PositionedAtStart = { GameId: Guid }`)
 - **Domain modules:** CQRS bounded contexts with `.fsi` files defining public APIs
-  - Internal types (GameId, NationId, Bank, Investor) hidden from public APIs; `Action`, `RondelBillingId`, and `Space` are exposed in `Rondel.fsi`
+  - Internal types (GameId, NationId, Bank, Investor) hidden from public APIs; `Action`, `RondelBillingId`, and `Space` are exposed in `Rondel.fsi`; `RondelBillingId.ofId` enables creating billing IDs from `Id` for in-process event conversion
   - **Two-layer architecture:** Transformation modules (accept Contract types, return `Result<DomainType, string>`) + Command/Event handlers (accept Domain types, return `unit` or `Result`)
   - Transformation modules: Named after domain types (e.g., `SetToStartingPositionsCommand.fromContract`, `MoveCommand.fromContract`, `InvoicePaidInboundEvent.fromContract`) using directional naming (`fromContract` for Contract → Domain, `toContract` for Domain → Contract)
   - Command handlers: Accept domain types directly, throw exceptions for business rule violations, return `unit`
@@ -70,11 +70,25 @@ Last verified: 2026-01-21
 - See `docs/rondel_multi_environment_architecture.md` for full architecture and design decisions.
 - **Terminal app** (`Imperium.Terminal`): In-process app with Hex1b TUI, MailboxProcessor hosting, in-memory store.
 - **Key patterns:**
-  - Records of functions with factory modules (matches `RondelDependencies` style)
-  - `Bus` for cross-bounded-context events using subscription builder pattern
-  - Each BC has a `Host` that registers subscriptions and handles event transformation
-  - MailboxProcessor serializes commands/events per BC; queries bypass for direct store access
-- **Technology choices (terminal):** Hex1b TUI (fallback: Spectre.Console + FsSpectre), subscription builder bus (fallback: explicit typed channels), direct function calls for in-process messaging.
+  - `IBus` interface for cross-bounded-context **events** (pub/sub with generic `Publish<'T>` and `Subscribe<'T>`); implementation uses `ConcurrentDictionary<Type, obj>` storing typed handler lists to avoid boxing events on publish
+  - Thunk injection for cross-BC **commands** (breaks circular dependencies, type-safe direct calls)
+  - Each BC has a `Host` (e.g., `RondelHost`, `AccountingHost`) with `Execute` entry point
+  - MailboxProcessor serializes commands/events per BC with fire-and-forget `Post` (no reply channel); queries bypass for direct store access
+  - Domain events used directly (not contract types) since everything is in-process; `RondelBillingId.ofId` enables domain-to-domain event conversion without contract layer
+- **Project structure:**
+  ```
+  src/Imperium.Terminal/
+  ├── Bus.fs                    # IBus interface and factory
+  ├── Rondel/
+  │   ├── Store.fs              # RondelStore with InMemoryRondelStore
+  │   └── Host.fs               # RondelHost (complete) with MailboxProcessor, event subscriptions, query handlers
+  ├── Accounting/
+  │   └── Host.fs               # AccountingHost (complete) with MailboxProcessor, publishes inner events
+  └── Program.fs
+  ```
+- **RondelHost implementation:** MailboxProcessor handles `Command` and `InboundEvent` messages; subscribes to `RondelInvoicePaidEvent`/`RondelInvoicePaymentFailedEvent` (domain types); converts using `RondelBillingId.ofId`; dispatches to Accounting via thunk; queries call domain handlers directly.
+- **AccountingHost implementation:** MailboxProcessor handles commands; publishes inner event types (`RondelInvoicePaidEvent`, `RondelInvoicePaymentFailedEvent`) directly to bus for RondelHost subscriptions.
+- **Technology choices (terminal):** Hex1b TUI (fallback: Spectre.Console + FsSpectre), direct function calls for in-process messaging.
 
 ## Build, Test, and Development Commands
 - Restore dependencies: `dotnet restore Imperium.sln`.
@@ -160,7 +174,7 @@ Domain modules (`.fsi` and `.fs` pairs) follow a consistent sectioned structure.
   - **Handler behavior tests** (in `*Tests.fs`): Create domain types directly (no transformation layer), call routers (`execute`, `handle`) with union types to verify correct outcomes, events, and charges
   - **Test helper pattern**: Use private record type grouping routers (e.g., `type private Rondel = { Execute: RondelCommand -> unit; Handle: RondelInboundEvent -> unit; GetNationPositions: GetNationPositionsQuery -> RondelPositionsView option; GetRondelOverview: GetRondelOverviewQuery -> RondelView option }`) with sync wrappers (`Async.RunSynchronously`), create factory function that returns router record with async dependencies wrapped in `async {}` + observable collections (events, commands) for verification
   - **Separation**: Keep transformation layer testing separate from handler behavior testing for clearer test intent and reduced boilerplate
-- Current test coverage (36 tests total, all passing):
+- Current test coverage (50 tests total, all passing):
   - **AccountingContractTests.fs** (6 transformation validation tests):
     - ChargeNationForRondelMovementCommand.fromContract: requires valid GameId; requires valid BillingId; accepts valid command
     - VoidRondelChargeCommand.fromContract: requires valid GameId; requires valid BillingId; accepts valid command
@@ -189,6 +203,24 @@ Domain modules (`.fsi` and `.fs` pairs) follow a consistent sectioned structure.
     - onInvoicePaymentFailed: payment failure after successful payment is ignored
     - getNationPositions: returns None for unknown game; returns positions for initialized game; returns current position after free move; returns pending space for paid move awaiting payment
     - getRondelOverview: returns None for unknown game; returns overview for initialized game
+  - **TerminalBusTests.fs** (4 Bus tests):
+    - publish with no subscribers does nothing
+    - subscriber receives published event
+    - multiple subscribers receive same event
+    - different event types are isolated
+  - **TerminalRondelStoreTests.fs** (3 store tests):
+    - load returns None for unknown game
+    - save then load returns saved state
+    - save overwrites existing state
+  - **RondelHostTests.fs** (5 plumbing tests with exponential backoff):
+    - wires command execution to domain
+    - wires domain events to bus
+    - wires outbound commands to dispatch thunk
+    - wires bus events to domain handler
+    - wires queries to store
+  - **AccountingHostTests.fs** (2 plumbing tests):
+    - wires command execution to domain
+    - publishes events to bus
 
 ## Branch Naming Guidelines
 

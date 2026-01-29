@@ -18,6 +18,9 @@ module Rondel =
         /// Extract the underlying Guid value for comparison and serialization.
         val value: RondelBillingId -> Guid
 
+        /// Create a RondelBillingId from an Id.
+        val ofId: Id -> RondelBillingId
+
     /// The six distinct actions a nation can perform on the rondel.
     /// Each action corresponds to one or two spaces on the circular track.
     [<RequireQualifiedAccess>]
@@ -61,10 +64,7 @@ module Rondel =
         }
 
     /// A movement awaiting payment confirmation from the Accounting domain.
-    and PendingMovement =
-        { Nation: string
-          TargetSpace: Space
-          BillingId: RondelBillingId }
+    and PendingMovement = { Nation: string; TargetSpace: Space; BillingId: RondelBillingId }
 
     // ──────────────────────────────────────────────────────────────────────────
     // Commands
@@ -79,10 +79,7 @@ module Rondel =
     and SetToStartingPositionsCommand = { GameId: Id; Nations: Set<string> }
 
     /// Request to move a nation to a specific space on the rondel.
-    and MoveCommand =
-        { GameId: Id
-          Nation: string
-          Space: Space }
+    and MoveCommand = { GameId: Id; Nation: string; Space: Space }
 
     // ──────────────────────────────────────────────────────────────────────────
     // Events
@@ -98,16 +95,10 @@ module Rondel =
     and PositionedAtStartEvent = { GameId: Id }
 
     /// Published when a nation successfully completes a move and an action is determined.
-    and ActionDeterminedEvent =
-        { GameId: Id
-          Nation: string
-          Action: Action }
+    and ActionDeterminedEvent = { GameId: Id; Nation: string; Action: Action }
 
     /// Published when a nation's movement is rejected (invalid move or payment failure).
-    and MoveToActionSpaceRejectedEvent =
-        { GameId: Id
-          Nation: string
-          Space: Space }
+    and MoveToActionSpaceRejectedEvent = { GameId: Id; Nation: string; Space: Space }
 
     // ──────────────────────────────────────────────────────────────────────────
     // Outbound Commands (to other bounded contexts)
@@ -119,16 +110,10 @@ module Rondel =
         | VoidCharge of VoidChargeOutboundCommand
 
     /// Command to charge a nation for paid rondel movement (4-6 spaces).
-    and ChargeMovementOutboundCommand =
-        { GameId: Id
-          Nation: string
-          Amount: Amount
-          BillingId: RondelBillingId }
+    and ChargeMovementOutboundCommand = { GameId: Id; Nation: string; Amount: Amount; BillingId: RondelBillingId }
 
     /// Command to void a previously initiated charge before payment completion.
-    and VoidChargeOutboundCommand =
-        { GameId: Id
-          BillingId: RondelBillingId }
+    and VoidChargeOutboundCommand = { GameId: Id; BillingId: RondelBillingId }
 
     // ──────────────────────────────────────────────────────────────────────────
     // Incoming Events (from other bounded contexts)
@@ -140,14 +125,10 @@ module Rondel =
         | InvoicePaymentFailed of InvoicePaymentFailedInboundEvent
 
     /// Payment confirmation received from Accounting domain.
-    and InvoicePaidInboundEvent =
-        { GameId: Id
-          BillingId: RondelBillingId }
+    and InvoicePaidInboundEvent = { GameId: Id; BillingId: RondelBillingId }
 
     /// Payment failure notification from Accounting domain.
-    and InvoicePaymentFailedInboundEvent =
-        { GameId: Id
-          BillingId: RondelBillingId }
+    and InvoicePaymentFailedInboundEvent = { GameId: Id; BillingId: RondelBillingId }
 
     // ──────────────────────────────────────────────────────────────────────────
     // Dependencies
@@ -174,10 +155,7 @@ module Rondel =
     /// All handlers receive the same dependencies record for consistency,
     /// even if some handlers don't use all dependencies.
     type RondelDependencies =
-        { Load: LoadRondelState
-          Save: SaveRondelState
-          Publish: PublishRondelEvent
-          Dispatch: DispatchOutboundCommand }
+        { Load: LoadRondelState; Save: SaveRondelState; Publish: PublishRondelEvent; Dispatch: DispatchOutboundCommand }
 
     // ──────────────────────────────────────────────────────────────────────────
     // Queries
@@ -194,19 +172,13 @@ module Rondel =
     // ──────────────────────────────────────────────────────────────────────────
 
     /// Result of GetNationPositions query.
-    type RondelPositionsView =
-        { GameId: Id
-          Positions: NationPositionView list }
+    type RondelPositionsView = { GameId: Id; Positions: NationPositionView list }
 
     /// A nation's position on the rondel.
-    and NationPositionView =
-        { Nation: string
-          CurrentSpace: Space option
-          PendingSpace: Space option }
+    and NationPositionView = { Nation: string; CurrentSpace: Space option; PendingSpace: Space option }
 
     /// Result of GetRondelOverview query.
-    type RondelView =
-        { GameId: Id; NationNames: string list }
+    type RondelView = { GameId: Id; NationNames: string list }
 
     // ──────────────────────────────────────────────────────────────────────────
     // Query Dependencies
@@ -250,7 +222,7 @@ module Rondel =
         /// Convert domain void command to Accounting contract for dispatch.
         val toContract: VoidChargeOutboundCommand -> Contract.Accounting.VoidRondelChargeCommand
 
-    /// Transforms Domain RondelState to/from Contract type for persistence.
+    /// Transforms Domain RondelState to/from a Contract type for persistence.
     module RondelState =
         /// Convert domain state to serializable contract representation.
         val toContract: RondelState -> Contract.Rondel.RondelState
@@ -258,7 +230,7 @@ module Rondel =
         /// Returns Error if Space names or BillingIds are invalid.
         val fromContract: Contract.Rondel.RondelState -> Result<RondelState, string>
 
-    /// Transforms Domain PendingMovement to/from Contract type for persistence.
+    /// Transforms Domain PendingMovement to/from a Contract type for persistence.
     module PendingMovement =
         /// Convert domain pending movement to serializable contract representation.
         val toContract: PendingMovement -> Contract.Rondel.PendingMovement
