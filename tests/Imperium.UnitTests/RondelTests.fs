@@ -1,4 +1,4 @@
-module Imperium.UnitTests.Rondel
+module Imperium.UnitTests.RondelTests
 
 open System
 open Expecto
