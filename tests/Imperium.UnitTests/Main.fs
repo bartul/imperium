@@ -6,12 +6,13 @@ open Expecto
 let main args =
     let allTests =
         testList
-            "AllTests"
+            "Imperium"
             [ Gameplay.tests
               Rondel.tests
               RondelHostTests.tests
               TerminalBusTests.tests
               TerminalRondelStoreTests.tests
-              AccountingHostTests.tests ]
+              AccountingHostTests.tests
+              Accounting.tests ]
 
     runTestsWithCLIArgs [] args allTests

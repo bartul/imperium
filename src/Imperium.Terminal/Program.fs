@@ -45,12 +45,16 @@ let private parseSpace (s: string) =
     match s.ToLowerInvariant() with
     | "investor" -> Some Space.Investor
     | "import" -> Some Space.Import
-    | "productionone" | "production1" -> Some Space.ProductionOne
-    | "maneuverone" | "maneuver1" -> Some Space.ManeuverOne
+    | "productionone"
+    | "production1" -> Some Space.ProductionOne
+    | "maneuverone"
+    | "maneuver1" -> Some Space.ManeuverOne
     | "taxation" -> Some Space.Taxation
     | "factory" -> Some Space.Factory
-    | "productiontwo" | "production2" -> Some Space.ProductionTwo
-    | "maneuvertwo" | "maneuver2" -> Some Space.ManeuverTwo
+    | "productiontwo"
+    | "production2" -> Some Space.ProductionTwo
+    | "maneuvertwo"
+    | "maneuver2" -> Some Space.ManeuverTwo
     | _ -> None
 
 let private printHelp () =
@@ -87,7 +91,8 @@ let private runRepl (rondelHost: RondelHost) =
             if parts.Length > 0 then
                 try
                     match parts.[0].ToLowerInvariant() with
-                    | "quit" | "exit" -> running <- false
+                    | "quit"
+                    | "exit" -> running <- false
 
                     | "help" -> printHelp ()
 
@@ -126,8 +131,7 @@ let private runRepl (rondelHost: RondelHost) =
                         match currentGameId with
                         | None -> printfn "No game initialized. Use 'init' first."
                         | Some gameId ->
-                            let result =
-                                rondelHost.QueryPositions { GameId = gameId } |> Async.RunSynchronously
+                            let result = rondelHost.QueryPositions { GameId = gameId } |> Async.RunSynchronously
 
                             match result with
                             | None -> printfn "Game not found"
@@ -151,8 +155,7 @@ let private runRepl (rondelHost: RondelHost) =
                         match currentGameId with
                         | None -> printfn "No game initialized. Use 'init' first."
                         | Some gameId ->
-                            let result =
-                                rondelHost.QueryOverview { GameId = gameId } |> Async.RunSynchronously
+                            let result = rondelHost.QueryOverview { GameId = gameId } |> Async.RunSynchronously
 
                             match result with
                             | None -> printfn "Game not found"
