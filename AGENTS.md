@@ -169,18 +169,64 @@ Domain modules (`.fsi` and `.fs` pairs) follow a consistent sectioned structure.
 - Test organization: group related tests with `testList`, use descriptive test names in lowercase ("accepts valid GUID", not "AcceptsValidGuid").
 - Cover edge cases: null inputs, empty strings, invalid formats, boundary conditions.
 - Follow three-phase module development process documented in `docs/module_design_process.md`: define interface, write tests, implement functionality.
+
+### CE-Based Testing (Simple.Testing style)
+
+The `Spec.fs` module provides a computation expression-based testing approach inspired by Gregory Young's Simple.Testing pattern. Use declarative `on`/`when_`/`expect` syntax for readable, isolated test specifications.
+
+**Core types:**
+- `Action<'cmd, 'evt>`: DU with `Execute`, `Handle`, `ClearEvents`, `ClearCommands` cases
+- `Specification<'ctx, 'cmd, 'evt>`: Pure data describing a test scenario
+- `ISpecRunner<'ctx, 'state, 'cmd, 'evt>`: Interface for context-specific execution
+- `NoState`: Marker type for stateless contexts (F# doesn't allow `unit` as generic return type)
+
+**Usage pattern:**
+```fsharp
+let private specs =
+    [ spec "chargeNationForRondelMovement auto-approves" {
+          on createContext
+          when_ [ ChargeNationForRondelMovement cmd |> Execute ]
+          expect "publishes exactly one event" (fun ctx -> ctx.Events.Count = 1)
+          expect "event is RondelInvoicePaid" (fun ctx ->
+              match ctx.Events.[0] with RondelInvoicePaid _ -> true | _ -> false)
+      } ]
+
+[<Tests>]
+let tests = testList "Accounting" (specs |> List.map (toExpecto runner))
+```
+
+**Key design decisions:**
+- **Pure boolean predicates**: Expectations return `'ctx -> bool`, not assertions. Spec name + description provide context on failure.
+- **Each expectation is its own testCase**: `toExpecto` creates a `testList` where each expectation runs the full `on`/`when_` sequence independently for isolation.
+- **Actions as data**: `when_` collects actions declaratively; runner controls execution (enables logging, timing, etc.).
+- **State capture for reporting**: Runner's `CaptureState` provides initial/final state snapshots for failure output, not passed to expectations.
+
+**Multi-step scenarios:**
+```fsharp
+when_ [
+    SetToStartingPositions initCmd |> Execute
+    ClearEvents  // ignore setup events
+    Move moveCmd |> Execute
+]
+```
+
+**Reference implementation:** See `AccountingSpecTests.fs` for complete example.
+
 - **Testing approach:**
   - **Transformation validation tests** (in `*ContractTests.fs`): Test `fromContract` transformations with Contract types to verify input validation returns appropriate errors; use domain types directly in test setup
   - **Handler behavior tests** (in `*Tests.fs`): Create domain types directly (no transformation layer), call routers (`execute`, `handle`) with union types to verify correct outcomes, events, and charges
   - **Test helper pattern**: Use private record type grouping routers (e.g., `type private Rondel = { Execute: RondelCommand -> unit; Handle: RondelInboundEvent -> unit; GetNationPositions: GetNationPositionsQuery -> RondelPositionsView option; GetRondelOverview: GetRondelOverviewQuery -> RondelView option }`) with sync wrappers (`Async.RunSynchronously`), create factory function that returns router record with async dependencies wrapped in `async {}` + observable collections (events, commands) for verification
   - **Separation**: Keep transformation layer testing separate from handler behavior testing for clearer test intent and reduced boilerplate
-- Current test coverage (50 tests total, all passing):
+- Current test coverage (53 tests total, all passing):
   - **AccountingContractTests.fs** (6 transformation validation tests):
     - ChargeNationForRondelMovementCommand.fromContract: requires valid GameId; requires valid BillingId; accepts valid command
     - VoidRondelChargeCommand.fromContract: requires valid GameId; requires valid BillingId; accepts valid command
   - **AccountingTests.fs** (2 handler behavior tests):
     - chargeNationForRondelMovement: auto-approves and publishes RondelInvoicePaid
     - voidRondelCharge: does nothing (no event published)
+  - **AccountingSpecTests.fs** (3 CE-based spec expectations):
+    - chargeNationForRondelMovement: publishes exactly one event; event is RondelInvoicePaid
+    - voidRondelCharge: no events published
   - **RondelContractTests.fs** (5 transformation validation tests):
     - SetToStartingPositionsCommand.fromContract: rejects Guid.Empty; rejects empty nations array; accepts duplicate nations (Set deduplicates to 2 from 3)
     - MoveCommand.fromContract: rejects unknown rondel space; rejects Guid.Empty
