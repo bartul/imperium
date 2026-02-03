@@ -6,11 +6,14 @@
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="Spec.fs" />
     <Compile Include="AccountingContractTests.fs" />
     <Compile Include="AccountingTests.fs" />
+    <Compile Include="Accounting.fs" />
     <Compile Include="GameplayTests.fs" />
     <Compile Include="RondelContractTests.fs" />
     <Compile Include="RondelTests.fs" />
+    <Compile Include="Rondel.fs" />
     <Compile Include="RondelHostTests.fs" />
     <Compile Include="TerminalBusTests.fs" />
     <Compile Include="TerminalRondelStoreTests.fs" />
