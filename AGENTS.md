@@ -210,7 +210,7 @@ when_ [
 ]
 ```
 
-**Reference implementation:** See `AccountingSpecTests.fs` for complete example.
+**Reference implementation:** See `Accounting.fs` for complete example.
 
 - **Testing approach:**
   - **Transformation validation tests** (in `*ContractTests.fs`): Test `fromContract` transformations with Contract types to verify input validation returns appropriate errors; use domain types directly in test setup
@@ -224,7 +224,7 @@ when_ [
   - **AccountingTests.fs** (2 handler behavior tests):
     - chargeNationForRondelMovement: auto-approves and publishes RondelInvoicePaid
     - voidRondelCharge: does nothing (no event published)
-  - **AccountingSpecTests.fs** (3 CE-based spec expectations):
+  - **Accounting.fs** (3 CE-based spec expectations):
     - chargeNationForRondelMovement: publishes exactly one event; event is RondelInvoicePaid
     - voidRondelCharge: no events published
   - **RondelContractTests.fs** (5 transformation validation tests):
