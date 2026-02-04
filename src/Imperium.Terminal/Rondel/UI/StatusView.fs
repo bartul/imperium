@@ -20,7 +20,7 @@ type RondelStatusView(rondelHost: RondelHost, getCurrentGameId: unit -> Id optio
     let summaryLabel = new Label()
 
     do
-        this.Title <- "Rondel Status"
+        this.Title <- "Rondel"
 
         positionsList.X <- Pos.Absolute(0)
         positionsList.Y <- Pos.Absolute(0)

@@ -26,7 +26,7 @@ type EventLogView() as this =
     let displayItems = ObservableCollection<string>()
 
     do
-        this.Title <- "Event Log"
+        this.Title <- "Log"
         logList.X <- Pos.Absolute(0)
         logList.Y <- Pos.Absolute(0)
         logList.Width <- Dim.Fill()

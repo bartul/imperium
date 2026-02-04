@@ -47,7 +47,7 @@ module App =
 
         // Create the top-level window
         let window = new Window()
-        window.Title <- "Imperium Terminal"
+        window.Title <- "Imperium"
         window.X <- Pos.Absolute 0
         window.Y <- Pos.Absolute 1 // Leave room for menu
         window.Width <- Dim.Fill()
@@ -141,10 +141,10 @@ module App =
             })
 
         // Initial log entry
-        eventLogView.AddEntry("System", "Imperium Terminal started. Use Game > New Game to begin.")
+        eventLogView.AddEntry("System", "Imperium started. Use Game > New Game to begin.")
 
         // Return top-level with menu and window
-        let top = Application.Top
+        let top = new Toplevel()
         top.Add(menu, window) |> ignore
         top
 
@@ -153,7 +153,7 @@ module App =
         Application.Init()
 
         try
-            create rondelHost accountingHost bus |> ignore
-            Application.Run() |> ignore
+            let top = create rondelHost accountingHost bus
+            Application.Run top |> ignore
         finally
             Application.Shutdown()
