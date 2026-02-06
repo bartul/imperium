@@ -36,6 +36,17 @@ module RondelHost =
     // Helpers
     // ──────────────────────────────────────────────────────────────────────────
 
+    let private toAccountingCommand (outbound: RondelOutboundCommand) : AccountingCommand =
+        match outbound with
+        | ChargeMovement cmd ->
+            ChargeNationForRondelMovement
+                { GameId = cmd.GameId
+                  Nation = cmd.Nation
+                  Amount = cmd.Amount
+                  BillingId = Id(RondelBillingId.value cmd.BillingId) }
+        | VoidCharge cmd ->
+            VoidRondelCharge { GameId = cmd.GameId; BillingId = Id(RondelBillingId.value cmd.BillingId) }
+
     let private toInboundEvent (evt: AccountingEvent) : RondelInboundEvent =
         match evt with
         | RondelInvoicePaid e -> InvoicePaid { GameId = e.GameId; BillingId = RondelBillingId.ofId e.BillingId }
@@ -49,18 +60,7 @@ module RondelHost =
     /// Creates a new RondelHost with MailboxProcessor serialization
     let create (store: RondelStore) (bus: IBus) (dispatchToAccounting: DispatchToAccounting) : RondelHost =
         let dispatch (outbound: RondelOutboundCommand) =
-            let accountingCmd =
-                match outbound with
-                | ChargeMovement cmd ->
-                    ChargeNationForRondelMovement
-                        { GameId = cmd.GameId
-                          Nation = cmd.Nation
-                          Amount = cmd.Amount
-                          BillingId = Id(RondelBillingId.value cmd.BillingId) }
-                | VoidCharge cmd ->
-                    VoidRondelCharge { GameId = cmd.GameId; BillingId = Id(RondelBillingId.value cmd.BillingId) }
-
-            dispatchToAccounting () accountingCmd
+            toAccountingCommand outbound |> dispatchToAccounting ()
 
         let deps: RondelDependencies =
             { Load = store.Load; Save = store.Save; Publish = bus.Publish; Dispatch = dispatch }
