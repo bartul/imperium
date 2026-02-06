@@ -58,8 +58,12 @@ let private createContext () =
 
 let private runner: ISpecRunner<RondelContext, RondelState option, RondelCommand, RondelInboundEvent> =
     { new ISpecRunner<RondelContext, RondelState option, RondelCommand, RondelInboundEvent> with
-        member _.Execute ctx cmd = execute ctx.Deps cmd |> Async.RunSynchronously
-        member _.Handle ctx evt = handle ctx.Deps evt |> Async.RunSynchronously
+        member _.Execute ctx cmd =
+            execute ctx.Deps cmd |> Async.RunSynchronously
+
+        member _.Handle ctx evt =
+            handle ctx.Deps evt |> Async.RunSynchronously
+
         member _.ClearEvents ctx = ctx.Events.Clear()
         member _.ClearCommands ctx = ctx.Commands.Clear()
 
@@ -72,18 +76,21 @@ let private runner: ISpecRunner<RondelContext, RondelState option, RondelCommand
 // Helpers
 // ────────────────────────────────────────────────────────────────────────────────
 
-let private hasEvent (predicate: RondelEvent -> bool) (ctx: RondelContext) =
-    ctx.Events |> Seq.exists predicate
+let private hasEvent (predicate: RondelEvent -> bool) (ctx: RondelContext) = ctx.Events |> Seq.exists predicate
 
 let private hasActionDetermined (ctx: RondelContext) =
-    hasEvent (function
+    hasEvent
+        (function
         | ActionDetermined _ -> true
-        | _ -> false) ctx
+        | _ -> false)
+        ctx
 
 let private hasRejection (ctx: RondelContext) =
-    hasEvent (function
+    hasEvent
+        (function
         | MoveToActionSpaceRejected _ -> true
-        | _ -> false) ctx
+        | _ -> false)
+        ctx
 
 let private hasChargeCommand (ctx: RondelContext) =
     ctx.Commands
@@ -115,9 +122,7 @@ let private moveSpecs =
     [ spec "move cannot begin before starting positions are chosen" {
           on createContext
 
-          when_
-              [ Move { GameId = gameId; Nation = "France"; Space = Space.Factory }
-                |> Execute ]
+          when_ [ Move { GameId = gameId; Nation = "France"; Space = Space.Factory } |> Execute ]
 
           expect "rejects the move" hasRejection
           expect "no action determined" (hasActionDetermined >> not)
@@ -161,7 +166,8 @@ let private moveSpecs =
                 ClearEvents
                 ClearCommands
                 // Second move: 2 spaces (Investor -> ProductionOne)
-                Move { GameId = gameId; Nation = "France"; Space = Space.ProductionOne } |> Execute ]
+                Move { GameId = gameId; Nation = "France"; Space = Space.ProductionOne }
+                |> Execute ]
 
           expect "action is determined" hasActionDetermined
           expect "no charge dispatched" (hasChargeCommand >> not)
@@ -173,11 +179,13 @@ let private moveSpecs =
           when_
               [ SetToStartingPositions { GameId = gameId; Nations = nations } |> Execute
                 // First move to ProductionOne (establishes position)
-                Move { GameId = gameId; Nation = "France"; Space = Space.ProductionOne } |> Execute
+                Move { GameId = gameId; Nation = "France"; Space = Space.ProductionOne }
+                |> Execute
                 ClearEvents
                 ClearCommands
                 // Second move: 4 spaces (ProductionOne -> ProductionTwo)
-                Move { GameId = gameId; Nation = "France"; Space = Space.ProductionTwo } |> Execute ]
+                Move { GameId = gameId; Nation = "France"; Space = Space.ProductionTwo }
+                |> Execute ]
 
           expect "no action determined yet" (hasActionDetermined >> not)
           expect "charge dispatched" hasChargeCommand
@@ -198,7 +206,8 @@ let private moveSpecs =
           when_
               [ SetToStartingPositions { GameId = gameId; Nations = nations } |> Execute
                 // First move to ManeuverOne (establishes position)
-                Move { GameId = gameId; Nation = "France"; Space = Space.ManeuverOne } |> Execute
+                Move { GameId = gameId; Nation = "France"; Space = Space.ManeuverOne }
+                |> Execute
                 ClearEvents
                 ClearCommands
                 // Second move: 5 spaces (ManeuverOne -> Investor)
@@ -227,7 +236,8 @@ let private moveSpecs =
                 ClearEvents
                 ClearCommands
                 // Second move: 6 spaces (Investor(0) -> ProductionTwo(6))
-                Move { GameId = gameId; Nation = "France"; Space = Space.ProductionTwo } |> Execute ]
+                Move { GameId = gameId; Nation = "France"; Space = Space.ProductionTwo }
+                |> Execute ]
 
           expect "no action determined yet" (hasActionDetermined >> not)
           expect "charge dispatched" hasChargeCommand
@@ -248,7 +258,8 @@ let private moveSpecs =
           when_
               [ SetToStartingPositions { GameId = gameId; Nations = nations } |> Execute
                 // First move to ProductionOne (establishes position at index 2)
-                Move { GameId = gameId; Nation = "France"; Space = Space.ProductionOne } |> Execute
+                Move { GameId = gameId; Nation = "France"; Space = Space.ProductionOne }
+                |> Execute
                 ClearEvents
                 ClearCommands
                 // Second move: 7 spaces (ProductionOne -> Import, wrapping around)
@@ -266,15 +277,18 @@ let private moveSpecs =
           when_
               [ SetToStartingPositions { GameId = gameId; Nations = nations } |> Execute
                 // First move to ProductionOne (establishes position)
-                Move { GameId = gameId; Nation = "France"; Space = Space.ProductionOne } |> Execute
+                Move { GameId = gameId; Nation = "France"; Space = Space.ProductionOne }
+                |> Execute
                 ClearEvents
                 ClearCommands
                 // Second move: 4 spaces (pending payment)
-                Move { GameId = gameId; Nation = "France"; Space = Space.ProductionTwo } |> Execute
+                Move { GameId = gameId; Nation = "France"; Space = Space.ProductionTwo }
+                |> Execute
                 ClearEvents
                 ClearCommands
                 // Third move: 5 spaces (supersedes, should void old charge)
-                Move { GameId = gameId; Nation = "France"; Space = Space.ManeuverTwo } |> Execute ]
+                Move { GameId = gameId; Nation = "France"; Space = Space.ManeuverTwo }
+                |> Execute ]
 
           expect "old move rejected" hasRejection
           expect "old charge voided" hasVoidCommand
@@ -288,7 +302,8 @@ let private moveSpecs =
           when_
               [ SetToStartingPositions { GameId = gameId; Nations = nations } |> Execute
                 // First move to ManeuverOne (establishes position)
-                Move { GameId = gameId; Nation = "Germany"; Space = Space.ManeuverOne } |> Execute
+                Move { GameId = gameId; Nation = "Germany"; Space = Space.ManeuverOne }
+                |> Execute
                 ClearEvents
                 ClearCommands
                 // Second move: 5 spaces (pending payment) - ManeuverOne to Investor
@@ -309,4 +324,5 @@ let private moveSpecs =
 // ────────────────────────────────────────────────────────────────────────────────
 
 [<Tests>]
-let tests = testList "Rondel" [ testList "move" (moveSpecs |> List.map (toExpecto runner)) ]
+let tests =
+    testList "Rondel" [ testList "move" (moveSpecs |> List.map (toExpecto runner)) ]

@@ -22,9 +22,7 @@ module App =
     // Types
     // ──────────────────────────────────────────────────────────────────────────
 
-    type AppState =
-        { mutable CurrentGameId: Id option
-          mutable NationNames: string list }
+    type AppState = { mutable CurrentGameId: Id option; mutable NationNames: string list }
 
     // ──────────────────────────────────────────────────────────────────────────
     // Helpers
@@ -41,9 +39,7 @@ module App =
     // ──────────────────────────────────────────────────────────────────────────
 
     let create (rondelHost: RondelHost) (_accountingHost: AccountingHost) (bus: IBus) =
-        let state =
-            { CurrentGameId = None
-              NationNames = [] }
+        let state = { CurrentGameId = None; NationNames = [] }
 
         // Create views - positioned below menu bar (Y=1)
         let statusView = new RondelStatusView(rondelHost, fun () -> state.CurrentGameId)
@@ -51,12 +47,16 @@ module App =
         statusView.Y <- Pos.Absolute 1 // Below menu
         statusView.Width <- Dim.Fill()
         statusView.Height <- Dim.Percent 50
+        statusView.CanFocus <- true
+        statusView.TabStop <- TabBehavior.TabGroup
 
         let eventLogView = new EventLogView()
         eventLogView.X <- Pos.Absolute 0
         eventLogView.Y <- Pos.Bottom statusView
         eventLogView.Width <- Dim.Fill()
         eventLogView.Height <- Dim.Fill()
+        eventLogView.CanFocus <- true
+        eventLogView.TabStop <- TabBehavior.TabGroup
 
         // Menu handlers
         let handleNewGame () =
@@ -71,7 +71,9 @@ module App =
                 state.NationNames <- defaultNations |> Set.toList |> List.sort
 
                 async {
-                    do! SetToStartingPositions { GameId = gameId; Nations = defaultNations } |> rondelHost.Execute
+                    do!
+                        SetToStartingPositions { GameId = gameId; Nations = defaultNations }
+                        |> rondelHost.Execute
 
                     Interop.invokeOnMainThread (fun () ->
                         statusView.Refresh()
@@ -82,14 +84,19 @@ module App =
         let handleMoveNation () =
             match state.CurrentGameId with
             | None ->
-                let _ = MessageBox.ErrorQuery("Error", "No game initialized. Start a new game first.", "OK")
+                let _ =
+                    MessageBox.ErrorQuery("Error", "No game initialized. Start a new game first.", "OK")
+
                 ()
             | Some gameId ->
                 match MoveDialog.show state.NationNames with
                 | None -> ()
                 | Some result ->
                     async {
-                        do! Move { GameId = gameId; Nation = result.Nation; Space = result.Space } |> rondelHost.Execute
+                        do!
+                            Move { GameId = gameId; Nation = result.Nation; Space = result.Space }
+                            |> rondelHost.Execute
+
                         Interop.invokeOnMainThread (fun () -> statusView.Refresh())
                     }
                     |> Async.Start
@@ -119,23 +126,42 @@ module App =
         bus.Subscribe<RondelInvoicePaidEvent>(fun evt ->
             async {
                 Interop.invokeOnMainThread (fun () ->
-                    eventLogView.AddEntry("Accounting", sprintf "Payment confirmed (BillingId: %s)" (Id.toString evt.BillingId))
+                    eventLogView.AddEntry(
+                        "Accounting",
+                        sprintf "Payment confirmed (BillingId: %s)" (Id.toString evt.BillingId)
+                    )
+
                     statusView.Refresh())
             })
 
         bus.Subscribe<RondelInvoicePaymentFailedEvent>(fun evt ->
             async {
                 Interop.invokeOnMainThread (fun () ->
-                    eventLogView.AddEntry("Accounting", sprintf "Payment FAILED (BillingId: %s)" (Id.toString evt.BillingId))
+                    eventLogView.AddEntry(
+                        "Accounting",
+                        sprintf "Payment FAILED (BillingId: %s)" (Id.toString evt.BillingId)
+                    )
+
                     statusView.Refresh())
             })
+
+        // StatusBar with keyboard shortcuts
+        let statusBar = new StatusBar()
+
+        statusBar.Add(
+            Interop.shortcut (Key.Q.WithCtrl) "Quit" handleQuit,
+            Interop.shortcut (Key.N.WithCtrl) "New Game" handleNewGame,
+            Interop.shortcut (Key.M.WithCtrl) "Move" handleMoveNation,
+            Interop.shortcut Key.F5 "Refresh" handleRefresh
+        )
+        |> ignore
 
         // Initial log entry
         eventLogView.AddEntry("System", "Imperium started. Use Game > New Game to begin.")
 
-        // Return top-level with menu and views
+        // Assemble top-level
         let top = new Toplevel()
-        top.Add(menu, statusView, eventLogView) |> ignore
+        top.Add(menu, statusView, eventLogView, statusBar) |> ignore
         top
 
     /// Run the application

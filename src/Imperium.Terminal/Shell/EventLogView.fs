@@ -8,10 +8,7 @@ open Terminal.Gui
 // Types
 // ──────────────────────────────────────────────────────────────────────────
 
-type LogEntry =
-    { Timestamp: DateTime
-      Category: string
-      Message: string }
+type LogEntry = { Timestamp: DateTime; Category: string; Message: string }
 
 // ──────────────────────────────────────────────────────────────────────────
 // Event Log View
@@ -45,11 +42,7 @@ type EventLogView() as this =
     /// Add a log entry (thread-safe, marshals to UI thread)
     member this.AddEntry(category: string, message: string) =
         Interop.invokeOnMainThread (fun () ->
-            entries.Add(
-                { Timestamp = DateTime.Now
-                  Category = category
-                  Message = message }
-            )
+            entries.Add({ Timestamp = DateTime.Now; Category = category; Message = message })
 
             if entries.Count > maxEntries then
                 entries.RemoveAt(0)

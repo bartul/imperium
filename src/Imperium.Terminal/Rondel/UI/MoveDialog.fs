@@ -30,7 +30,9 @@ module MoveDialog =
     /// Returns None if cancelled or no valid selection
     let show (nations: string list) : MoveNationResult option =
         if List.isEmpty nations then
-            let _ = MessageBox.ErrorQuery("Error", "No nations available. Start a new game first.", "OK")
+            let _ =
+                MessageBox.ErrorQuery("Error", "No nations available. Start a new game first.", "OK")
+
             None
         else
             let mutable result: MoveNationResult option = None

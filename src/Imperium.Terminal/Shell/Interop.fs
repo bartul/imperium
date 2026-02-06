@@ -15,8 +15,7 @@ module Interop =
 
     /// Thread-safe UI update from background thread
     /// Must be called from background threads to safely update UI
-    let invokeOnMainThread (f: unit -> unit) =
-        Application.Invoke(action f)
+    let invokeOnMainThread (f: unit -> unit) = Application.Invoke(action f)
 
     /// Create an ObservableCollection from a list (for ListView)
     let toObservable (items: 'T list) =
@@ -70,3 +69,12 @@ module Interop =
         btn.Text <- text
         btn.Accepting.AddHandler(fun _ _ -> onClick ())
         btn
+
+    /// Create a Shortcut binding a key to an action with a display title.
+    /// Used in StatusBar, MenuBar, or any view that hosts Shortcut children.
+    let shortcut (key: Key) (title: string) (handler: unit -> unit) =
+        let s = new Shortcut()
+        s.Key <- key
+        s.Title <- title
+        s.Accepting.AddHandler(fun _ _ -> handler ())
+        s
