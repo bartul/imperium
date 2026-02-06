@@ -146,12 +146,14 @@ module App =
             })
 
         // StatusBar with keyboard shortcuts
+        // Note: Ctrl+M is Enter in terminals (both 0x0D), so use F2 for Move
+        // F6/Shift+F6 switches between panels (TabGroup default)
         let statusBar = new StatusBar()
 
         statusBar.Add(
             Interop.shortcut (Key.Q.WithCtrl) "Quit" handleQuit,
             Interop.shortcut (Key.N.WithCtrl) "New Game" handleNewGame,
-            Interop.shortcut (Key.M.WithCtrl) "Move" handleMoveNation,
+            Interop.shortcut Key.F2 "Move" handleMoveNation,
             Interop.shortcut Key.F5 "Refresh" handleRefresh
         )
         |> ignore
