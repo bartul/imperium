@@ -8,7 +8,7 @@
     <Compile Include="Rondel/Store.fs" />
     <Compile Include="Rondel/Host.fs" />
     <Compile Include="Accounting/Host.fs" />
-    <Compile Include="Shell/Interop.fs" />
+    <Compile Include="Shell/UI.fs" />
     <Compile Include="Shell/EventLogView.fs" />
     <Compile Include="Rondel/UI/StatusView.fs" />
     <Compile Include="Rondel/UI/MoveDialog.fs" />

@@ -41,7 +41,7 @@ type EventLogView() as this =
 
     /// Add a log entry (thread-safe, marshals to UI thread)
     member this.AddEntry(category: string, message: string) =
-        Interop.invokeOnMainThread (fun () ->
+        UI.invokeOnMainThread (fun () ->
             entries.Add({ Timestamp = DateTime.Now; Category = category; Message = message })
 
             if entries.Count > maxEntries then
@@ -51,6 +51,6 @@ type EventLogView() as this =
 
     /// Clear all entries
     member this.Clear() =
-        Interop.invokeOnMainThread (fun () ->
+        UI.invokeOnMainThread (fun () ->
             entries.Clear()
             this.RefreshDisplay())

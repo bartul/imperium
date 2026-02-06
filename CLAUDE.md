@@ -55,3 +55,10 @@ Reasoning: preserves IL shape, avoids unwanted module-load computation, and keep
 - Module file organization: Follow the 10-section structure in `AGENTS.md` → "Module File Organization" (Value Types → State → Commands → Events → Outbound Commands → Incoming Events → Dependencies → Transformations → Internal Types → Handlers). Use `// ────...` dividers and `///` XML doc comments.
 - Type inference pitfall: When records share identical fields (e.g., `MoveCommand` and `MoveToActionSpaceRejectedEvent`), F# picks the last-defined type. Add explicit type annotations: `let fn (cmd: MoveCommand) : Result<MoveCommand, string> = ...`
 - Run `dotnet build`/`dotnet test` locally; format with `dotnet fantomas .` (always available via `.config/dotnet-tools.json`).
+
+## Pre-Commit Checklist
+
+Before every commit, always run these steps in order:
+1. `dotnet fantomas .` — format all F# files
+2. `dotnet build` — ensure the whole solution compiles with 0 errors and 0 warnings
+3. `dotnet test` — ensure all tests pass

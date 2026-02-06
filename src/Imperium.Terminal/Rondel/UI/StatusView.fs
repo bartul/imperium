@@ -63,7 +63,7 @@ type RondelStatusView(rondelHost: RondelHost, getCurrentGameId: unit -> Id optio
     member _.Refresh() =
         match getCurrentGameId () with
         | None ->
-            Interop.invokeOnMainThread (fun () ->
+            UI.invokeOnMainThread (fun () ->
                 displayItems.Clear()
                 displayItems.Add("No game initialized")
                 summaryLabel.Text <- "")
@@ -71,7 +71,7 @@ type RondelStatusView(rondelHost: RondelHost, getCurrentGameId: unit -> Id optio
             async {
                 let! result = rondelHost.QueryPositions { GameId = gameId }
 
-                Interop.invokeOnMainThread (fun () ->
+                UI.invokeOnMainThread (fun () ->
                     displayItems.Clear()
 
                     match result with

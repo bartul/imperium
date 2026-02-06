@@ -8,7 +8,7 @@ open Terminal.Gui
 // F# Wrappers for Terminal.Gui v2
 // ──────────────────────────────────────────────────────────────────────────
 
-module Interop =
+module UI =
 
     /// Wrap F# function as Action delegate
     let action (f: unit -> unit) = Action(f)

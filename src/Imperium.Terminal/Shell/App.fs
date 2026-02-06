@@ -75,7 +75,7 @@ module App =
                         SetToStartingPositions { GameId = gameId; Nations = defaultNations }
                         |> rondelHost.Execute
 
-                    Interop.invokeOnMainThread (fun () ->
+                    UI.invokeOnMainThread (fun () ->
                         statusView.Refresh()
                         eventLogView.AddEntry("System", "New game started"))
                 }
@@ -97,7 +97,7 @@ module App =
                             Move { GameId = gameId; Nation = result.Nation; Space = result.Space }
                             |> rondelHost.Execute
 
-                        Interop.invokeOnMainThread (fun () -> statusView.Refresh())
+                        UI.invokeOnMainThread (fun () -> statusView.Refresh())
                     }
                     |> Async.Start
 
@@ -107,7 +107,7 @@ module App =
 
         // Create menu bar
         let menu =
-            Interop.menuBar
+            UI.menuBar
                 [ "_Game",
                   [ "_New Game", handleNewGame
                     "_Move Nation", handleMoveNation
@@ -117,7 +117,7 @@ module App =
         // Subscribe to Rondel events for UI updates
         bus.Subscribe<RondelEvent>(fun evt ->
             async {
-                Interop.invokeOnMainThread (fun () ->
+                UI.invokeOnMainThread (fun () ->
                     eventLogView.AddEntry("Rondel", formatRondelEvent evt)
                     statusView.Refresh())
             })
@@ -125,7 +125,7 @@ module App =
         // Subscribe to Accounting events for UI updates
         bus.Subscribe<RondelInvoicePaidEvent>(fun evt ->
             async {
-                Interop.invokeOnMainThread (fun () ->
+                UI.invokeOnMainThread (fun () ->
                     eventLogView.AddEntry(
                         "Accounting",
                         sprintf "Payment confirmed (BillingId: %s)" (Id.toString evt.BillingId)
@@ -136,7 +136,7 @@ module App =
 
         bus.Subscribe<RondelInvoicePaymentFailedEvent>(fun evt ->
             async {
-                Interop.invokeOnMainThread (fun () ->
+                UI.invokeOnMainThread (fun () ->
                     eventLogView.AddEntry(
                         "Accounting",
                         sprintf "Payment FAILED (BillingId: %s)" (Id.toString evt.BillingId)
@@ -151,10 +151,10 @@ module App =
         let statusBar = new StatusBar()
 
         statusBar.Add(
-            Interop.shortcut (Key.Q.WithCtrl) "Quit" handleQuit,
-            Interop.shortcut (Key.N.WithCtrl) "New Game" handleNewGame,
-            Interop.shortcut Key.F2 "Move" handleMoveNation,
-            Interop.shortcut Key.F5 "Refresh" handleRefresh
+            UI.shortcut (Key.Q.WithCtrl) "Quit" handleQuit,
+            UI.shortcut (Key.N.WithCtrl) "New Game" handleNewGame,
+            UI.shortcut Key.F2 "Move" handleMoveNation,
+            UI.shortcut Key.F5 "Refresh" handleRefresh
         )
         |> ignore
 
