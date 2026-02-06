@@ -45,18 +45,10 @@ module App =
             { CurrentGameId = None
               NationNames = [] }
 
-        // Create the top-level window
-        let window = new Window()
-        window.Title <- "Imperium"
-        window.X <- Pos.Absolute 0
-        window.Y <- Pos.Absolute 1 // Leave room for menu
-        window.Width <- Dim.Fill()
-        window.Height <- Dim.Fill()
-
-        // Create views
+        // Create views - positioned below menu bar (Y=1)
         let statusView = new RondelStatusView(rondelHost, fun () -> state.CurrentGameId)
         statusView.X <- Pos.Absolute 0
-        statusView.Y <- Pos.Absolute 0
+        statusView.Y <- Pos.Absolute 1 // Below menu
         statusView.Width <- Dim.Fill()
         statusView.Height <- Dim.Percent 50
 
@@ -65,8 +57,6 @@ module App =
         eventLogView.Y <- Pos.Bottom statusView
         eventLogView.Width <- Dim.Fill()
         eventLogView.Height <- Dim.Fill()
-
-        window.Add(statusView, eventLogView) |> ignore
 
         // Menu handlers
         let handleNewGame () =
@@ -143,9 +133,9 @@ module App =
         // Initial log entry
         eventLogView.AddEntry("System", "Imperium started. Use Game > New Game to begin.")
 
-        // Return top-level with menu and window
+        // Return top-level with menu and views
         let top = new Toplevel()
-        top.Add(menu, window) |> ignore
+        top.Add(menu, statusView, eventLogView) |> ignore
         top
 
     /// Run the application
