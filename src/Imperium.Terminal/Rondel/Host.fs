@@ -33,6 +33,16 @@ module RondelHost =
         | InboundEvent of RondelInboundEvent
 
     // ──────────────────────────────────────────────────────────────────────────
+    // Helpers
+    // ──────────────────────────────────────────────────────────────────────────
+
+    let private toInboundEvent (evt: AccountingEvent) : RondelInboundEvent =
+        match evt with
+        | RondelInvoicePaid e -> InvoicePaid { GameId = e.GameId; BillingId = RondelBillingId.ofId e.BillingId }
+        | RondelInvoicePaymentFailed e ->
+            InvoicePaymentFailed { GameId = e.GameId; BillingId = RondelBillingId.ofId e.BillingId }
+
+    // ──────────────────────────────────────────────────────────────────────────
     // Factory
     // ──────────────────────────────────────────────────────────────────────────
 
@@ -71,19 +81,7 @@ module RondelHost =
                 loop ())
 
         // Subscribe to Accounting events and convert to Rondel inbound events
-        bus.Subscribe<RondelInvoicePaidEvent>(fun evt ->
-            async {
-                InvoicePaid { GameId = evt.GameId; BillingId = RondelBillingId.ofId evt.BillingId }
-                |> InboundEvent
-                |> mailbox.Post
-            })
-
-        bus.Subscribe<RondelInvoicePaymentFailedEvent>(fun evt ->
-            async {
-                InvoicePaymentFailed { GameId = evt.GameId; BillingId = RondelBillingId.ofId evt.BillingId }
-                |> InboundEvent
-                |> mailbox.Post
-            })
+        bus.Subscribe<AccountingEvent>(fun evt -> async { toInboundEvent evt |> InboundEvent |> mailbox.Post })
 
         let queryDeps: RondelQueryDependencies = { Load = store.Load }
 

@@ -123,25 +123,16 @@ module App =
             })
 
         // Subscribe to Accounting events for UI updates
-        bus.Subscribe<RondelInvoicePaidEvent>(fun evt ->
+        bus.Subscribe<AccountingEvent>(fun evt ->
             async {
+                let message =
+                    match evt with
+                    | RondelInvoicePaid e -> sprintf "Payment confirmed (BillingId: %s)" (Id.toString e.BillingId)
+                    | RondelInvoicePaymentFailed e ->
+                        sprintf "Payment FAILED (BillingId: %s)" (Id.toString e.BillingId)
+
                 UI.invokeOnMainThread (fun () ->
-                    eventLogView.AddEntry(
-                        "Accounting",
-                        sprintf "Payment confirmed (BillingId: %s)" (Id.toString evt.BillingId)
-                    )
-
-                    statusView.Refresh())
-            })
-
-        bus.Subscribe<RondelInvoicePaymentFailedEvent>(fun evt ->
-            async {
-                UI.invokeOnMainThread (fun () ->
-                    eventLogView.AddEntry(
-                        "Accounting",
-                        sprintf "Payment FAILED (BillingId: %s)" (Id.toString evt.BillingId)
-                    )
-
+                    eventLogView.AddEntry("Accounting", message)
                     statusView.Refresh())
             })
 

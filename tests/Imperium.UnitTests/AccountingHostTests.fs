@@ -75,7 +75,10 @@ let tests =
                   publishedEvents
                   |> Seq.exists (fun e ->
                       match e with
-                      | :? RondelInvoicePaidEvent -> true
+                      | :? AccountingEvent as evt ->
+                          match evt with
+                          | RondelInvoicePaid _ -> true
+                          | _ -> false
                       | _ -> false)
 
-              Expect.isTrue hasPaidEvent "should publish RondelInvoicePaidEvent" ]
+              Expect.isTrue hasPaidEvent "should publish RondelInvoicePaid AccountingEvent" ]

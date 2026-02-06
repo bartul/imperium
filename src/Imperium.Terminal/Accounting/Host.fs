@@ -7,10 +7,7 @@ type AccountingHost = { Execute: AccountingCommand -> Async<unit> }
 
 module AccountingHost =
     let create (bus: IBus) : AccountingHost =
-        let publish (evt: AccountingEvent) =
-            match evt with
-            | RondelInvoicePaid inner -> bus.Publish inner
-            | RondelInvoicePaymentFailed inner -> bus.Publish inner
+        let publish (evt: AccountingEvent) = bus.Publish evt
 
         let deps: AccountingDependencies = { Publish = publish }
 
