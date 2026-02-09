@@ -2,7 +2,10 @@ namespace Imperium.Terminal.Shell
 
 open System
 open System.Collections.ObjectModel
-open Terminal.Gui
+open Terminal.Gui.App
+open Terminal.Gui.Input
+open Terminal.Gui.ViewBase
+open Terminal.Gui.Views
 
 // ──────────────────────────────────────────────────────────────────────────
 // F# Wrappers for Terminal.Gui v2
@@ -15,7 +18,7 @@ module UI =
 
     /// Thread-safe UI update from background thread
     /// Must be called from background threads to safely update UI
-    let invokeOnMainThread (f: unit -> unit) = Application.Invoke(action f)
+    let invokeOnMainThread (app: IApplication) (f: unit -> unit) = app.Invoke(action f)
 
     /// Create an ObservableCollection from a list (for ListView)
     let toObservable (items: 'T list) =
@@ -35,10 +38,9 @@ module UI =
                         let item = new MenuItem()
                         item.Title <- label
                         item.Action <- action handler
-                        item)
-                    |> List.toArray
+                        item :> View)
 
-                MenuBarItem(title, subItems))
+                new MenuBarItem(title, subItems))
             |> List.toArray
 
         let bar = new MenuBar()

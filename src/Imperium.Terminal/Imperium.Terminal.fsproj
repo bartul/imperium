@@ -16,7 +16,7 @@
     <Compile Include="Program.fs" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="Terminal.Gui" Version="2.*" />
+    <PackageReference Include="Terminal.Gui" Version="2.0.0-develop.5027" />
     <ProjectReference Include="../Imperium/Imperium.fsproj" />
   </ItemGroup>
 </Project>

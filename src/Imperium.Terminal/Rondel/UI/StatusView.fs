@@ -1,7 +1,9 @@
 namespace Imperium.Terminal.Rondel.UI
 
 open System.Collections.ObjectModel
-open Terminal.Gui
+open Terminal.Gui.App
+open Terminal.Gui.ViewBase
+open Terminal.Gui.Views
 open Imperium.Primitives
 open Imperium.Rondel
 open Imperium.Terminal.Rondel
@@ -11,7 +13,7 @@ open Imperium.Terminal.Shell
 // Rondel Status View
 // ──────────────────────────────────────────────────────────────────────────
 
-type RondelStatusView(rondelHost: RondelHost, getCurrentGameId: unit -> Id option) as this =
+type RondelStatusView(app: IApplication, rondelHost: RondelHost, getCurrentGameId: unit -> Id option) as this =
     inherit FrameView()
 
     let positionsList = new ListView()
@@ -63,7 +65,7 @@ type RondelStatusView(rondelHost: RondelHost, getCurrentGameId: unit -> Id optio
     member _.Refresh() =
         match getCurrentGameId () with
         | None ->
-            UI.invokeOnMainThread (fun () ->
+            UI.invokeOnMainThread app (fun () ->
                 displayItems.Clear()
                 displayItems.Add("No game initialized")
                 summaryLabel.Text <- "")
@@ -71,7 +73,7 @@ type RondelStatusView(rondelHost: RondelHost, getCurrentGameId: unit -> Id optio
             async {
                 let! result = rondelHost.QueryPositions { GameId = gameId }
 
-                UI.invokeOnMainThread (fun () ->
+                UI.invokeOnMainThread app (fun () ->
                     displayItems.Clear()
 
                     match result with

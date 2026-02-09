@@ -1,6 +1,9 @@
 namespace Imperium.Terminal.Shell
 
-open Terminal.Gui
+open Terminal.Gui.App
+open Terminal.Gui.Input
+open Terminal.Gui.ViewBase
+open Terminal.Gui.Views
 open Imperium.Primitives
 open Imperium.Rondel
 open Imperium.Accounting
@@ -38,11 +41,13 @@ module App =
     // Main Application
     // ──────────────────────────────────────────────────────────────────────────
 
-    let create (rondelHost: RondelHost) (_accountingHost: AccountingHost) (bus: IBus) =
+    let create (app: IApplication) (rondelHost: RondelHost) (_accountingHost: AccountingHost) (bus: IBus) =
         let state = { CurrentGameId = None; NationNames = [] }
 
         // Create views - positioned below menu bar (Y=1)
-        let statusView = new RondelStatusView(rondelHost, fun () -> state.CurrentGameId)
+        let statusView =
+            new RondelStatusView(app, rondelHost, fun () -> state.CurrentGameId)
+
         statusView.X <- Pos.Absolute 0
         statusView.Y <- Pos.Absolute 1 // Below menu
         statusView.Width <- Dim.Fill()
@@ -50,7 +55,7 @@ module App =
         statusView.CanFocus <- true
         statusView.TabStop <- TabBehavior.TabGroup
 
-        let eventLogView = new EventLogView()
+        let eventLogView = new EventLogView(app)
         eventLogView.X <- Pos.Absolute 0
         eventLogView.Y <- Pos.Bottom statusView
         eventLogView.Width <- Dim.Fill()
@@ -63,9 +68,15 @@ module App =
             let nationsStr = String.concat ", " defaultNations
 
             let result =
-                MessageBox.Query("New Game", sprintf "Start new game with 6 nations?\n\n%s" nationsStr, "Yes", "No")
+                MessageBox.Query(
+                    app,
+                    "New Game",
+                    sprintf "Start new game with 6 nations?\n\n%s" nationsStr,
+                    "Yes",
+                    "No"
+                )
 
-            if result = 0 then
+            if result.HasValue && result.Value = 0 then
                 let gameId = Id.newId ()
                 state.CurrentGameId <- Some gameId
                 state.NationNames <- defaultNations |> Set.toList |> List.sort
@@ -75,7 +86,7 @@ module App =
                         SetToStartingPositions { GameId = gameId; Nations = defaultNations }
                         |> rondelHost.Execute
 
-                    UI.invokeOnMainThread (fun () ->
+                    UI.invokeOnMainThread app (fun () ->
                         statusView.Refresh()
                         eventLogView.AddEntry("System", "New game started"))
                 }
@@ -84,12 +95,10 @@ module App =
         let handleMoveNation () =
             match state.CurrentGameId with
             | None ->
-                let _ =
-                    MessageBox.ErrorQuery("Error", "No game initialized. Start a new game first.", "OK")
-
-                ()
+                MessageBox.ErrorQuery(app, "Error", "No game initialized. Start a new game first.", "OK")
+                |> ignore
             | Some gameId ->
-                match MoveDialog.show state.NationNames with
+                match MoveDialog.show app state.NationNames with
                 | None -> ()
                 | Some result ->
                     async {
@@ -97,11 +106,11 @@ module App =
                             Move { GameId = gameId; Nation = result.Nation; Space = result.Space }
                             |> rondelHost.Execute
 
-                        UI.invokeOnMainThread (fun () -> statusView.Refresh())
+                        UI.invokeOnMainThread app (fun () -> statusView.Refresh())
                     }
                     |> Async.Start
 
-        let handleQuit () = Application.RequestStop()
+        let handleQuit () = app.RequestStop()
 
         let handleRefresh () = statusView.Refresh()
 
@@ -117,7 +126,7 @@ module App =
         // Subscribe to Rondel events for UI updates
         bus.Subscribe<RondelEvent>(fun evt ->
             async {
-                UI.invokeOnMainThread (fun () ->
+                UI.invokeOnMainThread app (fun () ->
                     eventLogView.AddEntry("Rondel", formatRondelEvent evt)
                     statusView.Refresh())
             })
@@ -131,7 +140,7 @@ module App =
                     | RondelInvoicePaymentFailed e ->
                         sprintf "Payment FAILED (BillingId: %s)" (Id.toString e.BillingId)
 
-                UI.invokeOnMainThread (fun () ->
+                UI.invokeOnMainThread app (fun () ->
                     eventLogView.AddEntry("Accounting", message)
                     statusView.Refresh())
             })
@@ -153,16 +162,14 @@ module App =
         eventLogView.AddEntry("System", "Imperium started. Use Game > New Game to begin.")
 
         // Assemble top-level
-        let top = new Toplevel()
+        let top = new Window()
         top.Add(menu, statusView, eventLogView, statusBar) |> ignore
         top
 
     /// Run the application
     let run (rondelHost: RondelHost) (accountingHost: AccountingHost) (bus: IBus) : unit =
-        Application.Init()
-
-        try
-            let top = create rondelHost accountingHost bus
-            Application.Run top |> ignore
-        finally
-            Application.Shutdown()
+        use app = (Application.Create()).Init()
+        let top = create app rondelHost accountingHost bus
+        app.Run top |> ignore
+        top.Dispose()
+        app.Dispose()

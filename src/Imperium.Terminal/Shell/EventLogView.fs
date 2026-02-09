@@ -2,7 +2,9 @@ namespace Imperium.Terminal.Shell
 
 open System
 open System.Collections.ObjectModel
-open Terminal.Gui
+open Terminal.Gui.App
+open Terminal.Gui.ViewBase
+open Terminal.Gui.Views
 
 // ──────────────────────────────────────────────────────────────────────────
 // Types
@@ -14,7 +16,7 @@ type LogEntry = { Timestamp: DateTime; Category: string; Message: string }
 // Event Log View
 // ──────────────────────────────────────────────────────────────────────────
 
-type EventLogView() as this =
+type EventLogView(app: IApplication) as this =
     inherit FrameView()
 
     let maxEntries = 100
@@ -41,7 +43,7 @@ type EventLogView() as this =
 
     /// Add a log entry (thread-safe, marshals to UI thread)
     member this.AddEntry(category: string, message: string) =
-        UI.invokeOnMainThread (fun () ->
+        UI.invokeOnMainThread app (fun () ->
             entries.Add({ Timestamp = DateTime.Now; Category = category; Message = message })
 
             if entries.Count > maxEntries then
@@ -51,6 +53,6 @@ type EventLogView() as this =
 
     /// Clear all entries
     member this.Clear() =
-        UI.invokeOnMainThread (fun () ->
+        UI.invokeOnMainThread app (fun () ->
             entries.Clear()
             this.RefreshDisplay())

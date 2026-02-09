@@ -1,7 +1,9 @@
 namespace Imperium.Terminal.Rondel.UI
 
 open System.Collections.ObjectModel
-open Terminal.Gui
+open Terminal.Gui.App
+open Terminal.Gui.ViewBase
+open Terminal.Gui.Views
 open Imperium.Rondel
 
 // ──────────────────────────────────────────────────────────────────────────
@@ -28,10 +30,10 @@ module MoveDialog =
 
     /// Show dialog to select nation and target space
     /// Returns None if cancelled or no valid selection
-    let show (nations: string list) : MoveNationResult option =
+    let show (app: IApplication) (nations: string list) : MoveNationResult option =
         if List.isEmpty nations then
-            let _ =
-                MessageBox.ErrorQuery("Error", "No nations available. Start a new game first.", "OK")
+            MessageBox.ErrorQuery(app, "Error", "No nations available. Start a new game first.", "OK")
+            |> ignore
 
             None
         else
@@ -81,22 +83,27 @@ module MoveDialog =
                 let nationIdx = nationList.SelectedItem
                 let spaceIdx = spaceList.SelectedItem
 
-                if nationIdx >= 0 && spaceIdx >= 0 then
-                    let nation = nations.[nationIdx]
-                    let _, space = spaceOptions.[spaceIdx]
+                if
+                    nationIdx.HasValue
+                    && spaceIdx.HasValue
+                    && nationIdx.Value >= 0
+                    && spaceIdx.Value >= 0
+                then
+                    let nation = nations.[nationIdx.Value]
+                    let _, space = spaceOptions.[spaceIdx.Value]
                     result <- Some { Nation = nation; Space = space }
 
-                Application.RequestStop dialog)
+                app.RequestStop(dialog))
 
             let cancelButton = new Button()
             cancelButton.Text <- "Cancel"
 
-            cancelButton.Accepting.AddHandler(fun _ _ -> Application.RequestStop dialog)
+            cancelButton.Accepting.AddHandler(fun _ _ -> app.RequestStop(dialog))
 
             dialog.Add(nationLabel, nationList, spaceLabel, spaceList) |> ignore
             dialog.AddButton okButton
             dialog.AddButton cancelButton
 
-            Application.Run dialog |> ignore
+            app.Run(dialog) |> ignore
             dialog.Dispose()
             result
