@@ -31,12 +31,6 @@ module App =
     // Helpers
     // ──────────────────────────────────────────────────────────────────────────
 
-    let private formatRondelEvent (evt: RondelEvent) =
-        match evt with
-        | PositionedAtStart _ -> "Game initialized - nations at starting positions"
-        | ActionDetermined e -> sprintf "%s moved to %A" e.Nation e.Action
-        | MoveToActionSpaceRejected e -> sprintf "%s move to %A REJECTED" e.Nation e.Space
-
     // ──────────────────────────────────────────────────────────────────────────
     // Main Application
     // ──────────────────────────────────────────────────────────────────────────
@@ -55,7 +49,7 @@ module App =
         statusView.CanFocus <- true
         statusView.TabStop <- TabBehavior.TabGroup
 
-        let eventLogView = new EventLogView(app)
+        let eventLogView = new EventLogView(app, bus)
         eventLogView.X <- Pos.Absolute 0
         eventLogView.Y <- Pos.Bottom statusView
         eventLogView.Width <- Dim.Fill()
@@ -123,27 +117,10 @@ module App =
                     "_Quit", handleQuit ]
                   "_View", [ "_Refresh", handleRefresh ] ]
 
-        // Subscribe to Rondel events for UI updates
-        bus.Subscribe<RondelEvent>(fun evt ->
-            async {
-                UI.invokeOnMainThread app (fun () ->
-                    eventLogView.AddEntry("Rondel", formatRondelEvent evt)
-                    statusView.Refresh())
-            })
+        // Refresh status view on domain events
+        bus.Subscribe<RondelEvent>(fun _ -> async { UI.invokeOnMainThread app (fun () -> statusView.Refresh()) })
 
-        // Subscribe to Accounting events for UI updates
-        bus.Subscribe<AccountingEvent>(fun evt ->
-            async {
-                let message =
-                    match evt with
-                    | RondelInvoicePaid e -> sprintf "Payment confirmed (BillingId: %s)" (Id.toString e.BillingId)
-                    | RondelInvoicePaymentFailed e ->
-                        sprintf "Payment FAILED (BillingId: %s)" (Id.toString e.BillingId)
-
-                UI.invokeOnMainThread app (fun () ->
-                    eventLogView.AddEntry("Accounting", message)
-                    statusView.Refresh())
-            })
+        bus.Subscribe<AccountingEvent>(fun _ -> async { UI.invokeOnMainThread app (fun () -> statusView.Refresh()) })
 
         // StatusBar with keyboard shortcuts
         // Note: Ctrl+M is Enter in terminals (both 0x0D), so use F2 for Move
