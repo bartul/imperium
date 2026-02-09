@@ -7,12 +7,6 @@ open Terminal.Gui.ViewBase
 open Terminal.Gui.Views
 
 // ──────────────────────────────────────────────────────────────────────────
-// Types
-// ──────────────────────────────────────────────────────────────────────────
-
-type LogEntry = { Timestamp: DateTime; Category: string; Message: string }
-
-// ──────────────────────────────────────────────────────────────────────────
 // Event Log View
 // ──────────────────────────────────────────────────────────────────────────
 
@@ -20,39 +14,27 @@ type EventLogView(app: IApplication) as this =
     inherit FrameView()
 
     let maxEntries = 100
-    let entries = ResizeArray<LogEntry>()
     let logList = new ListView()
     let displayItems = ObservableCollection<string>()
 
     do
         this.Title <- "Log"
-        logList.X <- Pos.Absolute(0)
-        logList.Y <- Pos.Absolute(0)
+        logList.X <- Pos.Absolute 0
+        logList.Y <- Pos.Absolute 0
         logList.Width <- Dim.Fill()
         logList.Height <- Dim.Fill()
-        logList.SetSource(displayItems)
-        this.Add(logList) |> ignore
-
-    member private _.RefreshDisplay() =
-        displayItems.Clear()
-
-        entries
-        |> Seq.rev // Most recent first
-        |> Seq.iter (fun e ->
-            displayItems.Add(sprintf "[%s] [%s] %s" (e.Timestamp.ToString("HH:mm:ss")) e.Category e.Message))
+        logList.SetSource displayItems
+        this.Add logList |> ignore
 
     /// Add a log entry (thread-safe, marshals to UI thread)
-    member this.AddEntry(category: string, message: string) =
+    member _.AddEntry(category: string, message: string) =
         UI.invokeOnMainThread app (fun () ->
-            entries.Add({ Timestamp = DateTime.Now; Category = category; Message = message })
+            let line = sprintf "[%s] [%s] %s" (DateTime.Now.ToString "HH:mm:ss") category message
+            displayItems.Insert(0, line)
 
-            if entries.Count > maxEntries then
-                entries.RemoveAt(0)
-
-            this.RefreshDisplay())
+            if displayItems.Count > maxEntries then
+                displayItems.RemoveAt(displayItems.Count - 1))
 
     /// Clear all entries
-    member this.Clear() =
-        UI.invokeOnMainThread app (fun () ->
-            entries.Clear()
-            this.RefreshDisplay())
+    member _.Clear() =
+        UI.invokeOnMainThread app (fun () -> displayItems.Clear())
