@@ -80,9 +80,8 @@ module App =
                         SetToStartingPositions { GameId = gameId; Nations = defaultNations }
                         |> rondelHost.Execute
 
-                    UI.invokeOnMainThread app (fun () ->
-                        statusView.Refresh()
-                        eventLogView.AddEntry("System", "New game started"))
+                    do! bus.Publish NewGameStarted
+                    UI.invokeOnMainThread app (fun () -> statusView.Refresh())
                 }
                 |> Async.Start
 
@@ -136,7 +135,7 @@ module App =
         |> ignore
 
         // Initial log entry
-        eventLogView.AddEntry("System", "Imperium started. Use Game > New Game to begin.")
+        bus.Publish AppStarted |> Async.RunSynchronously
 
         // Assemble top-level
         let top = new Window()

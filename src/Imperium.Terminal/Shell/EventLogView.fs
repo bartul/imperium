@@ -27,6 +27,11 @@ module private EventLogView =
         | RondelInvoicePaid e -> sprintf "Payment confirmed (BillingId: %s)" (Id.toString e.BillingId)
         | RondelInvoicePaymentFailed e -> sprintf "Payment FAILED (BillingId: %s)" (Id.toString e.BillingId)
 
+    let formatSystemEvent =
+        function
+        | AppStarted -> "Imperium started. Use Game > New Game to begin."
+        | NewGameStarted -> "New game started"
+
 type EventLogView(app: IApplication, bus: IBus) as this =
     inherit FrameView()
 
@@ -58,8 +63,8 @@ type EventLogView(app: IApplication, bus: IBus) as this =
         bus.Subscribe<AccountingEvent>(fun event_ ->
             async { EventLogView.formatAccountingEvent event_ |> addEntry "Accounting" })
 
-    /// Add a log entry (thread-safe, marshals to UI thread)
-    member _.AddEntry(category: string, message: string) = addEntry category message
+        bus.Subscribe<SystemEvent>(fun event_ ->
+            async { EventLogView.formatSystemEvent event_ |> addEntry "System" })
 
     /// Clear all entries
     member _.Clear() =
