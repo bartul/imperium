@@ -49,7 +49,7 @@ module App =
         statusView.CanFocus <- true
         statusView.TabStop <- TabBehavior.TabGroup
 
-        let eventLogView = new EventLogView(app, bus)
+        let eventLogView = EventLogView.create app bus
         eventLogView.X <- Pos.Absolute 0
         eventLogView.Y <- Pos.Bottom statusView
         eventLogView.Width <- Dim.Fill()
@@ -65,7 +65,10 @@ module App =
                 MessageBox.Query(
                     app,
                     "New Game",
-                    sprintf "Start new game with 6 nations?\n\n%s" nationsStr, "Yes", "No")
+                    sprintf "Start new game with 6 nations?\n\n%s" nationsStr,
+                    "Yes",
+                    "No"
+                )
 
             if result.HasValue && result.Value = 0 then
                 let gameId = Id.newId ()

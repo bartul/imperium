@@ -47,10 +47,11 @@ module UI =
         bar.Menus <- menuItems
         bar
 
-    /// Create a FrameView with title
-    let frameView (title: string) =
+    /// Create a FrameView with title and child views
+    let frameView (title: string) (children: View array) =
         let view = new FrameView()
         view.Title <- title
+        view.Add children |> ignore
         view
 
     /// Create a Label
