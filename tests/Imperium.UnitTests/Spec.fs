@@ -38,8 +38,8 @@ type Specification<'ctx, 'cmd, 'evt> =
 // CE Builder
 // ────────────────────────────────────────────────────────────────────────────────
 
-type SpecificationBuilder<'ctx, 'cmd, 'evt>(name: string) =
-    member _.Yield(_) : Specification<'ctx, 'cmd, 'evt> =
+type SpecificationBuilder<'ctx, 'cmd, 'evt>(name) =
+    member _.Yield _ =
         { Name = name; On = (fun () -> Unchecked.defaultof<_>); Actions = []; Expectations = [] }
 
     [<CustomOperation("on")>]
@@ -72,7 +72,7 @@ type ISpecRunner<'ctx, 'state, 'cmd, 'evt> =
 // ────────────────────────────────────────────────────────────────────────────────
 
 /// Run all actions on context using provided runner
-let runActions (runner: ISpecRunner<'ctx, 'state, 'cmd, 'evt>) (ctx: 'ctx) (actions: Action<'cmd, 'evt> list) =
+let runActions (runner: ISpecRunner<'ctx, 'state, 'cmd, 'evt>) ctx actions =
     for action in actions do
         match action with
         | Execute cmd -> runner.Execute ctx cmd
@@ -82,7 +82,7 @@ let runActions (runner: ISpecRunner<'ctx, 'state, 'cmd, 'evt>) (ctx: 'ctx) (acti
 
 /// Convert Specification to Expecto testList where each expectation is its own testCase.
 /// Each testCase runs the full on/when_ sequence independently for isolation.
-let toExpecto (runner: ISpecRunner<'ctx, 'state, 'cmd, 'evt>) (spec: Specification<'ctx, 'cmd, 'evt>) : Test =
+let toExpecto (runner: ISpecRunner<'ctx, 'state, 'cmd, 'evt>) (spec: Specification<'ctx, 'cmd, 'evt>) =
     let expectationTests =
         spec.Expectations
         |> List.map (fun expectation ->

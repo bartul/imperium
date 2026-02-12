@@ -18,13 +18,12 @@ type RondelContext =
       Store: Dictionary<Id, RondelState>
       GameId: Id }
 
-let private createContext () =
+let private createContext gameId =
     let store = Dictionary<Id, RondelState>()
     let events = ResizeArray<RondelEvent>()
     let commands = ResizeArray<RondelOutboundCommand>()
-    let gameId = Guid.NewGuid() |> Id
 
-    let load (id: Id) : Async<RondelState option> =
+    let load id =
         async {
             return
                 match store.TryGetValue(id) with
@@ -32,15 +31,15 @@ let private createContext () =
                 | false, _ -> None
         }
 
-    let save (state: RondelState) : Async<Result<unit, string>> =
+    let save (state: RondelState) =
         async {
-            store.[state.GameId] <- state
+            store[state.GameId] <- state
             return Ok()
         }
 
-    let publish (event: RondelEvent) : Async<unit> = async { events.Add event }
+    let publish event = async { events.Add event }
 
-    let dispatch (command: RondelOutboundCommand) : Async<Result<unit, string>> =
+    let dispatch command =
         async {
             commands.Add command
             return Ok()
@@ -56,7 +55,7 @@ let private createContext () =
 // Runner
 // ────────────────────────────────────────────────────────────────────────────────
 
-let private runner: ISpecRunner<RondelContext, RondelState option, RondelCommand, RondelInboundEvent> =
+let private runner =
     { new ISpecRunner<RondelContext, RondelState option, RondelCommand, RondelInboundEvent> with
         member _.Execute ctx cmd =
             execute ctx.Deps cmd |> Async.RunSynchronously
@@ -76,35 +75,38 @@ let private runner: ISpecRunner<RondelContext, RondelState option, RondelCommand
 // Helpers
 // ────────────────────────────────────────────────────────────────────────────────
 
-let private hasEvent (predicate: RondelEvent -> bool) (ctx: RondelContext) = ctx.Events |> Seq.exists predicate
+let hasExactEvent event_ ctx =
+    ctx.Events |> Seq.exists (fun item -> item = event_)
 
-let private hasActionDetermined (ctx: RondelContext) =
-    hasEvent
-        (function
+let private hasEvent predicate ctx =
+    ctx.Events |> Seq.exists predicate
+
+let private hasActionDetermined ctx =
+    hasEvent (function
         | ActionDetermined _ -> true
         | _ -> false)
         ctx
 
-let private hasRejection (ctx: RondelContext) =
-    hasEvent
-        (function
+let private hasRejection ctx =
+    hasEvent (function
+    hasEvent (function
         | MoveToActionSpaceRejected _ -> true
         | _ -> false)
         ctx
 
-let private hasChargeCommand (ctx: RondelContext) =
+let private hasChargeCommand ctx =
     ctx.Commands
     |> Seq.exists (function
         | ChargeMovement _ -> true
         | _ -> false)
 
-let private hasVoidCommand (ctx: RondelContext) =
+let private hasVoidCommand ctx =
     ctx.Commands
     |> Seq.exists (function
         | VoidCharge _ -> true
         | _ -> false)
 
-let private chargeCount (ctx: RondelContext) =
+let private chargeCount ctx =
     ctx.Commands
     |> Seq.filter (function
         | ChargeMovement _ -> true
@@ -120,17 +122,19 @@ let private moveSpecs =
     let nations = Set.ofList [ "Austria"; "France"; "Germany" ]
 
     [ spec "move cannot begin before starting positions are chosen" {
-          on createContext
+          on (fun () -> createContext gameId)
 
           when_ [ Move { GameId = gameId; Nation = "France"; Space = Space.Factory } |> Execute ]
 
-          expect "rejects the move" hasRejection
+          expect
+              "rejects the move"
+              (hasExactEvent (MoveToActionSpaceRejected { GameId = gameId; Nation = "France"; Space = Space.Factory }))
           expect "no action determined" (hasActionDetermined >> not)
           expect "no charge dispatched" (hasChargeCommand >> not)
       }
 
       spec "first move to any space is free" {
-          on createContext
+          on (fun () -> createContext gameId)
 
           when_
               [ SetToStartingPositions { GameId = gameId; Nations = nations } |> Execute
@@ -142,7 +146,7 @@ let private moveSpecs =
       }
 
       spec "rejects move to current position (stay put)" {
-          on createContext
+          on (fun () -> createContext gameId)
 
           when_
               [ SetToStartingPositions { GameId = gameId; Nations = nations } |> Execute
@@ -157,7 +161,7 @@ let private moveSpecs =
       }
 
       spec "move of 1-3 spaces is free" {
-          on createContext
+          on (fun () -> createContext gameId)
 
           when_
               [ SetToStartingPositions { GameId = gameId; Nations = nations } |> Execute
@@ -174,7 +178,7 @@ let private moveSpecs =
       }
 
       spec "move of 4 spaces requires payment of 2M" {
-          on createContext
+          on (fun () -> createContext gameId)
 
           when_
               [ SetToStartingPositions { GameId = gameId; Nations = nations } |> Execute
@@ -201,7 +205,7 @@ let private moveSpecs =
       }
 
       spec "move of 5 spaces requires payment of 4M" {
-          on createContext
+          on (fun () -> createContext gameId)
 
           when_
               [ SetToStartingPositions { GameId = gameId; Nations = nations } |> Execute
@@ -227,7 +231,7 @@ let private moveSpecs =
       }
 
       spec "move of 6 spaces requires payment of 6M" {
-          on createContext
+          on (fun () -> createContext gameId)
 
           when_
               [ SetToStartingPositions { GameId = gameId; Nations = nations } |> Execute
@@ -253,7 +257,7 @@ let private moveSpecs =
       }
 
       spec "move of 7 spaces exceeds maximum and is rejected" {
-          on createContext
+          on (fun () -> createContext gameId)
 
           when_
               [ SetToStartingPositions { GameId = gameId; Nations = nations } |> Execute
@@ -272,7 +276,7 @@ let private moveSpecs =
       }
 
       spec "superseding pending paid move with another paid move voids old charge" {
-          on createContext
+          on (fun () -> createContext gameId)
 
           when_
               [ SetToStartingPositions { GameId = gameId; Nations = nations } |> Execute
@@ -297,7 +301,7 @@ let private moveSpecs =
       }
 
       spec "superseding pending paid move with free move voids charge and completes immediately" {
-          on createContext
+          on (fun () -> createContext gameId)
 
           when_
               [ SetToStartingPositions { GameId = gameId; Nations = nations } |> Execute
@@ -318,6 +322,9 @@ let private moveSpecs =
           expect "no new charge dispatched" (fun ctx -> chargeCount ctx = 0)
           expect "action determined immediately" hasActionDetermined
       } ]
+
+let renderSpecMarkdown () =
+    SpecMarkdown.toMarkdownDocument runner moveSpecs
 
 // ────────────────────────────────────────────────────────────────────────────────
 // Test Registration

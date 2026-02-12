@@ -66,6 +66,9 @@ let private specs =
           expect "no events published" (fun ctx -> ctx.Events.Count = 0)
       } ]
 
+let renderSpecMarkdown () =
+    SpecMarkdown.toMarkdownDocument runner specs
+
 // ────────────────────────────────────────────────────────────────────────────────
 // Test Registration
 // ────────────────────────────────────────────────────────────────────────────────
