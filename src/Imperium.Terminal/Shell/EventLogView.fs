@@ -37,7 +37,6 @@ module EventLogView =
     let create (app: IApplication) (bus: IBus) =
         let maxEntries = 100
         let displayItems = ObservableCollection<string>()
-        let logList = new ListView()
 
         let addEntry category message =
             UI.invokeOnMainThread app (fun () ->
@@ -48,10 +47,6 @@ module EventLogView =
 
                 if displayItems.Count > maxEntries then
                     displayItems.RemoveAt(displayItems.Count - 1))
-
-        logList.SetSource displayItems
-        logList.Width <- Dim.Fill()
-        logList.Height <- Dim.Fill()
 
         bus.Subscribe<RondelEvent>(fun event_ -> async { formatRondelEvent event_ |> addEntry "Rondel" })
 
@@ -66,4 +61,4 @@ module EventLogView =
                 | _ -> ()
             })
 
-        UI.frameView "Log" [| logList |]
+        UI.frameView "Log" [| UI.listView (Dim.Fill()) (Dim.Fill()) displayItems |]

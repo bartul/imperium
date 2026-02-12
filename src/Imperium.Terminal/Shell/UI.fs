@@ -11,6 +11,7 @@ open Terminal.Gui.Views
 // F# Wrappers for Terminal.Gui v2
 // ──────────────────────────────────────────────────────────────────────────
 
+[<RequireQualifiedAccess>]
 module UI =
 
     /// Wrap F# function as Action delegate
@@ -60,10 +61,12 @@ module UI =
         lbl.Text <- text
         lbl
 
-    /// Create a ListView from string items
-    let listView (items: string list) =
+    /// Create a ListView from an ObservableCollection with dimensions
+    let listView (width: Dim) (height: Dim) (source: ObservableCollection<string>) =
         let view = new ListView()
-        view.SetSource(toObservable items)
+        view.Width <- width
+        view.Height <- height
+        view.SetSource source
         view
 
     /// Create a Button with click handler
