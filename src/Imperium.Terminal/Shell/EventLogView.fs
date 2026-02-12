@@ -19,18 +19,18 @@ module EventLogView =
 
     let private formatRondelEvent =
         function
-        | PositionedAtStart _ -> "Rondel initialized - nations at starting positions"
-        | ActionDetermined e -> sprintf "%s moved to %A" e.Nation e.Action
-        | MoveToActionSpaceRejected e -> sprintf "%s move to %A REJECTED" e.Nation e.Space
+        | PositionedAtStart _ -> "Rondel ready, nations at starting positions"
+        | ActionDetermined e -> sprintf "%s next action is determined to be %A" e.Nation e.Action
+        | MoveToActionSpaceRejected e -> sprintf "%s intended move to space %A REJECTED" e.Nation e.Space
 
     let private formatAccountingEvent =
         function
-        | RondelInvoicePaid e -> sprintf "Payment confirmed (BillingId: %s)" (Id.toString e.BillingId)
-        | RondelInvoicePaymentFailed e -> sprintf "Payment FAILED (BillingId: %s)" (Id.toString e.BillingId)
+        | RondelInvoicePaid e -> sprintf "Invoice paid (BillingId: %s)" (Id.toString e.BillingId)
+        | RondelInvoicePaymentFailed e -> sprintf "Invoice payment FAILED (BillingId: %s)" (Id.toString e.BillingId)
 
     let private formatSystemEvent =
         function
-        | AppStarted -> "Imperium started. Use Game > New Game to begin."
+        | AppStarted -> "Welcome to Imperium. Use Game > New Game to begin."
         | NewGameStarted -> "New game started"
         | GameEnded -> "Game ended"
 
