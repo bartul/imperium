@@ -65,10 +65,7 @@ module App =
                 MessageBox.Query(
                     app,
                     "New Game",
-                    sprintf "Start new game with 6 nations?\n\n%s" nationsStr,
-                    "Yes",
-                    "No"
-                )
+                    sprintf "Start new game with 6 nations?\n\n%s" nationsStr, "Yes", "No")
 
             if result.HasValue && result.Value = 0 then
                 let gameId = Id.newId ()
@@ -103,6 +100,17 @@ module App =
                     }
                     |> Async.Start
 
+        let handleEndGame () =
+            match state.CurrentGameId with
+            | None -> MessageBox.ErrorQuery(app, "Error", "No game in progress.", "OK") |> ignore
+            | Some _ ->
+                let result = MessageBox.Query(app, "End Game", "End the current game?", "Yes", "No")
+
+                if result.HasValue && result.Value = 0 then
+                    state.CurrentGameId <- None
+                    state.NationNames <- []
+                    bus.Publish GameEnded |> Async.RunSynchronously
+
         let handleQuit () = app.RequestStop()
 
         let handleRefresh () = statusView.Refresh()
@@ -113,6 +121,7 @@ module App =
                 [ "_Game",
                   [ "_New Game", handleNewGame
                     "_Move Nation", handleMoveNation
+                    "_End Game", handleEndGame
                     "_Quit", handleQuit ]
                   "_View", [ "_Refresh", handleRefresh ] ]
 
@@ -120,6 +129,8 @@ module App =
         bus.Subscribe<RondelEvent>(fun _ -> async { UI.invokeOnMainThread app (fun () -> statusView.Refresh()) })
 
         bus.Subscribe<AccountingEvent>(fun _ -> async { UI.invokeOnMainThread app (fun () -> statusView.Refresh()) })
+
+        bus.Subscribe<SystemEvent>(fun _ -> async { UI.invokeOnMainThread app (fun () -> statusView.Refresh()) })
 
         // StatusBar with keyboard shortcuts
         // Note: Ctrl+M is Enter in terminals (both 0x0D), so use F2 for Move

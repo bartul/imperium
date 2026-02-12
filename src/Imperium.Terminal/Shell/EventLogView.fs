@@ -31,6 +31,7 @@ module private EventLogView =
         function
         | AppStarted -> "Imperium started. Use Game > New Game to begin."
         | NewGameStarted -> "New game started"
+        | GameEnded -> "Game ended"
 
 type EventLogView(app: IApplication, bus: IBus) as this =
     inherit FrameView()
@@ -64,8 +65,10 @@ type EventLogView(app: IApplication, bus: IBus) as this =
             async { EventLogView.formatAccountingEvent event_ |> addEntry "Accounting" })
 
         bus.Subscribe<SystemEvent>(fun event_ ->
-            async { EventLogView.formatSystemEvent event_ |> addEntry "System" })
+            async {
+                EventLogView.formatSystemEvent event_ |> addEntry "System"
 
-    /// Clear all entries
-    member _.Clear() =
-        UI.invokeOnMainThread app (fun () -> displayItems.Clear())
+                match event_ with
+                | GameEnded -> UI.invokeOnMainThread app (fun () -> displayItems.Clear())
+                | _ -> ()
+            })
