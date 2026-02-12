@@ -6,6 +6,8 @@ open Terminal.Gui.ViewBase
 open Terminal.Gui.Views
 open Imperium.Primitives
 open Imperium.Rondel
+open Imperium.Accounting
+open Imperium.Terminal
 open Imperium.Terminal.Rondel
 open Imperium.Terminal.Shell
 
@@ -13,31 +15,10 @@ open Imperium.Terminal.Shell
 // Rondel Status View
 // ──────────────────────────────────────────────────────────────────────────
 
-type RondelStatusView(app: IApplication, rondelHost: RondelHost, getCurrentGameId: unit -> Id option) as this =
-    inherit FrameView()
+[<RequireQualifiedAccess>]
+module RondelStatusView =
 
-    let positionsList = new ListView()
-    let displayItems = ObservableCollection<string>()
-
-    let summaryLabel = new Label()
-
-    do
-        this.Title <- "Rondel"
-
-        positionsList.X <- Pos.Absolute(0)
-        positionsList.Y <- Pos.Absolute(0)
-        positionsList.Width <- Dim.Fill()
-        positionsList.Height <- Dim.Fill() - Dim.Absolute(1)
-        positionsList.SetSource(displayItems)
-
-        summaryLabel.X <- Pos.Absolute(0)
-        summaryLabel.Y <- Pos.AnchorEnd(1)
-        summaryLabel.Width <- Dim.Fill()
-        summaryLabel.Text <- "No game initialized"
-
-        this.Add(positionsList, summaryLabel) |> ignore
-
-    let formatSpace (space: Space option) =
+    let private formatSpace (space: Space option) =
         match space with
         | None -> "(start)"
         | Some s ->
@@ -51,7 +32,7 @@ type RondelStatusView(app: IApplication, rondelHost: RondelHost, getCurrentGameI
             | Space.ProductionTwo -> "Production II"
             | Space.ManeuverTwo -> "Maneuver II"
 
-    let formatPosition (p: NationPositionView) =
+    let private formatPosition (p: NationPositionView) =
         let current = formatSpace p.CurrentSpace
 
         let pending =
@@ -61,32 +42,57 @@ type RondelStatusView(app: IApplication, rondelHost: RondelHost, getCurrentGameI
 
         sprintf "  %s: %s%s" p.Nation current pending
 
-    /// Refresh the display with current positions (thread-safe)
-    member _.Refresh() =
-        match getCurrentGameId () with
-        | None ->
-            UI.invokeOnMainThread app (fun () ->
-                displayItems.Clear()
-                displayItems.Add("No game initialized")
-                summaryLabel.Text <- "")
-        | Some gameId ->
-            async {
-                let! result = rondelHost.QueryPositions { GameId = gameId }
+    let create (app: IApplication) (bus: IBus) (rondelHost: RondelHost) =
+        let mutable currentGameId: Id option = None
+        let displayItems = ObservableCollection<string>()
 
+        let summaryLabel = UI.label "No game initialized"
+        summaryLabel.X <- Pos.Absolute 0
+        summaryLabel.Y <- Pos.AnchorEnd 1
+        summaryLabel.Width <- Dim.Fill()
+
+        let refresh () =
+            match currentGameId with
+            | None ->
                 UI.invokeOnMainThread app (fun () ->
                     displayItems.Clear()
+                    displayItems.Add "No game initialized"
+                    summaryLabel.Text <- "")
+            | Some gameId ->
+                async {
+                    let! result = rondelHost.QueryPositions { GameId = gameId }
 
-                    match result with
-                    | None ->
-                        displayItems.Add("Game not found")
-                        summaryLabel.Text <- ""
-                    | Some view ->
-                        view.Positions |> List.iter (fun p -> displayItems.Add(formatPosition p))
+                    UI.invokeOnMainThread app (fun () ->
+                        displayItems.Clear()
 
-                        let pendingCount =
-                            view.Positions |> List.filter (fun p -> p.PendingSpace.IsSome) |> List.length
+                        match result with
+                        | None ->
+                            displayItems.Add "Game not found"
+                            summaryLabel.Text <- ""
+                        | Some view ->
+                            view.Positions |> List.iter (fun p -> displayItems.Add(formatPosition p))
 
-                        let totalNations = view.Positions.Length
-                        summaryLabel.Text <- sprintf "Nations: %d | Pending: %d" totalNations pendingCount)
-            }
-            |> Async.Start
+                            let pendingCount =
+                                view.Positions |> List.filter (fun p -> p.PendingSpace.IsSome) |> List.length
+
+                            summaryLabel.Text <- sprintf "Nations: %d | Pending: %d" view.Positions.Length pendingCount)
+                }
+                |> Async.Start
+
+        bus.Subscribe<RondelEvent>(fun _ -> async { refresh () })
+        bus.Subscribe<AccountingEvent>(fun _ -> async { refresh () })
+
+        bus.Subscribe<SystemEvent>(fun event_ ->
+            async {
+                match event_ with
+                | NewGameStarted gameId -> currentGameId <- Some gameId
+                | GameEnded -> currentGameId <- None
+                | AppStarted -> ()
+
+                refresh ()
+            })
+
+        UI.frameView
+            "Rondel"
+            [| UI.listView (Dim.Fill()) (Dim.Fill() - Dim.Absolute 1) displayItems
+               summaryLabel |]

@@ -31,7 +31,7 @@ module EventLogView =
     let private formatSystemEvent =
         function
         | AppStarted -> "Welcome to Imperium. Use Game > New Game to begin."
-        | NewGameStarted -> "New game started"
+        | NewGameStarted gameId -> sprintf "New game started (GameId: %s)" (Id.toString gameId)
         | GameEnded -> "Game ended"
 
     let create (app: IApplication) (bus: IBus) =

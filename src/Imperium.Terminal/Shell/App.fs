@@ -6,7 +6,6 @@ open Terminal.Gui.ViewBase
 open Terminal.Gui.Views
 open Imperium.Primitives
 open Imperium.Rondel
-open Imperium.Accounting
 open Imperium.Terminal
 open Imperium.Terminal.Rondel
 open Imperium.Terminal.Rondel.UI
@@ -39,9 +38,7 @@ module App =
         let state = { CurrentGameId = None; NationNames = [] }
 
         // Create views - positioned below menu bar (Y=1)
-        let statusView =
-            new RondelStatusView(app, rondelHost, fun () -> state.CurrentGameId)
-
+        let statusView = RondelStatusView.create app bus rondelHost
         statusView.X <- Pos.Absolute 0
         statusView.Y <- Pos.Absolute 1 // Below menu
         statusView.Width <- Dim.Fill()
@@ -80,8 +77,7 @@ module App =
                         SetToStartingPositions { GameId = gameId; Nations = defaultNations }
                         |> rondelHost.Execute
 
-                    do! bus.Publish NewGameStarted
-                    UI.invokeOnMainThread app (fun () -> statusView.Refresh())
+                    do! bus.Publish(NewGameStarted gameId)
                 }
                 |> Async.Start
 
@@ -98,8 +94,6 @@ module App =
                         do!
                             Move { GameId = gameId; Nation = result.Nation; Space = result.Space }
                             |> rondelHost.Execute
-
-                        UI.invokeOnMainThread app (fun () -> statusView.Refresh())
                     }
                     |> Async.Start
 
@@ -116,8 +110,6 @@ module App =
 
         let handleQuit () = app.RequestStop()
 
-        let handleRefresh () = statusView.Refresh()
-
         // Create menu bar
         let menu =
             UI.menuBar
@@ -125,15 +117,7 @@ module App =
                   [ "_New Game", handleNewGame
                     "_Move Nation", handleMoveNation
                     "_End Game", handleEndGame
-                    "_Quit", handleQuit ]
-                  "_View", [ "_Refresh", handleRefresh ] ]
-
-        // Refresh status view on domain events
-        bus.Subscribe<RondelEvent>(fun _ -> async { UI.invokeOnMainThread app (fun () -> statusView.Refresh()) })
-
-        bus.Subscribe<AccountingEvent>(fun _ -> async { UI.invokeOnMainThread app (fun () -> statusView.Refresh()) })
-
-        bus.Subscribe<SystemEvent>(fun _ -> async { UI.invokeOnMainThread app (fun () -> statusView.Refresh()) })
+                    "_Quit", handleQuit ] ]
 
         // StatusBar with keyboard shortcuts
         // Note: Ctrl+M is Enter in terminals (both 0x0D), so use F2 for Move
@@ -143,8 +127,7 @@ module App =
         statusBar.Add(
             UI.shortcut (Key.Q.WithCtrl) "Quit" handleQuit,
             UI.shortcut (Key.N.WithCtrl) "New Game" handleNewGame,
-            UI.shortcut Key.F2 "Move" handleMoveNation,
-            UI.shortcut Key.F5 "Refresh" handleRefresh
+            UI.shortcut Key.F2 "Move" handleMoveNation
         )
         |> ignore
 

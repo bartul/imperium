@@ -1,6 +1,8 @@
 namespace Imperium.Terminal.Shell
 
+open Imperium.Primitives
+
 type SystemEvent =
     | AppStarted
-    | NewGameStarted
+    | NewGameStarted of Id
     | GameEnded
