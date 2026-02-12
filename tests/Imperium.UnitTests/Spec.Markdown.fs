@@ -1,6 +1,7 @@
 module Imperium.UnitTests.SpecMarkdown
 
 open System
+open System.Text.RegularExpressions
 open Spec
 
 // ────────────────────────────────────────────────────────────────────────────────
@@ -8,7 +9,12 @@ open Spec
 // ────────────────────────────────────────────────────────────────────────────────
 
 let private escapeCell (value: string) =
-    value.Replace("|", "\\|").Trim()
+    value
+        .Replace("\r\n", " ")
+        .Replace("\n", " ")
+        .Replace("\r", " ")
+        .Replace("|", "\\|")
+    |> fun text -> Regex.Replace(text, @"\s+", " ").Trim()
 
 let private formatAction action =
     match action with
@@ -19,10 +25,10 @@ let private formatAction action =
 
 let private captionRows caption items =
     match items with
-    | [] -> [ sprintf "| %s | - _none_ |" caption ]
+    | [] -> [ sprintf "| %s | %s |" caption (escapeCell "_none_") ]
     | head :: tail ->
-        [ sprintf "| %s | - %s |" caption (escapeCell head) ]
-        @ (tail |> List.map (fun item -> sprintf "|  | - %s |" (escapeCell item)))
+        [ sprintf "| %s | %s |" caption head ]
+        @ (tail |> List.map (fun item -> sprintf "|  | %s |" item))
 
 let toMarkdown (runner: ISpecRunner<'ctx, 'state, 'cmd, 'evt>) (spec: Specification<'ctx, 'cmd, 'evt>) =
     let context = spec.On()
@@ -32,27 +38,28 @@ let toMarkdown (runner: ISpecRunner<'ctx, 'state, 'cmd, 'evt>) (spec: Specificat
 
     let finalState = runner.CaptureState context
 
-    let whenItems =
-        spec.Actions |> List.choose formatAction
+    let whenItems = spec.Actions |> List.choose formatAction |> List.map escapeCell
 
     let thenItems =
-        [ sprintf "Final state `%A`" finalState
+        [ $"`%A{finalState}`" |> escapeCell
           yield!
               spec.Expectations
               |> List.map (fun expectation ->
                   let result = if expectation.Predicate context then "✅" else "❌"
-                  sprintf "%s %s" result expectation.Description) ]
+                  $"%s{result} %s{expectation.Description}" |> escapeCell) ]
 
     String.concat
         Environment.NewLine
-        ([ sprintf "### %s" spec.Name
+        ([ $"### %s{spec.Name}"
            ""
            "| Caption | Data |"
            "|---|---|"
-           sprintf "| Given | %s |" (escapeCell (sprintf "%A" initialState)) ]
+           sprintf "| Given | %s |" (escapeCell $"`%A{initialState}`") ]
          @ captionRows "When" whenItems
          @ captionRows "Then" thenItems
          @ [ "" ])
 
 let toMarkdownDocument runner specifications =
-    specifications |> List.map (toMarkdown runner) |> String.concat Environment.NewLine
+    specifications
+    |> List.map (toMarkdown runner)
+    |> String.concat Environment.NewLine

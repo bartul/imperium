@@ -78,18 +78,18 @@ let private runner =
 let hasExactEvent event_ ctx =
     ctx.Events |> Seq.exists (fun item -> item = event_)
 
-let private hasEvent predicate ctx =
-    ctx.Events |> Seq.exists predicate
+let private hasEvent predicate ctx = ctx.Events |> Seq.exists predicate
 
 let private hasActionDetermined ctx =
-    hasEvent (function
+    hasEvent
+        (function
         | ActionDetermined _ -> true
         | _ -> false)
         ctx
 
 let private hasRejection ctx =
-    hasEvent (function
-    hasEvent (function
+    hasEvent
+        (function
         | MoveToActionSpaceRejected _ -> true
         | _ -> false)
         ctx
@@ -121,16 +121,19 @@ let private moveSpecs =
     let gameId = Guid.NewGuid() |> Id
     let nations = Set.ofList [ "Austria"; "France"; "Germany" ]
 
-    [ spec "move cannot begin before starting positions are chosen" {
+    [ spec "any attempted move is rejected until nations are set to starting positions" {
           on (fun () -> createContext gameId)
 
-          when_ [ Move { GameId = gameId; Nation = "France"; Space = Space.Factory } |> Execute ]
+          when_
+              [ Move { GameId = gameId; Nation = "France"; Space = Space.Factory } |> Execute
+                Move { GameId = gameId; Nation = "Austria"; Space = Space.Investor } |> Execute ]
 
           expect
-              "rejects the move"
+              "reject the move"
               (hasExactEvent (MoveToActionSpaceRejected { GameId = gameId; Nation = "France"; Space = Space.Factory }))
+
           expect "no action determined" (hasActionDetermined >> not)
-          expect "no charge dispatched" (hasChargeCommand >> not)
+          expect "no payment required" (hasChargeCommand >> not)
       }
 
       spec "first move to any space is free" {
