@@ -16,7 +16,7 @@ open Imperium.Terminal.Shell
 // ──────────────────────────────────────────────────────────────────────────
 
 [<RequireQualifiedAccess>]
-module RondelStatusView =
+module RondelView =
 
     let private formatSpace (space: Space option) =
         match space with

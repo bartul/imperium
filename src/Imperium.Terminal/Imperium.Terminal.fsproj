@@ -11,7 +11,7 @@
     <Compile Include="Shell/UI.fs" />
     <Compile Include="Shell/SystemEvent.fs" />
     <Compile Include="Shell/EventLogView.fs" />
-    <Compile Include="Rondel/UI/StatusView.fs" />
+    <Compile Include="Rondel/UI/RondelView.fs" />
     <Compile Include="Rondel/UI/MoveDialog.fs" />
     <Compile Include="Shell/App.fs" />
     <Compile Include="Program.fs" />
