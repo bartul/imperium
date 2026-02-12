@@ -38,17 +38,17 @@ module App =
         let state = { CurrentGameId = None; NationNames = [] }
 
         // Create views - positioned below menu bar (Y=1)
-        let statusView = RondelView.create app bus rondelHost
-        statusView.X <- Pos.Absolute 0
-        statusView.Y <- Pos.Absolute 1 // Below menu
-        statusView.Width <- Dim.Fill()
-        statusView.Height <- Dim.Percent 50
-        statusView.CanFocus <- true
-        statusView.TabStop <- TabBehavior.TabGroup
+        let rondelView = Rondel2View.create app bus rondelHost
+        rondelView.X <- Pos.Absolute 0
+        rondelView.Y <- Pos.Absolute 1 // Below menu
+        rondelView.Width <- Dim.Fill()
+        rondelView.Height <- Dim.Percent 50
+        rondelView.CanFocus <- true
+        rondelView.TabStop <- TabBehavior.TabGroup
 
         let eventLogView = EventLogView.create app bus
         eventLogView.X <- Pos.Absolute 0
-        eventLogView.Y <- Pos.Bottom statusView
+        eventLogView.Y <- Pos.Bottom rondelView
         eventLogView.Width <- Dim.Fill()
         eventLogView.Height <- Dim.Fill()
         eventLogView.CanFocus <- true
@@ -110,14 +110,33 @@ module App =
 
         let handleQuit () = app.RequestStop()
 
-        // Create menu bar
-        let menu =
-            UI.menuBar
-                [ "_Game",
-                  [ "_New Game", handleNewGame
-                    "_Move Nation", handleMoveNation
-                    "_End Game", handleEndGame
-                    "_Quit", handleQuit ] ]
+        // Create menu bar with "Game" and "Move" as root-level menus
+        let mkMenuItem label handler =
+            let item = new MenuItem()
+            item.Title <- label
+            item.Action <- System.Action(handler)
+            item :> View
+
+        let gameMenu =
+            new MenuBarItem(
+                "_Game",
+                [| mkMenuItem "_New Game" handleNewGame
+                   mkMenuItem "_End Game" handleEndGame
+                   mkMenuItem "_Quit" handleQuit |]
+            )
+
+        let moveMenuItems =
+            defaultNations
+            |> Set.toList
+            |> List.sort
+            |> List.map (fun nation ->
+                mkMenuItem nation (fun () -> async { do! bus.Publish(MoveNationRequested nation) } |> Async.Start))
+            |> List.toArray
+
+        let moveMenu = new MenuBarItem("_Move", moveMenuItems)
+
+        let menu = new MenuBar()
+        menu.Menus <- [| gameMenu; moveMenu |]
 
         // StatusBar with keyboard shortcuts
         // Note: Ctrl+M is Enter in terminals (both 0x0D), so use F2 for Move
@@ -136,7 +155,7 @@ module App =
 
         // Assemble top-level
         let top = new Window()
-        top.Add(menu, statusView, eventLogView, statusBar) |> ignore
+        top.Add(menu, rondelView, eventLogView, statusBar) |> ignore
         top
 
     /// Run the application

@@ -6,3 +6,5 @@ type SystemEvent =
     | AppStarted
     | NewGameStarted of Id
     | GameEnded
+    | MoveNationRequested of string
+    | MoveSelectionCancelled
