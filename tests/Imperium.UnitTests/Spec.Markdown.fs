@@ -80,7 +80,7 @@ let toMarkdown
                   let result = if expectation.Predicate context then "✅" else "❌"
                   $"%s{result} %s{expectation.Description}" |> escapeCell) ]
 
-    let specHeader = renderHeader (childHeader options.ParentHeader) spec.Name
+    let specHeader = renderHeader (childHeader options.ParentHeader) $"📋 %s{spec.Name}"
 
     String.concat
         Environment.NewLine
