@@ -159,7 +159,7 @@ module private RondelLayout =
 // RondelCanvas — custom drawn view
 // ──────────────────────────────────────────────────────────────────────────
 
-type RondelCanvas(app: IApplication, bus: IBus, rondelHost: RondelHost) =
+type RondelCanvas(bus: IBus, rondelHost: RondelHost) =
     inherit View()
 
     let mutable positions: NationPositionView list = []
@@ -393,7 +393,7 @@ module Rondel2View =
     let create (app: IApplication) (bus: IBus) (rondelHost: RondelHost) =
         let state: RondelViewState = { CurrentGame = None; NationSelectingNextMove = None }
 
-        let canvas = new RondelCanvas(app, bus, rondelHost)
+        let canvas = new RondelCanvas(bus, rondelHost)
         canvas.Width <- Dim.Fill()
         canvas.Height <- Dim.Fill()
         let frame = UI.frameView "Rondel" [| canvas |]
