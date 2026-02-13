@@ -365,9 +365,9 @@ type RondelCanvas(app: IApplication, bus: IBus, rondelHost: RondelHost) =
 
     override this.OnMouseEvent(mouse: Mouse) =
         match selectingForNation with
-        | None -> base.OnMouseEvent(mouse)
+        | None -> base.OnMouseEvent mouse
         | Some _ ->
-            if mouse.Flags.HasFlag(MouseFlags.LeftButtonClicked) && mouse.Position.HasValue then
+            if mouse.Flags.HasFlag MouseFlags.LeftButtonClicked && mouse.Position.HasValue then
                 let vp = this.Viewport
                 let pos = mouse.Position.Value
 
@@ -377,30 +377,35 @@ type RondelCanvas(app: IApplication, bus: IBus, rondelHost: RondelHost) =
                     this.SetNeedsDraw()
                     mouse.Handled <- true
                     true
-                | None -> base.OnMouseEvent(mouse)
+                | None -> base.OnMouseEvent mouse
             else
-                base.OnMouseEvent(mouse)
+                base.OnMouseEvent mouse
 
 // ──────────────────────────────────────────────────────────────────────────
 // Rondel2View Module
 // ──────────────────────────────────────────────────────────────────────────
 
+type private RondelViewState = { mutable CurrentGame: Id option; mutable NationSelectingNextMove: string option }
+
 [<RequireQualifiedAccess>]
 module Rondel2View =
 
     let create (app: IApplication) (bus: IBus) (rondelHost: RondelHost) =
+        let state: RondelViewState = { CurrentGame = None; NationSelectingNextMove = None }
+
         let canvas = new RondelCanvas(app, bus, rondelHost)
         canvas.Width <- Dim.Fill()
         canvas.Height <- Dim.Fill()
-
-        let frame = new FrameView()
-        frame.Title <- "Rondel"
-        frame.Add canvas |> ignore
-
-        let mutable currentGameId: Id option = None
+        let frame = UI.frameView "Rondel" [| canvas |]
 
         let refresh () =
-            match currentGameId with
+            UI.invokeOnMainThread app (fun _ ->
+                frame.Title <-
+                    match state.NationSelectingNextMove with
+                    | Some nation -> sprintf "Select a next move for %s" nation
+                    | None -> "Rondel")
+
+            match state.CurrentGame with
             | None ->
                 UI.invokeOnMainThread app (fun () ->
                     canvas.UpdatePositions([])
@@ -420,12 +425,12 @@ module Rondel2View =
 
         bus.Subscribe<RondelEvent>(fun event_ ->
             async {
-                refresh ()
-
                 match event_ with
                 | ActionDetermined _
-                | MoveToActionSpaceRejected _ -> UI.invokeOnMainThread app (fun () -> frame.Title <- "Rondel")
+                | MoveToActionSpaceRejected _ -> state.NationSelectingNextMove <- None
                 | _ -> ()
+
+                refresh ()
             })
 
         bus.Subscribe<AccountingEvent>(fun _ -> async { refresh () })
@@ -434,26 +439,29 @@ module Rondel2View =
             async {
                 match event_ with
                 | NewGameStarted gameId ->
-                    currentGameId <- Some gameId
+                    state.CurrentGame <- Some gameId
+                    state.NationSelectingNextMove <- None
                     canvas.SetGameId(Some gameId)
                     refresh ()
                 | GameEnded ->
-                    currentGameId <- None
+                    state.CurrentGame <- None
+                    state.NationSelectingNextMove <- None
                     canvas.SetGameId None
 
                     UI.invokeOnMainThread app (fun () ->
                         canvas.ExitSelectionMode()
                         canvas.UpdatePositions([])
-                        canvas.SetNeedsDraw()
-                        frame.Title <- "Rondel")
+                        canvas.SetNeedsDraw())
+
+                    refresh ()
                 | MoveNationRequested nation ->
-                    UI.invokeOnMainThread app (fun () ->
-                        canvas.EnterSelectionMode(nation)
-                        frame.Title <- sprintf "Rondel \u2014 Move %s to..." nation)
+                    state.NationSelectingNextMove <- Some nation
+                    UI.invokeOnMainThread app (fun () -> canvas.EnterSelectionMode(nation))
+                    refresh ()
                 | MoveSelectionCancelled ->
-                    UI.invokeOnMainThread app (fun () ->
-                        canvas.ExitSelectionMode()
-                        frame.Title <- "Rondel")
+                    state.NationSelectingNextMove <- None
+                    UI.invokeOnMainThread app (fun () -> canvas.ExitSelectionMode())
+                    refresh ()
                 | AppStarted -> ()
             })
 
