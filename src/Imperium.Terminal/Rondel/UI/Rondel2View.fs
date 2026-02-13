@@ -159,11 +159,10 @@ module private RondelLayout =
 // RondelCanvas — custom drawn view
 // ──────────────────────────────────────────────────────────────────────────
 
-type RondelCanvas(rondelHost: RondelHost) =
+type RondelCanvas(onSpaceSelected: Space -> unit) =
     inherit View()
 
     let mutable positions: NationPositionView list = []
-    let mutable currentGameId: Id option = None
     let mutable selectedIndex: int = 0
     let mutable selectingForNation: string option = None
 
@@ -283,8 +282,6 @@ type RondelCanvas(rondelHost: RondelHost) =
     member _.UpdatePositions(newPositions: NationPositionView list) = positions <- newPositions
     // Not calling SetNeedsDraw here — caller should use invokeOnMainThread
 
-    member _.SetGameId(id: Id option) = currentGameId <- id
-
     member this.EnterSelectionMode(nation: string) =
         selectingForNation <- Some nation
 
@@ -310,7 +307,7 @@ type RondelCanvas(rondelHost: RondelHost) =
     // ──────────────────────────────────────────────────────────────────────
 
     override this.OnDrawingContent(context: DrawContext) =
-        base.OnDrawingContent(context) |> ignore
+        base.OnDrawingContent context |> ignore
         let vp = this.Viewport
 
         if vp.Width > 0 && vp.Height > 0 then
@@ -342,13 +339,7 @@ type RondelCanvas(rondelHost: RondelHost) =
             elif key = Key.Enter then
                 let space = RondelLayout.spaces.[selectedIndex]
                 this.ExitSelectionMode()
-
-                match currentGameId with
-                | Some gameId ->
-                    async { do! Move { GameId = gameId; Nation = nation; Space = space } |> rondelHost.Execute }
-                    |> Async.Start
-                | None -> ()
-
+                onSpaceSelected space
                 key.Handled <- true
                 true
             else
@@ -388,7 +379,14 @@ module Rondel2View =
     let create (app: IApplication) (bus: IBus) (rondelHost: RondelHost) =
         let state: RondelViewState = { CurrentGame = None; NationSelectingNextMove = None }
 
-        let canvas = new RondelCanvas(rondelHost)
+        let onSpaceSelected space =
+            match state.CurrentGame, state.NationSelectingNextMove with
+            | Some gameId, Some nation ->
+                async { do! Move { GameId = gameId; Nation = nation; Space = space } |> rondelHost.Execute }
+                |> Async.Start
+            | _ -> ()
+
+        let canvas = new RondelCanvas(onSpaceSelected)
         canvas.Width <- Dim.Fill()
         canvas.Height <- Dim.Fill()
         let frame = UI.frameView "Rondel" [| canvas |]
@@ -436,12 +434,10 @@ module Rondel2View =
                 | NewGameStarted gameId ->
                     state.CurrentGame <- Some gameId
                     state.NationSelectingNextMove <- None
-                    canvas.SetGameId(Some gameId)
                     refresh ()
                 | GameEnded ->
                     state.CurrentGame <- None
                     state.NationSelectingNextMove <- None
-                    canvas.SetGameId None
 
                     UI.invokeOnMainThread app (fun () ->
                         canvas.ExitSelectionMode()
