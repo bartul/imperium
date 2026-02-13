@@ -52,26 +52,26 @@ module private RondelLayout =
     /// Color attribute for each space (foreground on colored background).
     let spaceAttr =
         function
-        | Space.Investor -> mkAttr "Black" "BrightYellow"
-        | Space.Import -> mkAttr "Black" "BrightCyan"
+        | Space.Investor -> mkAttr "Black" "Cyan"
+        | Space.Import -> mkAttr "Black" "Yellow"
         | Space.ProductionOne
-        | Space.ProductionTwo -> mkAttr "Black" "BrightGreen"
+        | Space.ProductionTwo -> mkAttr "White" "Gray"
         | Space.ManeuverOne
-        | Space.ManeuverTwo -> mkAttr "White" "Red"
-        | Space.Taxation -> mkAttr "Black" "BrightMagenta"
-        | Space.Factory -> mkAttr "Black" "Gray"
+        | Space.ManeuverTwo -> mkAttr "Black" "Green"
+        | Space.Taxation -> mkAttr "Black" "BrightYellow"
+        | Space.Factory -> mkAttr "White" "Blue"
 
     /// Selected cell attribute: inverted foreground/background.
     let selectedAttr =
         function
-        | Space.Investor -> mkAttr "BrightYellow" "Black"
-        | Space.Import -> mkAttr "BrightCyan" "Black"
+        | Space.Investor -> mkAttr "Cyan" "Black"
+        | Space.Import -> mkAttr "Yellow" "Black"
         | Space.ProductionOne
-        | Space.ProductionTwo -> mkAttr "BrightGreen" "Black"
+        | Space.ProductionTwo -> mkAttr "Gray" "Black"
         | Space.ManeuverOne
-        | Space.ManeuverTwo -> mkAttr "Red" "Black"
-        | Space.Taxation -> mkAttr "BrightMagenta" "Black"
-        | Space.Factory -> mkAttr "Gray" "Black"
+        | Space.ManeuverTwo -> mkAttr "Green" "Black"
+        | Space.Taxation -> mkAttr "BrightYellow" "Black"
+        | Space.Factory -> mkAttr "Blue" "Black"
 
     /// Map clockwise index (0..7) to grid position (row, col) in a 3×3 grid.
     /// Center cell (1,1) is reserved for start-position nations.

@@ -97,6 +97,16 @@ Last verified: 2026-01-21
 - Live reload during UI work: `dotnet watch --project src/Imperium.Web/Imperium.Web.fsproj run`.
 - Run unit tests: `dotnet test` (VS Code integration via YoloDev.Expecto.TestSdk) or `dotnet run --project tests/Imperium.UnitTests/Imperium.UnitTests.fsproj` (native Expecto runner).
 
+### Launch Terminal App for Review
+
+To launch the terminal app in a separate Ghostty window for visual review:
+
+```bash
+open -na Ghostty.app --args --command="dotnet run --project /Users/bartul/code/imperium-experiment-terminal-ui/src/Imperium.Terminal" --window-width=160 --window-height=50
+```
+
+Use this as part of the inner development loop: make changes, launch for review, collect feedback, iterate.
+
 ## Coding Style & Naming Conventions
 - Use the default F# formatting (4-space indentation, modules and types in `PascalCase`, functions and values in `camelCase`).
 - Group related functions into modules that mirror file names (`Rondel`, `MonetarySystem`); expose a minimal public surface.

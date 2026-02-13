@@ -56,6 +56,16 @@ Reasoning: preserves IL shape, avoids unwanted module-load computation, and keep
 - Type inference pitfall: When records share identical fields (e.g., `MoveCommand` and `MoveToActionSpaceRejectedEvent`), F# picks the last-defined type. Add explicit type annotations: `let fn (cmd: MoveCommand) : Result<MoveCommand, string> = ...`
 - Run `dotnet build`/`dotnet test` locally; format with `dotnet fantomas .` (always available via `.config/dotnet-tools.json`).
 
+## Launch Terminal App for Review
+
+To launch the terminal app in a separate Ghostty window for visual review during development:
+
+```bash
+open -na Ghostty.app --args --command="dotnet run --project /Users/bartul/code/imperium-experiment-terminal-ui/src/Imperium.Terminal" --window-width=160 --window-height=50
+```
+
+Use this as part of the inner development loop: make changes, launch for review, collect feedback, iterate.
+
 ## Pre-Commit Checklist
 
 Before every commit, always run these steps in order:
