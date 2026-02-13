@@ -27,8 +27,8 @@ let private captionRows caption items =
     match items with
     | [] -> [ sprintf "| %s | %s |" caption (escapeCell "_none_") ]
     | head :: tail ->
-        [ sprintf "| %s | %s |" caption head ]
-        @ (tail |> List.map (fun item -> sprintf "|  | %s |" item))
+        [ $"| %s{caption} | %s{head} |" ]
+        @ (tail |> List.map (fun item -> $"| | %s{item} |"))
 
 let toMarkdown (runner: ISpecRunner<'ctx, 'state, 'cmd, 'evt>) (spec: Specification<'ctx, 'cmd, 'evt>) =
     let context = spec.On()
@@ -41,7 +41,7 @@ let toMarkdown (runner: ISpecRunner<'ctx, 'state, 'cmd, 'evt>) (spec: Specificat
     let whenItems = spec.Actions |> List.choose formatAction |> List.map escapeCell
 
     let thenItems =
-        [ $"`%A{finalState}`" |> escapeCell
+        [ $"State `%A{finalState}`" |> escapeCell
           yield!
               spec.Expectations
               |> List.map (fun expectation ->
@@ -52,9 +52,9 @@ let toMarkdown (runner: ISpecRunner<'ctx, 'state, 'cmd, 'evt>) (spec: Specificat
         Environment.NewLine
         ([ $"### %s{spec.Name}"
            ""
-           "| Caption | Data |"
-           "|---|---|"
-           sprintf "| Given | %s |" (escapeCell $"`%A{initialState}`") ]
+           "| | |"
+           "| --- | --- |"
+           sprintf "| Given | State %s |" (escapeCell $"`%A{initialState}`") ]
          @ captionRows "When" whenItems
          @ captionRows "Then" thenItems
          @ [ "" ])
