@@ -88,8 +88,7 @@ module RondelView =
                 | NewGameStarted gameId -> currentGameId <- Some gameId
                 | GameEnded -> currentGameId <- None
                 | AppStarted -> ()
-                | MoveNationRequested _
-                | MoveSelectionCancelled -> ()
+                | MoveNationRequested _ -> ()
 
                 refresh ()
             })

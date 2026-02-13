@@ -34,7 +34,6 @@ module EventLogView =
         | NewGameStarted gameId -> sprintf "New game started (GameId: %s)" (Id.toString gameId)
         | GameEnded -> "Game ended"
         | MoveNationRequested nation -> sprintf "Move initiated for %s — select target space" nation
-        | MoveSelectionCancelled -> "Move selection cancelled"
 
     let create (app: IApplication) (bus: IBus) =
         let maxEntries = 100

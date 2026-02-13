@@ -449,10 +449,6 @@ module Rondel2View =
                     state.NationSelectingNextMove <- Some nation
                     UI.invokeOnMainThread app (fun () -> canvas.EnterSelectionMode(nation))
                     refresh ()
-                | MoveSelectionCancelled ->
-                    state.NationSelectingNextMove <- None
-                    UI.invokeOnMainThread app (fun () -> canvas.ExitSelectionMode())
-                    refresh ()
                 | AppStarted -> ()
             })
 

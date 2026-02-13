@@ -7,4 +7,3 @@ type SystemEvent =
     | NewGameStarted of Id
     | GameEnded
     | MoveNationRequested of string
-    | MoveSelectionCancelled
