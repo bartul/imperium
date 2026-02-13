@@ -100,15 +100,58 @@ module private RondelLayout =
         | 0, 0 -> Some 7
         | _ -> None
 
+    /// Compute the display column width of a string in the terminal.
+    /// Flag emojis (regional indicator pairs) render as 2 columns each.
+    let displayWidth (s: string) =
+        let mutable cols = 0
+        let mutable i = 0
+
+        while i < s.Length do
+            if
+                System.Char.IsHighSurrogate(s.[i])
+                && i + 1 < s.Length
+                && System.Char.IsLowSurrogate(s.[i + 1])
+            then
+                let cp = System.Char.ConvertToUtf32(s.[i], s.[i + 1])
+
+                if cp >= 0x1F1E6 && cp <= 0x1F1FF then
+                    // Regional indicator symbol — part of a flag pair, 2 cols per pair
+                    // Check if next surrogate pair is also a regional indicator
+                    if
+                        i + 3 < s.Length
+                        && System.Char.IsHighSurrogate(s.[i + 2])
+                        && System.Char.IsLowSurrogate(s.[i + 3])
+                    then
+                        let cp2 = System.Char.ConvertToUtf32(s.[i + 2], s.[i + 3])
+
+                        if cp2 >= 0x1F1E6 && cp2 <= 0x1F1FF then
+                            cols <- cols + 2
+                            i <- i + 4
+                        else
+                            cols <- cols + 2
+                            i <- i + 2
+                    else
+                        cols <- cols + 2
+                        i <- i + 2
+                else
+                    // Other supplementary character — assume 2 columns wide
+                    cols <- cols + 2
+                    i <- i + 2
+            else
+                cols <- cols + 1
+                i <- i + 1
+
+        cols
+
     /// Abbreviate nation name to 2 characters.
     let abbreviate =
         function
-        | "Austria-Hungary" -> "AH"
-        | "France" -> "FR"
-        | "Germany" -> "GE"
-        | "Great Britain" -> "GB"
-        | "Italy" -> "IT"
-        | "Russia" -> "RU"
+        | "Austria-Hungary" -> "🇦🇹AH"
+        | "France" -> "🇫🇷FR"
+        | "Germany" -> "🇩🇪GE"
+        | "Great Britain" -> "🇬🇧GB"
+        | "Italy" -> "🇮🇹IT"
+        | "Russia" -> "🇷🇺RU"
         | name when name.Length >= 2 -> name.[..1]
         | name -> name
 
@@ -159,18 +202,14 @@ type RondelCanvas(app: IApplication, bus: IBus, rondelHost: RondelHost) =
 
     /// Draw a centered string within a rectangle at a given row offset.
     let drawCentered (this: View) (rect: Rectangle) rowOffset (text: string) =
-        let truncated =
-            if text.Length > rect.Width then
-                text.[.. rect.Width - 1]
-            else
-                text
+        let w = RondelLayout.displayWidth text
 
-        let x = rect.X + max 0 ((rect.Width - truncated.Length) / 2)
+        let x = rect.X + max 0 ((rect.Width - w) / 2)
         let y = rect.Y + rowOffset
 
         if y < rect.Y + rect.Height then
             this.Move(x, y) |> ignore
-            this.AddStr(truncated)
+            this.AddStr(text)
 
     /// Draw a single space cell.
     let drawSpaceCell (this: View) (viewport: Rectangle) (index: int) =
@@ -205,7 +244,7 @@ type RondelCanvas(app: IApplication, bus: IBus, rondelHost: RondelHost) =
                     if p.PendingSpace.IsSome then abbr + "\u2192" else abbr)
 
             // Lay out tokens in rows of up to 3 per row
-            let tokensPerRow = max 1 (rect.Width / 4)
+            let tokensPerRow = max 1 (rect.Width / 6)
 
             tokens
             |> List.chunkBySize tokensPerRow
@@ -227,7 +266,7 @@ type RondelCanvas(app: IApplication, bus: IBus, rondelHost: RondelHost) =
 
             let tokens = startNations |> List.map (fun p -> RondelLayout.abbreviate p.Nation)
 
-            let tokensPerRow = max 1 (rect.Width / 4)
+            let tokensPerRow = max 1 (rect.Width / 6)
 
             tokens
             |> List.chunkBySize tokensPerRow
