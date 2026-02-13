@@ -19,7 +19,8 @@ type HeaderWeight =
 
 type MarkdownRenderOptions = { ParentHeader: HeaderWeight }
 
-let private toLevel = function
+let private toLevel =
+    function
     | H1 -> 1
     | H2 -> 2
     | H3 -> 3
@@ -27,7 +28,8 @@ let private toLevel = function
     | H5 -> 5
     | H6 -> 6
 
-let private childHeader = function
+let private childHeader =
+    function
     | H1 -> H2
     | H2 -> H3
     | H3 -> H4
@@ -39,11 +41,7 @@ let private renderHeader weight text =
     String.replicate (toLevel weight) "#" + " " + text
 
 let private escapeCell (value: string) =
-    value
-        .Replace("\r\n", " ")
-        .Replace("\n", " ")
-        .Replace("\r", " ")
-        .Replace("|", "\\|")
+    value.Replace("\r\n", " ").Replace("\n", " ").Replace("\r", " ").Replace("|", "\\|")
     |> fun text -> Regex.Replace(text, @"\s+", " ").Trim()
 
 let private formatAction action =

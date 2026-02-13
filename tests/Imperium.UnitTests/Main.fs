@@ -4,8 +4,8 @@ open System
 open Expecto
 
 let private renderSpecMarkdown () =
-    
-    let headerOptions : SpecMarkdown.MarkdownRenderOptions =
+
+    let headerOptions: SpecMarkdown.MarkdownRenderOptions =
         { ParentHeader = SpecMarkdown.H2 }
 
     String.concat
