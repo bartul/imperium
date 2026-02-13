@@ -6,17 +6,17 @@ open Expecto
 let private renderSpecMarkdown () =
 
     let headerOptions: SpecMarkdown.MarkdownRenderOptions =
-        { ParentHeader = SpecMarkdown.H2 }
+        { ParentHeader = SpecMarkdown.H3 }
 
     String.concat
         Environment.NewLine
-        [ "# Imperium Specification Based Tests"
+        [ "## 📘Imperium Specification Based Tests"
           ""
-          "## Accounting"
+          "### Accounting"
           ""
           Accounting.renderSpecMarkdown headerOptions
           ""
-          "## Rondel"
+          "### Rondel"
           ""
           Rondel.renderSpecMarkdown headerOptions ]
 
