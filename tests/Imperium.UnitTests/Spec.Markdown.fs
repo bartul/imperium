@@ -86,7 +86,7 @@ let toMarkdown
         Environment.NewLine
         ([ specHeader
            ""
-           "| Scenario Step | Step Details |"
+           "| Step | Details |"
            "| --- | --- |"
            sprintf "| Given | State %s |" (escapeCell $"`%A{initialState}`") ]
          @ captionRows "When" whenItems
