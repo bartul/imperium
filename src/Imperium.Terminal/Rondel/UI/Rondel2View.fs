@@ -418,7 +418,16 @@ module Rondel2View =
                 }
                 |> Async.Start
 
-        bus.Subscribe<RondelEvent>(fun _ -> async { refresh () })
+        bus.Subscribe<RondelEvent>(fun event_ ->
+            async {
+                refresh ()
+
+                match event_ with
+                | ActionDetermined _
+                | MoveToActionSpaceRejected _ -> UI.invokeOnMainThread app (fun () -> frame.Title <- "Rondel")
+                | _ -> ()
+            })
+
         bus.Subscribe<AccountingEvent>(fun _ -> async { refresh () })
 
         bus.Subscribe<SystemEvent>(fun event_ ->
