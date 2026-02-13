@@ -61,7 +61,7 @@ Reasoning: preserves IL shape, avoids unwanted module-load computation, and keep
 To launch the terminal app in a separate Ghostty window for visual review during development:
 
 ```bash
-open -na Ghostty.app --args --command="dotnet run --project /Users/bartul/code/imperium-experiment-terminal-ui/src/Imperium.Terminal" --window-width=160 --window-height=50
+open -na Ghostty.app --args --command="dotnet run --project /Users/bartul/code/imperium-experiment-terminal-ui/src/Imperium.Terminal" --window-width=160 --window-height=50 --quit-after-last-window-closed=true
 ```
 
 Use this as part of the inner development loop: make changes, launch for review, collect feedback, iterate.
