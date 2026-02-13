@@ -140,8 +140,6 @@ jobs:
         echo "" >> $GITHUB_STEP_SUMMARY
 
         # Spec markdown summary
-        echo "### 📘 Spec Test Run Markdown Output" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
         if [ "${{ steps.spec_markdown.outcome }}" == "success" ] && [ -f ./TestResults/spec-markdown.md ]; then
           cat ./TestResults/spec-markdown.md >> $GITHUB_STEP_SUMMARY
         else
