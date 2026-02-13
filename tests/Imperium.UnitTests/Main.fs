@@ -9,9 +9,11 @@ let private renderSpecMarkdown () =
         [ "# Imperium Spec-Based Tests"
           ""
           "## Accounting"
+          ""
           Accounting.renderSpecMarkdown ()
           ""
           "## Rondel"
+          ""
           Rondel.renderSpecMarkdown () ]
 
 [<EntryPoint>]
