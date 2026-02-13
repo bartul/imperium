@@ -1,3 +1,4 @@
+[<RequireQualifiedAccess>]
 module Imperium.UnitTests.SpecMarkdown
 
 open System
@@ -7,6 +8,35 @@ open Spec
 // ────────────────────────────────────────────────────────────────────────────────
 // Markdown Rendering
 // ────────────────────────────────────────────────────────────────────────────────
+
+type HeaderWeight =
+    | H1
+    | H2
+    | H3
+    | H4
+    | H5
+    | H6
+
+type MarkdownRenderOptions = { ParentHeader: HeaderWeight }
+
+let private toLevel = function
+    | H1 -> 1
+    | H2 -> 2
+    | H3 -> 3
+    | H4 -> 4
+    | H5 -> 5
+    | H6 -> 6
+
+let private childHeader = function
+    | H1 -> H2
+    | H2 -> H3
+    | H3 -> H4
+    | H4 -> H5
+    | H5 -> H6
+    | H6 -> H6
+
+let private renderHeader weight text =
+    String.replicate (toLevel weight) "#" + " " + text
 
 let private escapeCell (value: string) =
     value
@@ -30,7 +60,11 @@ let private captionRows caption items =
         [ $"| %s{caption} | %s{head} |" ]
         @ (tail |> List.map (fun item -> $"| | %s{item} |"))
 
-let toMarkdown (runner: ISpecRunner<'ctx, 'state, 'cmd, 'evt>) (spec: Specification<'ctx, 'cmd, 'evt>) =
+let toMarkdown
+    (options: MarkdownRenderOptions)
+    (runner: ISpecRunner<'ctx, 'state, 'cmd, 'evt>)
+    (spec: Specification<'ctx, 'cmd, 'evt>)
+    =
     let context = spec.On()
     let initialState = runner.CaptureState context
 
@@ -48,9 +82,11 @@ let toMarkdown (runner: ISpecRunner<'ctx, 'state, 'cmd, 'evt>) (spec: Specificat
                   let result = if expectation.Predicate context then "✅" else "❌"
                   $"%s{result} %s{expectation.Description}" |> escapeCell) ]
 
+    let specHeader = renderHeader (childHeader options.ParentHeader) spec.Name
+
     String.concat
         Environment.NewLine
-        ([ $"### %s{spec.Name}"
+        ([ specHeader
            ""
            "| | |"
            "| --- | --- |"
@@ -59,7 +95,7 @@ let toMarkdown (runner: ISpecRunner<'ctx, 'state, 'cmd, 'evt>) (spec: Specificat
          @ captionRows "Then" thenItems
          @ [ "" ])
 
-let toMarkdownDocument runner specifications =
+let toMarkdownDocument options runner specifications =
     specifications
-    |> List.map (toMarkdown runner)
+    |> List.map (toMarkdown options runner)
     |> String.concat Environment.NewLine

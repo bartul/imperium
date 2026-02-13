@@ -326,8 +326,8 @@ let private moveSpecs =
           expect "action determined immediately" hasActionDetermined
       } ]
 
-let renderSpecMarkdown () =
-    SpecMarkdown.toMarkdownDocument runner moveSpecs
+let renderSpecMarkdown options =
+    SpecMarkdown.toMarkdownDocument options runner moveSpecs
 
 // ────────────────────────────────────────────────────────────────────────────────
 // Test Registration

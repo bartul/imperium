@@ -4,17 +4,21 @@ open System
 open Expecto
 
 let private renderSpecMarkdown () =
+    
+    let headerOptions : SpecMarkdown.MarkdownRenderOptions =
+        { ParentHeader = SpecMarkdown.H2 }
+
     String.concat
         Environment.NewLine
-        [ "# Imperium Spec-Based Tests"
+        [ "# Imperium Specification Based Tests"
           ""
           "## Accounting"
           ""
-          Accounting.renderSpecMarkdown ()
+          Accounting.renderSpecMarkdown headerOptions
           ""
           "## Rondel"
           ""
-          Rondel.renderSpecMarkdown () ]
+          Rondel.renderSpecMarkdown headerOptions ]
 
 [<EntryPoint>]
 let main args =
