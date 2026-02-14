@@ -172,7 +172,7 @@ type private RondelCanvas(state: RondelViewState, onSpaceSelected: Space -> unit
     inherit View()
 
     let state = state
-    let mutable positions: NationPositionView list = []
+    // let mutable positions: NationPositionView list = []
     let mutable selectedIndex: int = 0
     let mutable selectingForNation: string option = None
 
@@ -203,11 +203,15 @@ type private RondelCanvas(state: RondelViewState, onSpaceSelected: Space -> unit
 
     /// Get nations currently on a given space.
     let nationsOnSpace (space: Space) =
-        positions |> List.filter (fun p -> p.CurrentSpace = Some space)
+        state.Positions
+        |> Option.defaultValue []
+        |> List.filter (fun p -> p.CurrentSpace = Some space)
 
     /// Get nations at start (no current space).
     let nationsAtStart () =
-        positions |> List.filter (fun p -> p.CurrentSpace.IsNone)
+        state.Positions
+        |> Option.defaultValue []
+        |> List.filter (fun p -> p.CurrentSpace.IsNone)
 
     /// Draw a centered string within a rectangle at a given row offset.
     let drawCentered (this: View) (rect: Rectangle) rowOffset (text: string) =
@@ -289,15 +293,13 @@ type private RondelCanvas(state: RondelViewState, onSpaceSelected: Space -> unit
     // Public state management
     // ──────────────────────────────────────────────────────────────────────
 
-    member _.UpdatePositions(newPositions: NationPositionView list) = positions <- newPositions
-    // Not calling SetNeedsDraw here — caller should use invokeOnMainThread
-
     member _.EnterSelectionMode(nation: string) =
         selectingForNation <- Some nation
 
         // Start selection at the nation's current space, or index 0
         let currentIdx =
-            positions
+            state.Positions
+            |> Option.defaultValue []
             |> List.tryFind (fun p -> p.Nation = nation)
             |> Option.bind (fun p -> p.CurrentSpace)
             |> Option.bind (fun space -> RondelLayout.spaces |> Array.tryFindIndex ((=) space))
@@ -417,12 +419,9 @@ module Rondel2View =
                 frame.Title <-
                     match state.NationSelectingNextMove with
                     | Some nation -> sprintf "Rondel :: Select a next move for %s" nation
-                    | None -> "Rondel")
+                    | None -> "Rondel"
 
-
-            canvas.UpdatePositions(state.Positions |> Option.defaultValue [])
-
-            UI.invokeOnMainThread app (fun () -> canvas.SetNeedsDraw())
+                canvas.SetNeedsDraw())
 
         bus.Subscribe<RondelEvent>(fun event_ ->
             async {
