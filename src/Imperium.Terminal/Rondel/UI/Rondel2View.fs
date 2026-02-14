@@ -280,11 +280,12 @@ type private RondelCanvas(state: RondelViewState, onSpaceSelected: Space -> unit
         this.SetAttribute(defaultAttr) |> ignore
         this.FillRect(rect, System.Text.Rune ' ')
 
+        // Clockwise direction indicator
+        drawCentered this rect (rect.Height / 2) "↻"
+
         let startNations = nationsAtStart ()
 
         if not (List.isEmpty startNations) then
-            drawCentered this rect 0 "start:"
-
             let tokens = startNations |> List.map (fun p -> RondelLayout.abbreviate p.Nation)
 
             let tokensPerRow = max 1 (rect.Width / 6)
