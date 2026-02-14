@@ -1,5 +1,5 @@
 # Repository Guidelines
-Last verified: 2026-01-21
+Last verified: 2026-02-15
 
 ## Project Structure & Module Organization
 - `Imperium.sln` stitches together the core F# library, ASP.NET Core web host, and unit test project.
@@ -68,27 +68,38 @@ Last verified: 2026-01-21
 
 ### Multi-Environment Architecture (Phase 1: Terminal App)
 - See `docs/rondel_multi_environment_architecture.md` for full architecture and design decisions.
-- **Terminal app** (`Imperium.Terminal`): In-process app with Hex1b TUI, MailboxProcessor hosting, in-memory store.
+- **Terminal app** (`Imperium.Terminal`): In-process app with Terminal.Gui v2 (`2.0.0-develop.5027`), MailboxProcessor hosting, in-memory store.
 - **Key patterns:**
   - `IBus` interface for cross-bounded-context **events** (pub/sub with generic `Publish<'T>` and `Subscribe<'T>`); implementation uses `ConcurrentDictionary<Type, obj>` storing typed handler lists to avoid boxing events on publish
   - Thunk injection for cross-BC **commands** (breaks circular dependencies, type-safe direct calls)
   - Each BC has a `Host` (e.g., `RondelHost`, `AccountingHost`) with `Execute` entry point
   - MailboxProcessor serializes commands/events per BC with fire-and-forget `Post` (no reply channel); queries bypass for direct store access
   - Domain events used directly (not contract types) since everything is in-process; `RondelBillingId.ofId` enables domain-to-domain event conversion without contract layer
+  - `SystemEvent` DU for UI lifecycle events (`AppStarted`, `NewGameStarted`, `GameEnded`, `MoveNationRequested`) — published on bus, views subscribe to update state
+  - UI views are module functions (`RondelView.create`, `EventLogView.create`) returning `FrameView` — all state managed via shared mutable records, views subscribe to bus events
 - **Project structure:**
   ```
   src/Imperium.Terminal/
   ├── Bus.fs                    # IBus interface and factory
   ├── Rondel/
   │   ├── Store.fs              # RondelStore with InMemoryRondelStore
-  │   └── Host.fs               # RondelHost (complete) with MailboxProcessor, event subscriptions, query handlers
+  │   ├── Host.fs               # RondelHost with MailboxProcessor, event subscriptions, query handlers
+  │   └── UI/
+  │       ├── RondelView.fs     # Stateless canvas grid with SelectionMode and shared RondelViewState
+  │       └── MoveDialog.fs     # Nation selection dialog
   ├── Accounting/
-  │   └── Host.fs               # AccountingHost (complete) with MailboxProcessor, publishes inner events
-  └── Program.fs
+  │   └── Host.fs               # AccountingHost with MailboxProcessor, publishes inner events
+  ├── Shell/
+  │   ├── UI.fs                 # Shared UI helpers (invokeOnMainThread, frameView, mkAttr)
+  │   ├── SystemEvent.fs        # UI lifecycle event DU
+  │   ├── EventLogView.fs       # Bus-driven event log panel
+  │   └── App.fs                # Application layout, menu bar, keyboard shortcuts
+  └── Program.fs                # Entry point, wiring hosts and bus
   ```
 - **RondelHost implementation:** MailboxProcessor handles `Command` and `InboundEvent` messages; subscribes to `RondelInvoicePaidEvent`/`RondelInvoicePaymentFailedEvent` (domain types); converts using `RondelBillingId.ofId`; dispatches to Accounting via thunk; queries call domain handlers directly.
 - **AccountingHost implementation:** MailboxProcessor handles commands; publishes inner event types (`RondelInvoicePaidEvent`, `RondelInvoicePaymentFailedEvent`) directly to bus for RondelHost subscriptions.
-- **Technology choices (terminal):** Hex1b TUI (fallback: Spectre.Console + FsSpectre), direct function calls for in-process messaging.
+- **Technology choices (terminal):** Terminal.Gui v2 (TUI framework with views, menu bars, keyboard/mouse support), direct function calls for in-process messaging.
+- **RondelView architecture:** Stateless `RondelCanvas` (zero mutable fields) reads from shared `RondelViewState` record with mutable fields (`CurrentGame`, `Selection`, `Positions`). `SelectionMode` record (`Nation` + `Space`) replaces separate selection tracking — single `Option` makes state transitions atomic. `SyncFocus()` method toggles canvas focus based on selection state. Navigation uses `RondelLayout.nextSpace`/`prevSpace` helpers. `onSpaceSelected: Space -> unit` callback replaces direct `RondelHost` dependency. Color scheme: Investor=teal, Import=orange, Production=grey, Maneuver=green, Taxation=yellow, Factory=blue. Emoji flags (🇦🇹🇫🇷🇩🇪🇬🇧🇮🇹🇷🇺) on nation abbreviations with `displayWidth` helper for correct terminal centering.
 
 ## Build, Test, and Development Commands
 - Restore dependencies: `dotnet restore Imperium.sln`.
@@ -227,7 +238,7 @@ when_ [
   - **Handler behavior tests** (in `*Tests.fs`): Create domain types directly (no transformation layer), call routers (`execute`, `handle`) with union types to verify correct outcomes, events, and charges
   - **Test helper pattern**: Use private record type grouping routers (e.g., `type private Rondel = { Execute: RondelCommand -> unit; Handle: RondelInboundEvent -> unit; GetNationPositions: GetNationPositionsQuery -> RondelPositionsView option; GetRondelOverview: GetRondelOverviewQuery -> RondelView option }`) with sync wrappers (`Async.RunSynchronously`), create factory function that returns router record with async dependencies wrapped in `async {}` + observable collections (events, commands) for verification
   - **Separation**: Keep transformation layer testing separate from handler behavior testing for clearer test intent and reduced boilerplate
-- Current test coverage (53 tests total, all passing):
+- Current test coverage (83 tests total, all passing):
   - **AccountingContractTests.fs** (6 transformation validation tests):
     - ChargeNationForRondelMovementCommand.fromContract: requires valid GameId; requires valid BillingId; accepts valid command
     - VoidRondelChargeCommand.fromContract: requires valid GameId; requires valid BillingId; accepts valid command
