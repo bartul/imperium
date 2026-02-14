@@ -172,9 +172,7 @@ type private RondelCanvas(state: RondelViewState, onSpaceSelected: Space -> unit
     inherit View()
 
     let state = state
-    // let mutable positions: NationPositionView list = []
     let mutable selectedIndex: int = 0
-    let mutable selectingForNation: string option = None
 
     /// Compute the pixel rectangle for a grid cell (row 0..2, col 0..2).
     let cellRect (viewport: Rectangle) gridRow gridCol =
@@ -230,7 +228,7 @@ type private RondelCanvas(state: RondelViewState, onSpaceSelected: Space -> unit
         let gridRow, gridCol = RondelLayout.gridPosition index
         let rect = cellRect viewport gridRow gridCol
 
-        let isSelected = selectingForNation.IsSome && selectedIndex = index
+        let isSelected = state.NationSelectingNextMove.IsSome && selectedIndex = index
 
         let attr =
             if isSelected then
@@ -294,7 +292,6 @@ type private RondelCanvas(state: RondelViewState, onSpaceSelected: Space -> unit
     // ──────────────────────────────────────────────────────────────────────
 
     member _.EnterSelectionMode(nation: string) =
-        selectingForNation <- Some nation
 
         // Start selection at the nation's current space, or index 0
         let currentIdx =
@@ -309,10 +306,6 @@ type private RondelCanvas(state: RondelViewState, onSpaceSelected: Space -> unit
         selectedIndex <- currentIdx
         base.CanFocus <- true
         base.SetFocus() |> ignore
-        base.SetNeedsDraw()
-
-    member _.ExitSelectionMode() =
-        selectingForNation <- None
         base.SetNeedsDraw()
 
     // ──────────────────────────────────────────────────────────────────────
@@ -336,7 +329,7 @@ type private RondelCanvas(state: RondelViewState, onSpaceSelected: Space -> unit
     // ──────────────────────────────────────────────────────────────────────
 
     override this.OnKeyDown(key: Key) =
-        match selectingForNation with
+        match state.NationSelectingNextMove with
         | None -> base.OnKeyDown(key)
         | Some nation ->
             if key = Key.CursorRight || key = Key.CursorDown then
@@ -351,7 +344,6 @@ type private RondelCanvas(state: RondelViewState, onSpaceSelected: Space -> unit
                 true
             elif key = Key.Enter then
                 let space = RondelLayout.spaces.[selectedIndex]
-                this.ExitSelectionMode()
                 onSpaceSelected space
                 key.Handled <- true
                 true
@@ -363,7 +355,7 @@ type private RondelCanvas(state: RondelViewState, onSpaceSelected: Space -> unit
     // ──────────────────────────────────────────────────────────────────────
 
     override this.OnMouseEvent(mouse: Mouse) =
-        match selectingForNation with
+        match state.NationSelectingNextMove with
         | None -> base.OnMouseEvent mouse
         | Some _ ->
             if mouse.Flags.HasFlag MouseFlags.LeftButtonClicked && mouse.Position.HasValue then
@@ -449,8 +441,6 @@ module Rondel2View =
                     state.CurrentGame <- None
                     state.NationSelectingNextMove <- None
                     state.Positions <- None
-
-                    canvas.ExitSelectionMode()
 
                     refresh ()
                 | MoveNationRequested nation ->
