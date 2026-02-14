@@ -159,7 +159,10 @@ module private RondelLayout =
 // State
 // ──────────────────────────────────────────────────────────────────────────
 
-type private RondelViewState = { mutable CurrentGame: Id option; mutable NationSelectingNextMove: string option }
+type private RondelViewState =
+    { mutable CurrentGame: Id option
+      mutable NationSelectingNextMove: string option
+      mutable Positions: NationPositionView list option }
 
 // ──────────────────────────────────────────────────────────────────────────
 // RondelCanvas — custom drawn view
@@ -383,7 +386,8 @@ type private RondelCanvas(state: RondelViewState, onSpaceSelected: Space -> unit
 module Rondel2View =
 
     let create (app: IApplication) (bus: IBus) (rondelHost: RondelHost) =
-        let state: RondelViewState = { CurrentGame = None; NationSelectingNextMove = None }
+        let state: RondelViewState =
+            { CurrentGame = None; NationSelectingNextMove = None; Positions = None }
 
         let onSpaceSelected space =
             match state.CurrentGame, state.NationSelectingNextMove with
@@ -397,30 +401,28 @@ module Rondel2View =
         canvas.Height <- Dim.Fill()
         let frame = UI.frameView "Rondel" [| canvas |]
 
+        let queryPositions gameId =
+            async {
+                let! result = rondelHost.QueryPositions { GameId = gameId }
+
+                return
+                    match result with
+                    | Some view -> Some view.Positions
+                    | None -> None
+            }
+            |> Async.RunSynchronously
+
         let refresh () =
             UI.invokeOnMainThread app (fun _ ->
                 frame.Title <-
                     match state.NationSelectingNextMove with
-                    | Some nation -> sprintf "Select a next move for %s" nation
+                    | Some nation -> sprintf "Rondel :: Select a next move for %s" nation
                     | None -> "Rondel")
 
-            match state.CurrentGame with
-            | None ->
-                UI.invokeOnMainThread app (fun () ->
-                    canvas.UpdatePositions([])
-                    canvas.SetNeedsDraw())
-            | Some gameId ->
-                async {
-                    let! result = rondelHost.QueryPositions { GameId = gameId }
 
-                    UI.invokeOnMainThread app (fun () ->
-                        match result with
-                        | None -> canvas.UpdatePositions([])
-                        | Some view -> canvas.UpdatePositions(view.Positions)
+            canvas.UpdatePositions(state.Positions |> Option.defaultValue [])
 
-                        canvas.SetNeedsDraw())
-                }
-                |> Async.Start
+            UI.invokeOnMainThread app (fun () -> canvas.SetNeedsDraw())
 
         bus.Subscribe<RondelEvent>(fun event_ ->
             async {
@@ -429,6 +431,7 @@ module Rondel2View =
                 | MoveToActionSpaceRejected _ -> state.NationSelectingNextMove <- None
                 | _ -> ()
 
+                state.Positions <- queryPositions state.CurrentGame.Value
                 refresh ()
             })
 
@@ -440,20 +443,22 @@ module Rondel2View =
                 | NewGameStarted gameId ->
                     state.CurrentGame <- Some gameId
                     state.NationSelectingNextMove <- None
+                    state.Positions <- queryPositions gameId
+
                     refresh ()
                 | GameEnded ->
                     state.CurrentGame <- None
                     state.NationSelectingNextMove <- None
+                    state.Positions <- None
 
-                    UI.invokeOnMainThread app (fun () ->
-                        canvas.ExitSelectionMode()
-                        canvas.UpdatePositions([])
-                        canvas.SetNeedsDraw())
+                    canvas.ExitSelectionMode()
 
                     refresh ()
                 | MoveNationRequested nation ->
                     state.NationSelectingNextMove <- Some nation
-                    UI.invokeOnMainThread app (fun () -> canvas.EnterSelectionMode(nation))
+
+                    canvas.EnterSelectionMode nation
+
                     refresh ()
                 | AppStarted -> ()
             })
