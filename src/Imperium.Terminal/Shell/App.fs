@@ -38,7 +38,7 @@ module App =
         let state = { CurrentGameId = None; NationNames = [] }
 
         // Create views - positioned below menu bar (Y=1)
-        let rondelView = Rondel2View.create app bus rondelHost
+        let rondelView = RondelView.create app bus rondelHost
         rondelView.X <- Pos.Absolute 0
         rondelView.Y <- Pos.Absolute 1 // Below menu
         rondelView.Width <- Dim.Fill()
