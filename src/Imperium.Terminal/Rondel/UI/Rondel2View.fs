@@ -87,6 +87,15 @@ module private RondelLayout =
         | 7 -> 0, 0 // Man II:    top left
         | i -> failwithf "Invalid rondel index: %d" i
 
+    /// Find the clockwise index of a space.
+    let indexOf space = spaces |> Array.findIndex ((=) space)
+
+    /// Next space clockwise.
+    let nextSpace space = spaces.[(indexOf space + 1) % 8]
+
+    /// Previous space (counter-clockwise).
+    let prevSpace space = spaces.[(indexOf space + 7) % 8]
+
     /// Map grid position back to clockwise index, if it's a space cell.
     let indexFromGrid row col =
         match row, col with
@@ -159,9 +168,11 @@ module private RondelLayout =
 // State
 // ──────────────────────────────────────────────────────────────────────────
 
+type private SelectionMode = { Nation: string; Space: Space }
+
 type private RondelViewState =
     { mutable CurrentGame: Id option
-      mutable NationSelectingNextMove: string option
+      mutable Selection: SelectionMode option
       mutable Positions: NationPositionView list option }
 
 // ──────────────────────────────────────────────────────────────────────────
@@ -172,7 +183,6 @@ type private RondelCanvas(state: RondelViewState, onSpaceSelected: Space -> unit
     inherit View()
 
     let state = state
-    let mutable selectedIndex: int = 0
 
     /// Compute the pixel rectangle for a grid cell (row 0..2, col 0..2).
     let cellRect (viewport: Rectangle) gridRow gridCol =
@@ -228,7 +238,7 @@ type private RondelCanvas(state: RondelViewState, onSpaceSelected: Space -> unit
         let gridRow, gridCol = RondelLayout.gridPosition index
         let rect = cellRect viewport gridRow gridCol
 
-        let isSelected = state.NationSelectingNextMove.IsSome && selectedIndex = index
+        let isSelected = state.Selection |> Option.exists (fun s -> s.Space = space)
 
         let attr =
             if isSelected then
@@ -287,26 +297,12 @@ type private RondelCanvas(state: RondelViewState, onSpaceSelected: Space -> unit
         else if state.CurrentGame.IsNone then
             drawCentered this rect (rect.Height / 2) "Awaiting the Great Powers to take their positions"
 
-    // ──────────────────────────────────────────────────────────────────────
-    // Public state management
-    // ──────────────────────────────────────────────────────────────────────
-
-    member _.EnterSelectionMode(nation: string) =
-
-        // Start selection at the nation's current space, or index 0
-        let currentIdx =
-            state.Positions
-            |> Option.defaultValue []
-            |> List.tryFind (fun p -> p.Nation = nation)
-            |> Option.bind (fun p -> p.CurrentSpace)
-            |> Option.bind (fun space -> RondelLayout.spaces |> Array.tryFindIndex ((=) space))
-            |> Option.defaultValue 0
-
-
-        selectedIndex <- currentIdx
-        base.CanFocus <- true
-        base.SetFocus() |> ignore
-        base.SetNeedsDraw()
+    member this.SyncFocus() =
+        match state.Selection with
+        | Some _ ->
+            this.CanFocus <- true
+            this.SetFocus() |> ignore
+        | None -> this.CanFocus <- false
 
     // ──────────────────────────────────────────────────────────────────────
     // Drawing
@@ -329,42 +325,41 @@ type private RondelCanvas(state: RondelViewState, onSpaceSelected: Space -> unit
     // ──────────────────────────────────────────────────────────────────────
 
     override this.OnKeyDown(key: Key) =
-        match state.NationSelectingNextMove with
-        | None -> base.OnKeyDown(key)
-        | Some nation ->
+        match state.Selection with
+        | None -> base.OnKeyDown key
+        | Some selection ->
             if key = Key.CursorRight || key = Key.CursorDown then
-                selectedIndex <- (selectedIndex + 1) % 8
+                state.Selection <- Some { selection with Space = RondelLayout.nextSpace selection.Space }
                 this.SetNeedsDraw()
                 key.Handled <- true
                 true
             elif key = Key.CursorLeft || key = Key.CursorUp then
-                selectedIndex <- (selectedIndex + 7) % 8
+                state.Selection <- Some { selection with Space = RondelLayout.prevSpace selection.Space }
                 this.SetNeedsDraw()
                 key.Handled <- true
                 true
             elif key = Key.Enter then
-                let space = RondelLayout.spaces.[selectedIndex]
-                onSpaceSelected space
+                onSpaceSelected selection.Space
                 key.Handled <- true
                 true
             else
-                base.OnKeyDown(key)
+                base.OnKeyDown key
 
     // ──────────────────────────────────────────────────────────────────────
     // Mouse
     // ──────────────────────────────────────────────────────────────────────
 
     override this.OnMouseEvent(mouse: Mouse) =
-        match state.NationSelectingNextMove with
+        match state.Selection with
         | None -> base.OnMouseEvent mouse
-        | Some _ ->
+        | Some selection ->
             if mouse.Flags.HasFlag MouseFlags.LeftButtonClicked && mouse.Position.HasValue then
                 let vp = this.Viewport
                 let pos = mouse.Position.Value
 
                 match indexFromPoint vp pos.X pos.Y with
                 | Some idx ->
-                    selectedIndex <- idx
+                    state.Selection <- Some { selection with Space = RondelLayout.spaces.[idx] }
                     this.SetNeedsDraw()
                     mouse.Handled <- true
                     true
@@ -381,12 +376,16 @@ module Rondel2View =
 
     let create (app: IApplication) (bus: IBus) (rondelHost: RondelHost) =
         let state: RondelViewState =
-            { CurrentGame = None; NationSelectingNextMove = None; Positions = None }
+            { CurrentGame = None; Selection = None; Positions = None }
 
         let onSpaceSelected space =
-            match state.CurrentGame, state.NationSelectingNextMove with
-            | Some gameId, Some nation ->
-                async { do! Move { GameId = gameId; Nation = nation; Space = space } |> rondelHost.Execute }
+            match state.CurrentGame, state.Selection with
+            | Some gameId, Some selection ->
+                async {
+                    do!
+                        Move { GameId = gameId; Nation = selection.Nation; Space = space }
+                        |> rondelHost.Execute
+                }
                 |> Async.Start
             | _ -> ()
 
@@ -409,17 +408,18 @@ module Rondel2View =
         let refresh () =
             UI.invokeOnMainThread app (fun _ ->
                 frame.Title <-
-                    match state.NationSelectingNextMove with
-                    | Some nation -> sprintf "Rondel :: Select a next move for %s" nation
+                    match state.Selection with
+                    | Some selection -> sprintf "Rondel :: Select a next move for %s" selection.Nation
                     | None -> "Rondel"
 
+                canvas.SyncFocus()
                 canvas.SetNeedsDraw())
 
         bus.Subscribe<RondelEvent>(fun event_ ->
             async {
                 match event_ with
                 | ActionDetermined _
-                | MoveToActionSpaceRejected _ -> state.NationSelectingNextMove <- None
+                | MoveToActionSpaceRejected _ -> state.Selection <- None
                 | _ -> ()
 
                 state.Positions <- queryPositions state.CurrentGame.Value
@@ -433,20 +433,25 @@ module Rondel2View =
                 match event_ with
                 | NewGameStarted gameId ->
                     state.CurrentGame <- Some gameId
-                    state.NationSelectingNextMove <- None
+                    state.Selection <- None
                     state.Positions <- queryPositions gameId
 
                     refresh ()
                 | GameEnded ->
                     state.CurrentGame <- None
-                    state.NationSelectingNextMove <- None
+                    state.Selection <- None
                     state.Positions <- None
 
                     refresh ()
                 | MoveNationRequested nation ->
-                    state.NationSelectingNextMove <- Some nation
+                    let currentSpace =
+                        state.Positions
+                        |> Option.defaultValue []
+                        |> List.tryFind (fun p -> p.Nation = nation)
+                        |> Option.bind (fun p -> p.CurrentSpace)
+                        |> Option.defaultValue Space.Investor
 
-                    canvas.EnterSelectionMode nation
+                    state.Selection <- Some { Nation = nation; Space = currentSpace }
 
                     refresh ()
                 | AppStarted -> ()
