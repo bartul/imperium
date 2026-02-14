@@ -156,12 +156,19 @@ module private RondelLayout =
         | name -> name
 
 // ──────────────────────────────────────────────────────────────────────────
+// State
+// ──────────────────────────────────────────────────────────────────────────
+
+type private RondelViewState = { mutable CurrentGame: Id option; mutable NationSelectingNextMove: string option }
+
+// ──────────────────────────────────────────────────────────────────────────
 // RondelCanvas — custom drawn view
 // ──────────────────────────────────────────────────────────────────────────
 
-type RondelCanvas(onSpaceSelected: Space -> unit) =
+type private RondelCanvas(state: RondelViewState, onSpaceSelected: Space -> unit) =
     inherit View()
 
+    let state = state
     let mutable positions: NationPositionView list = []
     let mutable selectedIndex: int = 0
     let mutable selectingForNation: string option = None
@@ -272,8 +279,8 @@ type RondelCanvas(onSpaceSelected: Space -> unit) =
             |> List.iteri (fun rowIdx chunk ->
                 let line = chunk |> String.concat " "
                 drawCentered this rect (1 + rowIdx) line)
-        else if positions.IsEmpty then
-            drawCentered this rect (rect.Height / 2) "No game"
+        else if state.CurrentGame.IsNone then
+            drawCentered this rect (rect.Height / 2) "Awaiting the Great Powers to take their positions"
 
     // ──────────────────────────────────────────────────────────────────────
     // Public state management
@@ -282,7 +289,7 @@ type RondelCanvas(onSpaceSelected: Space -> unit) =
     member _.UpdatePositions(newPositions: NationPositionView list) = positions <- newPositions
     // Not calling SetNeedsDraw here — caller should use invokeOnMainThread
 
-    member this.EnterSelectionMode(nation: string) =
+    member _.EnterSelectionMode(nation: string) =
         selectingForNation <- Some nation
 
         // Start selection at the nation's current space, or index 0
@@ -293,14 +300,15 @@ type RondelCanvas(onSpaceSelected: Space -> unit) =
             |> Option.bind (fun space -> RondelLayout.spaces |> Array.tryFindIndex ((=) space))
             |> Option.defaultValue 0
 
-        selectedIndex <- currentIdx
-        this.CanFocus <- true
-        this.SetFocus() |> ignore
-        this.SetNeedsDraw()
 
-    member this.ExitSelectionMode() =
+        selectedIndex <- currentIdx
+        base.CanFocus <- true
+        base.SetFocus() |> ignore
+        base.SetNeedsDraw()
+
+    member _.ExitSelectionMode() =
         selectingForNation <- None
-        this.SetNeedsDraw()
+        base.SetNeedsDraw()
 
     // ──────────────────────────────────────────────────────────────────────
     // Drawing
@@ -371,8 +379,6 @@ type RondelCanvas(onSpaceSelected: Space -> unit) =
 // Rondel2View Module
 // ──────────────────────────────────────────────────────────────────────────
 
-type private RondelViewState = { mutable CurrentGame: Id option; mutable NationSelectingNextMove: string option }
-
 [<RequireQualifiedAccess>]
 module Rondel2View =
 
@@ -386,7 +392,7 @@ module Rondel2View =
                 |> Async.Start
             | _ -> ()
 
-        let canvas = new RondelCanvas(onSpaceSelected)
+        let canvas = new RondelCanvas(state, onSpaceSelected)
         canvas.Width <- Dim.Fill()
         canvas.Height <- Dim.Fill()
         let frame = UI.frameView "Rondel" [| canvas |]
