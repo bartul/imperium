@@ -81,22 +81,6 @@ module App =
                 }
                 |> Async.Start
 
-        let handleMoveNation () =
-            match state.CurrentGameId with
-            | None ->
-                MessageBox.ErrorQuery(app, "Error", "No game initialized. Start a new game first.", "OK")
-                |> ignore
-            | Some gameId ->
-                match MoveDialog.show app state.NationNames with
-                | None -> ()
-                | Some result ->
-                    async {
-                        do!
-                            Move { GameId = gameId; Nation = result.Nation; Space = result.Space }
-                            |> rondelHost.Execute
-                    }
-                    |> Async.Start
-
         let handleEndGame () =
             match state.CurrentGameId with
             | None -> MessageBox.ErrorQuery(app, "Error", "No game in progress.", "OK") |> ignore
@@ -114,7 +98,7 @@ module App =
         let mkMenuItem label handler =
             let item = new MenuItem()
             item.Title <- label
-            item.Action <- System.Action(handler)
+            item.Action <- System.Action handler
             item :> View
 
         let gameMenu =
@@ -139,14 +123,12 @@ module App =
         menu.Menus <- [| gameMenu; moveMenu |]
 
         // StatusBar with keyboard shortcuts
-        // Note: Ctrl+M is Enter in terminals (both 0x0D), so use F2 for Move
         // F6/Shift+F6 switches between panels (TabGroup default)
         let statusBar = new StatusBar()
 
         statusBar.Add(
-            UI.shortcut (Key.Q.WithCtrl) "Quit" handleQuit,
-            UI.shortcut (Key.N.WithCtrl) "New Game" handleNewGame,
-            UI.shortcut Key.F2 "Move" handleMoveNation
+            UI.shortcut Key.N.WithCtrl "New Game" handleNewGame,
+            UI.shortcut Key.Q.WithCtrl "Quit" handleQuit
         )
         |> ignore
 

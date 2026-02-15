@@ -85,8 +85,7 @@ Last verified: 2026-02-15
   │   ├── Store.fs              # RondelStore with InMemoryRondelStore
   │   ├── Host.fs               # RondelHost with MailboxProcessor, event subscriptions, query handlers
   │   └── UI/
-  │       ├── RondelView.fs     # Stateless canvas grid with SelectionMode and shared RondelViewState
-  │       └── MoveDialog.fs     # Nation selection dialog
+  │       └── RondelView.fs     # Stateless canvas grid with SelectionMode and shared RondelViewState
   ├── Accounting/
   │   └── Host.fs               # AccountingHost with MailboxProcessor, publishes inner events
   ├── Shell/
