@@ -1,0 +1,146 @@
+{
+  "folders": [
+    {
+      "path": "."
+    }
+  ],
+  "settings": {
+    "dotnet.defaultSolution": "Imperium.slnx",
+    "editor.formatOnSave": true,
+    "[fsharp]": {
+      "editor.defaultFormatter": "Ionide.ionide-fsharp"
+    },
+    "files.exclude": {
+      "**/bin": true,
+      "**/obj": true
+    },
+    "search.exclude": {
+      "**/bin": true,
+      "**/obj": true
+    },
+    "files.watcherExclude": {
+      "**/bin/**": true,
+      "**/obj/**": true
+    },
+    "terminal.integrated.cwd": "${workspaceFolder}"
+  },
+  "extensions": {
+    "recommendations": [
+      "Ionide.ionide-fsharp",
+      "ms-dotnettools.csdevkit",
+      "ms-dotnettools.csharp",
+      "ms-dotnettools.vscode-dotnet-runtime",
+      "editorconfig.editorconfig",
+      "github.vscode-pull-request-github",
+      "davidanson.vscode-markdownlint"
+    ]
+  },
+  "tasks": {
+    "version": "2.0.0",
+    "tasks": [
+      {
+        "label": "restore",
+        "type": "process",
+        "command": "dotnet",
+        "args": [
+          "restore",
+          "Imperium.slnx"
+        ],
+        "group": "build",
+        "problemMatcher": "$msCompile"
+      },
+      {
+        "label": "build",
+        "type": "process",
+        "command": "dotnet",
+        "args": [
+          "build",
+          "Imperium.slnx",
+          "--no-restore"
+        ],
+        "dependsOn": "restore",
+        "dependsOrder": "sequence",
+        "group": "build",
+        "problemMatcher": "$msCompile"
+      },
+      {
+        "label": "test",
+        "type": "process",
+        "command": "dotnet",
+        "args": [
+          "test",
+          "Imperium.slnx",
+          "--no-build"
+        ],
+        "dependsOn": "build",
+        "dependsOrder": "sequence",
+        "group": "test",
+        "problemMatcher": "$msCompile"
+      },
+      {
+        "label": "run-web",
+        "type": "process",
+        "command": "dotnet",
+        "args": [
+          "run",
+          "--project",
+          "src/Imperium.Web/Imperium.Web.fsproj"
+        ],
+        "group": "none"
+      },
+      {
+        "label": "run-terminal",
+        "type": "process",
+        "command": "dotnet",
+        "args": [
+          "run",
+          "--project",
+          "src/Imperium.Terminal/Imperium.Terminal.fsproj"
+        ],
+        "group": "none"
+      },
+      {
+        "label": "format-check",
+        "type": "process",
+        "command": "dotnet",
+        "args": [
+          "fantomas",
+          "--check",
+          "."
+        ],
+        "group": "test"
+      }
+    ]
+  },
+  "launch": {
+    "version": "0.2.0",
+    "configurations": [
+      {
+        "name": "Debug Web",
+        "type": "coreclr",
+        "request": "launch",
+        "program": "dotnet",
+        "args": [
+          "run",
+          "--project",
+          "${workspaceFolder}/src/Imperium.Web/Imperium.Web.fsproj"
+        ],
+        "cwd": "${workspaceFolder}",
+        "console": "integratedTerminal"
+      },
+      {
+        "name": "Debug Terminal",
+        "type": "coreclr",
+        "request": "launch",
+        "program": "dotnet",
+        "args": [
+          "run",
+          "--project",
+          "${workspaceFolder}/src/Imperium.Terminal/Imperium.Terminal.fsproj"
+        ],
+        "cwd": "${workspaceFolder}",
+        "console": "integratedTerminal"
+      }
+    ]
+  }
+}
