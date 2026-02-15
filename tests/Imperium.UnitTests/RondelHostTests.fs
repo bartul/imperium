@@ -127,7 +127,8 @@ let tests =
                   |> Seq.tryHead
                   |> Option.defaultWith (fun () -> failwith "charge command not dispatched")
 
-              bus.Publish({ GameId = gameId; BillingId = billingId }: Accounting.RondelInvoicePaidEvent)
+              Accounting.RondelInvoicePaid { GameId = gameId; BillingId = billingId }
+              |> bus.Publish
 
               let hasActionDetermined () =
                   publishedEvents
