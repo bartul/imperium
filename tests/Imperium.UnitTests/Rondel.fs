@@ -136,16 +136,20 @@ let private moveSpecs =
           expect "no payment required" (hasChargeCommand >> not)
       }
 
-      spec "first move to any space is free" {
+      spec "moving a nation for the first time does not require payment regardless of destination" {
           on (fun () -> createContext gameId)
 
           when_
               [ SetToStartingPositions { GameId = gameId; Nations = nations } |> Execute
-                ClearEvents
-                Move { GameId = gameId; Nation = "France"; Space = Space.Factory } |> Execute ]
+                Move { GameId = gameId; Nation = "France"; Space = Space.Factory } |> Execute
+                Move { GameId = gameId; Nation = "Austria"; Space = Space.Investor } |> Execute
+                Move { GameId = gameId; Nation = "Germany"; Space = Space.Import } |> Execute ]
 
-          expect "action is determined" hasActionDetermined
-          expect "no charge dispatched" (hasChargeCommand >> not)
+          expect
+              "action is determined"
+              (hasExactEvent (ActionDetermined { GameId = gameId; Nation = "France"; Action = Action.Factory }))
+
+          expect "no payment required" (hasChargeCommand >> not)
       }
 
       spec "rejects move to current position (stay put)" {
@@ -160,7 +164,7 @@ let private moveSpecs =
 
           expect "rejects the move" hasRejection
           expect "no action determined" (hasActionDetermined >> not)
-          expect "no charge dispatched" (hasChargeCommand >> not)
+          expect "no payment required" (hasChargeCommand >> not)
       }
 
       spec "move of 1-3 spaces is free" {

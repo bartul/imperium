@@ -141,61 +141,7 @@ let tests =
                         "setting starting positions twice should not signal starting positions again" ]
           testList
               "move"
-              [ testCase "cannot begin before starting positions are chosen"
-                <| fun _ ->
-                    let rondel, publishedEvents, dispatchedCommands = createRondel ()
-
-                    let command: MoveCommand =
-                        { GameId = Guid.NewGuid() |> Id; Nation = "France"; Space = Space.Factory }
-
-                    rondel.Execute <| Move command
-                    Expect.isNonEmpty publishedEvents "the rondel should signal why the move was denied"
-
-                    Expect.contains
-                        publishedEvents
-                        (MoveToActionSpaceRejected
-                            { GameId = command.GameId; Nation = command.Nation; Space = command.Space })
-                        "the rondel should signal that the move was denied"
-
-                    Expect.isEmpty dispatchedCommands "no movement fee is due when the move is denied"
-
-                testPropertyWithConfig
-                    { FsCheckConfig.defaultConfig with maxTest = 15 }
-                    "nation's first move may choose any rondel space (free)"
-                <| fun (gameId: Guid) (nationIndex: int) (spaceIndex: int) ->
-
-                    let nations = [| "Austria"; "Britain"; "France"; "Germany"; "Italy"; "Russia" |]
-
-                    let game = gameId |> Id
-                    let nation = nations.[abs nationIndex % nations.Length]
-                    let space = allSpaces.[abs spaceIndex % allSpaces.Length]
-
-                    // Setup: initialize rondel
-                    let rondel, publishedEvents, dispatchedCommands = createRondel ()
-
-                    let initCommand = { GameId = gameId |> Id; Nations = Set.ofArray nations }
-
-                    rondel.Execute <| SetToStartingPositions initCommand
-                    publishedEvents.Clear()
-
-                    // Execute: move one nation to target space
-                    let moveCommand: MoveCommand = { GameId = game; Nation = nation; Space = space }
-
-                    rondel.Execute <| Move moveCommand
-
-                    // Assert: ActionDetermined event published with correct action
-                    // Using independent reference implementation to avoid testing transformation with itself
-                    let expectedAction = spaceToExpectedAction space
-
-                    Expect.contains
-                        publishedEvents
-                        (ActionDetermined { GameId = moveCommand.GameId; Nation = nation; Action = expectedAction })
-                        (sprintf "the rondel space %A determines %s's action: %A" space nation expectedAction)
-
-                    // Assert: No charge commands dispatched (first move is free)
-                    Expect.isEmpty dispatchedCommands "first move is free (no movement fee)"
-
-                testPropertyWithConfig
+              [ testPropertyWithConfig
                     { FsCheckConfig.defaultConfig with maxTest = 15 }
                     "rejects move to nation's current position repeatedly"
                 <| fun (gameId: Guid) (nationIndex: int) (spaceIndex: int) ->
