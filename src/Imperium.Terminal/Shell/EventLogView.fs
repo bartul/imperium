@@ -4,7 +4,6 @@ open System
 open System.Collections.ObjectModel
 open Terminal.Gui.App
 open Terminal.Gui.ViewBase
-open Terminal.Gui.Views
 open Imperium.Terminal
 open Imperium.Rondel
 open Imperium.Accounting

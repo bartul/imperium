@@ -5,7 +5,6 @@ open Terminal.Gui.App
 open Terminal.Gui.Drawing
 open Terminal.Gui.Input
 open Terminal.Gui.ViewBase
-open Terminal.Gui.Views
 open Imperium.Primitives
 open Imperium.Rondel
 open Imperium.Accounting
