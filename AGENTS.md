@@ -371,7 +371,6 @@ GitHub branch protection rules require GitHub Pro for private repositories. Unti
 - Follow the existing history: imperative, concise subject lines (`Update to dotnet 9`, `Add web`).
 - Keep commits scoped to one concern; describe "what" and "why" in the body when context is non-trivial.
 - PRs should link relevant issues, outline test evidence (command outputs or screenshots), and call out any manual steps for deployment.
-- Use the PR template (`.github/PULL_REQUEST_TEMPLATE.md`) to structure your PR description.
 - Request review from domain owners when altering core rule logic or public web endpoints.
 
 ## Continuous Integration
