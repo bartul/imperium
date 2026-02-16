@@ -73,6 +73,11 @@ let toMarkdown
     let givenActionItems =
         spec.GivenActions |> List.choose formatAction |> List.map escapeCell
 
+    let givenActionRows =
+        match givenActionItems with
+        | [] -> []
+        | _ -> captionRows "" givenActionItems
+
     let whenItems = spec.Actions |> List.choose formatAction |> List.map escapeCell
 
     let thenItems =
@@ -92,7 +97,7 @@ let toMarkdown
            "| Step | Details |"
            "| --- | --- |"
            sprintf "| Given | State %s |" (escapeCell $"`%A{initialState}`") ]
-         @ captionRows "Given actions" givenActionItems
+         @ givenActionRows
          @ captionRows "When" whenItems
          @ captionRows "Then" thenItems
          @ [ "" ])
