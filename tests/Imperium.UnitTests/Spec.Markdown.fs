@@ -60,15 +60,18 @@ let private captionRows caption items =
 
 let toMarkdown
     (options: MarkdownRenderOptions)
-    (runner: ISpecRunner<'ctx, 'state, 'cmd, 'evt>)
-    (spec: Specification<'ctx, 'cmd, 'evt>)
+    (runner: ISpecRunner<'ctx, 'seed, 'state, 'cmd, 'evt>)
+    (spec: Specification<'ctx, 'seed, 'cmd, 'evt>)
     =
-    let context = spec.On()
+    let context = prepareContext runner spec
     let initialState = runner.CaptureState context
 
     runActions runner context spec.Actions
 
     let finalState = runner.CaptureState context
+
+    let givenActionItems =
+        spec.GivenActions |> List.choose formatAction |> List.map escapeCell
 
     let whenItems = spec.Actions |> List.choose formatAction |> List.map escapeCell
 
@@ -89,6 +92,7 @@ let toMarkdown
            "| Step | Details |"
            "| --- | --- |"
            sprintf "| Given | State %s |" (escapeCell $"`%A{initialState}`") ]
+         @ captionRows "Given actions" givenActionItems
          @ captionRows "When" whenItems
          @ captionRows "Then" thenItems
          @ [ "" ])

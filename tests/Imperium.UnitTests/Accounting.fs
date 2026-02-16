@@ -21,14 +21,16 @@ let private createContext () =
 // Runner
 // ────────────────────────────────────────────────────────────────────────────────
 
-let private runner: ISpecRunner<AccountingContext, NoState, AccountingCommand, unit> =
-    { new ISpecRunner<AccountingContext, NoState, AccountingCommand, unit> with
+let private runner: ISpecRunner<AccountingContext, NoState, NoState, AccountingCommand, unit> =
+    { new ISpecRunner<AccountingContext, NoState, NoState, AccountingCommand, unit> with
         member _.Execute ctx cmd =
             execute ctx.Deps cmd |> Async.RunSynchronously
 
         member _.Handle _ _ = ()
         member _.ClearEvents ctx = ctx.Events.Clear()
         member _.ClearCommands _ = ()
+        member _.SeedState _ _ = ()
+        member _.SeedFor _ = None
         member _.CaptureState _ = NoState }
 
 // ────────────────────────────────────────────────────────────────────────────────
