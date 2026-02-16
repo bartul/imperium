@@ -62,3 +62,11 @@ dotnet run --project src/Imperium.Terminal
 | **Testing** | Expecto, FsCheck |
 | **Utilities** | FsToolkit.ErrorHandling |
 | **Formatting** | Fantomas |
+
+## License
+
+This project is licensed under the [MIT License](LICENSE).
+
+## Disclaimer
+
+*Imperial is a board game designed by Mac Gerdts and published by PD-Verlag and Rio Grande Games. This project is an independent fan implementation for educational and research purposes and is not affiliated with, endorsed by, or sponsored by the designer or publishers.*
