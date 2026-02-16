@@ -27,8 +27,8 @@ Last verified: 2026-02-15
   - `Contract.Rondel.RondelState`: Serializable DTOs (Guid/string) for persistence. NationPositions is `Map<string, string option>` at the serialization boundary and PendingMovements is keyed by nation name for O(log n) lookups.
   - `Rondel.RondelState`: Domain state uses strong types (`Id`, `Space option`, `RondelBillingId`). NationPositions is `Map<string, Space option>` and PendingMovement uses `Space` TargetSpace + `RondelBillingId` BillingId. Transformations live in `Rondel.fs` (`RondelState.toContract/fromContract`), not in a separate adapter.
 - `src/Imperium.Web` bootstraps the HTTP layer (`Program.fs`). Reference the core project via the existing project reference instead of duplicating logic.
-- `src/Imperium.Terminal` (planned): Terminal UI app with Hex1b, MailboxProcessor hosting, in-memory store, cross-context Bus. See `docs/rondel_multi_environment_architecture.md` for Phase 1 design.
-- `docs/` stores reference rulebooks; official rule PDFs live in `docs/official_rules/`. Architecture docs in `docs/rondel_multi_environment_architecture.md`. Leave build artefacts inside each project's `bin/` and `obj/` directories untouched.
+- `src/Imperium.Terminal` (planned): Terminal UI app with Hex1b, MailboxProcessor hosting, in-memory store, cross-context Bus. See `docs/architecture.md` for design.
+- `docs/` stores reference rulebooks; official rule PDFs live in `docs/official_rules/`. Architecture docs in `docs/architecture.md`, pending technology choices in `docs/future_decisions.md`. Leave build artefacts inside each project's `bin/` and `obj/` directories untouched.
 - Rondel spaces (board order): `Investor`, `Import`, `ProductionOne`, `ManeuverOne`, `Taxation`, `Factory`, `ProductionTwo`, `ManeuverTwo`.
 - Rondel rules source: mechanic follows the boardgame "rondel" described in `docs/Imperial_English_Rules.pdf`. Keep only a quick cheat sheet here; see the PDF for full details. Key movement: clockwise, cannot stay put; 1–3 spaces free, 4–6 cost 2M per additional space beyond the first 3 free spaces (4 spaces = 2M, 5 spaces = 4M, 6 spaces = 6M; max distance 6), first turn may start anywhere. Actions: Factory (build own city for 5M, no hostile upright armies), Production (each unoccupied home factory produces 1 unit), Import (buy up to 3 units for 1M each in home provinces), Maneuver (fleets adjacent sea; armies adjacent land or via fleets; rail within home; 3 armies can destroy a factory; place flags in newly occupied regions), Investor (pay bond interest; investor card gets 2M and may invest; Swiss bank owners may also invest; passing executes investor steps 2–3), Taxation (tax: 2M per unoccupied factory, 1M per flag; dividend if tax track increases; add power points; treasury collects tax minus 1M per army/fleet). Game ends at 25 power points; score = bond interest x nation factor + personal cash.
 
@@ -67,7 +67,7 @@ Last verified: 2026-02-15
 - Tests use helper pattern: private record types (`Rondel`, `Accounting`) with routers (sync wrappers using `Async.RunSynchronously`), factory functions return router record with async dependencies + observable collections for verification.
 
 ### Multi-Environment Architecture (Phase 1: Terminal App)
-- See `docs/rondel_multi_environment_architecture.md` for full architecture and design decisions.
+- See `docs/architecture.md` for full architecture and design decisions.
 - **Terminal app** (`Imperium.Terminal`): In-process app with Terminal.Gui v2 (`2.0.0-develop.5027`), MailboxProcessor hosting, in-memory store.
 - **Key patterns:**
   - `IBus` interface for cross-bounded-context **events** (pub/sub with generic `Publish<'T>` and `Subscribe<'T>`); implementation uses `ConcurrentDictionary<Type, obj>` storing typed handler lists to avoid boxing events on publish
@@ -188,7 +188,7 @@ Domain modules (`.fsi` and `.fs` pairs) follow a consistent sectioned structure.
 - Execute `dotnet test` (via TestSdk) or `dotnet run --project tests/Imperium.UnitTests/Imperium.UnitTests.fsproj` (native Expecto runner with colorized output).
 - Test organization: group related tests with `testList`, use descriptive test names in lowercase ("accepts valid GUID", not "AcceptsValidGuid").
 - Cover edge cases: null inputs, empty strings, invalid formats, boundary conditions.
-- Follow three-phase module development process documented in `docs/module_design_process.md`: define interface, write tests, implement functionality.
+- Follow three-phase module development process documented in `docs/architecture.md`: define interface, write tests, implement functionality.
 
 ### CE-Based Testing (Simple.Testing style)
 
