@@ -102,6 +102,15 @@ let private hasChargeCommand ctx =
         | ChargeMovement _ -> true
         | _ -> false)
 
+let private hasChargeCommandOf (amount: Amount) ctx =
+    ctx.Commands
+    |> Seq.exists (function
+        | ChargeMovement cmd when cmd.Amount = amount -> true
+        | _ -> false)
+
+let private hasChargeCommandOfM millions =
+    hasChargeCommandOf (Amount.unsafe millions)
+
 let private hasVoidCommand ctx =
     ctx.Commands
     |> Seq.exists (function
@@ -150,7 +159,6 @@ let private moveSpecs =
           expect
               "action is determined"
               (hasExactEvent (ActionDetermined { GameId = gameId; Nation = "France"; Action = Action.Factory }))
-
           expect "no payment required" (hasChargeCommand >> not)
       }
 
@@ -170,7 +178,6 @@ let private moveSpecs =
           expect
               "rejects the move"
               (hasExactEvent (MoveToActionSpaceRejected { GameId = gameId; Nation = "France"; Space = Space.Factory }))
-
           expect "no action determined" (hasActionDetermined >> not)
           expect "no payment required" (hasChargeCommand >> not)
       }
@@ -203,67 +210,39 @@ let private moveSpecs =
 
           expect "no action determined" (hasActionDetermined >> not)
           expect "payment is required" hasChargeCommand
-
-          expect "payment amount is 2M" (fun ctx ->
-              ctx.Commands
-              |> Seq.choose (function
-                  | ChargeMovement cmd -> Some cmd.Amount
-                  | _ -> None)
-              |> Seq.tryHead
-              |> Option.map (fun a -> a = Amount.unsafe 2)
-              |> Option.defaultValue false)
+          expect "payment amount is 2M" (hasChargeCommandOfM 2)
       }
 
-      spec "move of 5 spaces requires payment of 4M" {
+      spec "moving a nation 5 spaces requires payment of 4M" {
           on (fun () -> createContext gameId)
 
+          state
+              { GameId = gameId
+                NationPositions = Map [ ("France", Some Space.ManeuverOne); ("Austria", None); ("Germany", None) ]
+                PendingMovements = Map.empty }
+
           when_
-              [ SetToStartingPositions { GameId = gameId; Nations = nations } |> Execute
-                // First move to ManeuverOne (establishes position)
-                Move { GameId = gameId; Nation = "France"; Space = Space.ManeuverOne }
-                |> Execute
-                ClearEvents
-                ClearCommands
-                // Second move: 5 spaces (ManeuverOne -> Investor)
-                Move { GameId = gameId; Nation = "France"; Space = Space.Investor } |> Execute ]
+              [ Move { GameId = gameId; Nation = "France"; Space = Space.Investor } |> Execute ]
 
           expect "no action determined yet" (hasActionDetermined >> not)
           expect "charge dispatched" hasChargeCommand
-
-          expect "charge amount is 4M" (fun ctx ->
-              ctx.Commands
-              |> Seq.choose (function
-                  | ChargeMovement cmd -> Some cmd.Amount
-                  | _ -> None)
-              |> Seq.tryHead
-              |> Option.map (fun a -> a = Amount.unsafe 4)
-              |> Option.defaultValue false)
+          expect "charge amount is 4M" (hasChargeCommandOfM 4)
       }
 
-      spec "move of 6 spaces requires payment of 6M" {
+      spec "moving a nation 6 spaces requires payment of 6M" {
           on (fun () -> createContext gameId)
 
+          state
+              { GameId = gameId
+                NationPositions = Map [ ("France", Some Space.Investor); ("Austria", None); ("Germany", None) ]
+                PendingMovements = Map.empty }
+
           when_
-              [ SetToStartingPositions { GameId = gameId; Nations = nations } |> Execute
-                // First move to Investor (establishes position at index 0)
-                Move { GameId = gameId; Nation = "France"; Space = Space.Investor } |> Execute
-                ClearEvents
-                ClearCommands
-                // Second move: 6 spaces (Investor(0) -> ProductionTwo(6))
-                Move { GameId = gameId; Nation = "France"; Space = Space.ProductionTwo }
-                |> Execute ]
+              [ Move { GameId = gameId; Nation = "France"; Space = Space.ProductionTwo } |> Execute ]
 
           expect "no action determined yet" (hasActionDetermined >> not)
           expect "charge dispatched" hasChargeCommand
-
-          expect "charge amount is 6M" (fun ctx ->
-              ctx.Commands
-              |> Seq.choose (function
-                  | ChargeMovement cmd -> Some cmd.Amount
-                  | _ -> None)
-              |> Seq.tryHead
-              |> Option.map (fun a -> a = Amount.unsafe 6)
-              |> Option.defaultValue false)
+          expect "charge amount is 6M" (hasChargeCommandOfM 6)
       }
 
       spec "move of 7 spaces exceeds maximum and is rejected" {
