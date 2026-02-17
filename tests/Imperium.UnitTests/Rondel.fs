@@ -253,23 +253,22 @@ let private moveSpecs =
           expect "payment amount is 6M" (hasChargeCommandOfM 6)
       }
 
-      spec "move of 7 spaces exceeds maximum and is rejected" {
+      spec "moving a nation 7 spaces is rejected as exceeding maximum distance" {
           on (fun () -> createContext gameId)
 
-          when_
-              [ SetToStartingPositions { GameId = gameId; Nations = nations } |> Execute
-                // First move to ProductionOne (establishes position at index 2)
-                Move { GameId = gameId; Nation = "France"; Space = Space.ProductionOne }
-                |> Execute
-                ClearEvents
-                ClearCommands
-                // Second move: 7 spaces (ProductionOne -> Import, wrapping around)
-                // Prod1(2) + 7 = 9, 9 % 8 = 1 = Import
-                Move { GameId = gameId; Nation = "France"; Space = Space.Import } |> Execute ]
+          state
+              { GameId = gameId
+                NationPositions = Map [ ("France", Some Space.ProductionOne); ("Austria", None); ("Germany", None) ]
+                PendingMovements = Map.empty }
 
-          expect "rejects the move" hasRejection
+          when_
+              [ Move { GameId = gameId; Nation = "France"; Space = Space.Import } |> Execute ]
+
+          expect
+              "rejects the move"
+              (hasExactEvent (MoveToActionSpaceRejected { GameId = gameId; Nation = "France"; Space = Space.Import }))
           expect "no action determined" (hasActionDetermined >> not)
-          expect "no charge dispatched" (hasChargeCommand >> not)
+          expect "no payment required" (hasChargeCommand >> not)
       }
 
       spec "superseding pending paid move with another paid move voids old charge" {
