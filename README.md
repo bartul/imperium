@@ -18,6 +18,8 @@ This codebase serves as a showcase for several design patterns and development t
 - **Three-phase module development process** — define `.fsi` interface first, write failing tests against it, then implement until green
 - **`MailboxProcessor` for serialized writes** — terminal app uses F# agents to serialize state mutations per bounded context while allowing concurrent reads
 
+See [docs/architecture.md](docs/architecture.md) for detailed design documentation.
+
 ## Project Structure
 
 ```
