@@ -121,7 +121,7 @@ let private chargeCount ctx =
 
 let private moveSpecs =
     let gameId = Guid.NewGuid() |> Id
-    let nations = Set.ofList [ "Austria"; "France"; "Germany" ]
+    let nations = Set.ofList [ "France"; "Austria"; "Germany" ]
 
     [ spec "any attempted move is rejected until nations are set to starting positions" {
           on (fun () -> createContext gameId)
@@ -159,7 +159,7 @@ let private moveSpecs =
 
           state
               { GameId = gameId
-                NationPositions = Map [ ("Austria", None); ("France", Some Space.Factory); ("Germany", None) ]
+                NationPositions = Map [ ("France", Some Space.Factory); ("Austria", Some Space.Investor); ("Germany", Some Space.Import) ]
                 PendingMovements = Map.empty }
 
           when_
