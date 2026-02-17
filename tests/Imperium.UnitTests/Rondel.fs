@@ -175,41 +175,36 @@ let private moveSpecs =
           expect "no payment required" (hasChargeCommand >> not)
       }
 
-      spec "move of 1-3 spaces is free" {
+      spec "moving a nation 1-3 spaces is free" {
           on (fun () -> createContext gameId)
 
+          state
+              { GameId = gameId
+                NationPositions = Map [ ("France", Some Space.Investor); ("Austria", None); ("Germany", None) ]
+                PendingMovements = Map.empty }
+
           when_
-              [ SetToStartingPositions { GameId = gameId; Nations = nations } |> Execute
-                // First move to Investor (establishes position)
-                Move { GameId = gameId; Nation = "France"; Space = Space.Investor } |> Execute
-                ClearEvents
-                ClearCommands
-                // Second move: 2 spaces (Investor -> ProductionOne)
-                Move { GameId = gameId; Nation = "France"; Space = Space.ProductionOne }
-                |> Execute ]
+              [ Move { GameId = gameId; Nation = "France"; Space = Space.ProductionOne } |> Execute ]
 
           expect "action is determined" hasActionDetermined
-          expect "no charge dispatched" (hasChargeCommand >> not)
+          expect "no payment required" (hasChargeCommand >> not)
       }
 
-      spec "move of 4 spaces requires payment of 2M" {
+      spec "moving a nation 4 spaces requires payment of 2M" {
           on (fun () -> createContext gameId)
 
+          state
+              { GameId = gameId
+                NationPositions = Map [ ("France", Some Space.ProductionOne); ("Austria", None); ("Germany", None) ]
+                PendingMovements = Map.empty }
+
           when_
-              [ SetToStartingPositions { GameId = gameId; Nations = nations } |> Execute
-                // First move to ProductionOne (establishes position)
-                Move { GameId = gameId; Nation = "France"; Space = Space.ProductionOne }
-                |> Execute
-                ClearEvents
-                ClearCommands
-                // Second move: 4 spaces (ProductionOne -> ProductionTwo)
-                Move { GameId = gameId; Nation = "France"; Space = Space.ProductionTwo }
-                |> Execute ]
+              [ Move { GameId = gameId; Nation = "France"; Space = Space.ProductionTwo } |> Execute ]
 
-          expect "no action determined yet" (hasActionDetermined >> not)
-          expect "charge dispatched" hasChargeCommand
+          expect "no action determined" (hasActionDetermined >> not)
+          expect "payment is required" hasChargeCommand
 
-          expect "charge amount is 2M" (fun ctx ->
+          expect "payment amount is 2M" (fun ctx ->
               ctx.Commands
               |> Seq.choose (function
                   | ChargeMovement cmd -> Some cmd.Amount
