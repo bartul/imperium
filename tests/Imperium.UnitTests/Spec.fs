@@ -96,9 +96,7 @@ module Specification =
         { specification with GivenActions = actions }
 
     /// Preserve setup side effects outside CE definition.
-    let preserve
-        (specification: Specification<'ctx, 'seed, 'cmd, 'evt>)
-        : Specification<'ctx, 'seed, 'cmd, 'evt> =
+    let preserve (specification: Specification<'ctx, 'seed, 'cmd, 'evt>) : Specification<'ctx, 'seed, 'cmd, 'evt> =
         { specification with Preserve = true }
 
 // ────────────────────────────────────────────────────────────────────────────────
@@ -136,7 +134,8 @@ let prepareContext
     let context = specification.On()
 
     let seedState =
-        specification.State |> Option.orElseWith (fun () -> runner.SeedFor specification)
+        specification.State
+        |> Option.orElseWith (fun () -> runner.SeedFor specification)
 
     seedState |> Option.iter (runner.SeedState context)
 

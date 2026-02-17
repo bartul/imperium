@@ -154,17 +154,23 @@ let private moveSpecs =
           expect "no payment required" (hasChargeCommand >> not)
       }
 
-      spec "rejects move to current position (stay put)" {
+      spec "moving a nation to its current position is rejected (stay put)" {
           on (fun () -> createContext gameId)
 
-          when_
-              [ SetToStartingPositions { GameId = gameId; Nations = nations } |> Execute
-                Move { GameId = gameId; Nation = "France"; Space = Space.Factory } |> Execute
-                ClearEvents
-                ClearCommands
-                Move { GameId = gameId; Nation = "France"; Space = Space.Factory } |> Execute ]
+          state
+              { GameId = gameId
+                NationPositions = Map [ ("Austria", None); ("France", Some Space.Factory); ("Germany", None) ]
+                PendingMovements = Map.empty }
 
-          expect "rejects the move" hasRejection
+          when_
+              [ Move { GameId = gameId; Nation = "France"; Space = Space.Factory } |> Execute
+                Move { GameId = gameId; Nation = "Austria"; Space = Space.Investor } |> Execute
+                Move { GameId = gameId; Nation = "Germany"; Space = Space.Import } |> Execute ]
+
+          expect
+              "rejects the move"
+              (hasExactEvent (MoveToActionSpaceRejected { GameId = gameId; Nation = "France"; Space = Space.Factory }))
+
           expect "no action determined" (hasActionDetermined >> not)
           expect "no payment required" (hasChargeCommand >> not)
       }
