@@ -159,6 +159,7 @@ let private moveSpecs =
           expect
               "action is determined"
               (hasExactEvent (ActionDetermined { GameId = gameId; Nation = "France"; Action = Action.Factory }))
+
           expect "no payment required" (hasChargeCommand >> not)
       }
 
@@ -167,7 +168,11 @@ let private moveSpecs =
 
           state
               { GameId = gameId
-                NationPositions = Map [ ("France", Some Space.Factory); ("Austria", Some Space.Investor); ("Germany", Some Space.Import) ]
+                NationPositions =
+                  Map
+                      [ ("France", Some Space.Factory)
+                        ("Austria", Some Space.Investor)
+                        ("Germany", Some Space.Import) ]
                 PendingMovements = Map.empty }
 
           when_
@@ -178,6 +183,7 @@ let private moveSpecs =
           expect
               "rejects the move"
               (hasExactEvent (MoveToActionSpaceRejected { GameId = gameId; Nation = "France"; Space = Space.Factory }))
+
           expect "no action determined" (hasActionDetermined >> not)
           expect "no payment required" (hasChargeCommand >> not)
       }
@@ -191,7 +197,8 @@ let private moveSpecs =
                 PendingMovements = Map.empty }
 
           when_
-              [ Move { GameId = gameId; Nation = "France"; Space = Space.ProductionOne } |> Execute ]
+              [ Move { GameId = gameId; Nation = "France"; Space = Space.ProductionOne }
+                |> Execute ]
 
           expect "action is determined" hasActionDetermined
           expect "no payment required" (hasChargeCommand >> not)
@@ -206,7 +213,8 @@ let private moveSpecs =
                 PendingMovements = Map.empty }
 
           when_
-              [ Move { GameId = gameId; Nation = "France"; Space = Space.ProductionTwo } |> Execute ]
+              [ Move { GameId = gameId; Nation = "France"; Space = Space.ProductionTwo }
+                |> Execute ]
 
           expect "no action determined" (hasActionDetermined >> not)
           expect "payment is required" hasChargeCommand
@@ -221,12 +229,11 @@ let private moveSpecs =
                 NationPositions = Map [ ("France", Some Space.ManeuverOne); ("Austria", None); ("Germany", None) ]
                 PendingMovements = Map.empty }
 
-          when_
-              [ Move { GameId = gameId; Nation = "France"; Space = Space.Investor } |> Execute ]
+          when_ [ Move { GameId = gameId; Nation = "France"; Space = Space.Investor } |> Execute ]
 
-          expect "no action determined yet" (hasActionDetermined >> not)
-          expect "charge dispatched" hasChargeCommand
-          expect "charge amount is 4M" (hasChargeCommandOfM 4)
+          expect "no action determined" (hasActionDetermined >> not)
+          expect "payment is required" hasChargeCommand
+          expect "payment amount is 4M" (hasChargeCommandOfM 4)
       }
 
       spec "moving a nation 6 spaces requires payment of 6M" {
@@ -238,11 +245,12 @@ let private moveSpecs =
                 PendingMovements = Map.empty }
 
           when_
-              [ Move { GameId = gameId; Nation = "France"; Space = Space.ProductionTwo } |> Execute ]
+              [ Move { GameId = gameId; Nation = "France"; Space = Space.ProductionTwo }
+                |> Execute ]
 
-          expect "no action determined yet" (hasActionDetermined >> not)
-          expect "charge dispatched" hasChargeCommand
-          expect "charge amount is 6M" (hasChargeCommandOfM 6)
+          expect "no action determined" (hasActionDetermined >> not)
+          expect "payment is required" hasChargeCommand
+          expect "payment amount is 6M" (hasChargeCommandOfM 6)
       }
 
       spec "move of 7 spaces exceeds maximum and is rejected" {
