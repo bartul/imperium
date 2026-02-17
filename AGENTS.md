@@ -1,8 +1,15 @@
 # Repository Guidelines
 Last verified: 2026-02-15
 
+## Agent Priorities
+
+- Follow the three-phase process in `docs/architecture.md`: define `.fsi`, write tests, then implement.
+- Handlers accept unified `RondelDependencies` record for consistency. When adding new handlers, use the same pattern.
+- Public API uses routers (`execute`, `handle`) as single entry points; individual handlers are internal implementation details.
+- Prefer minimal public surface; align `.fs` to `.fsi` without widening the API.
+
 ## Project Structure & Module Organization
-- `Imperium.sln` stitches together the core F# library, ASP.NET Core web host, and unit test project.
+- `Imperium.slnx` stitches together the core F# library, ASP.NET Core web host, and unit test project.
 - `src/Imperium` contains domain modules (build order: `Primitives.fs`, `AsyncExtensions.fs`, `Contract.fs`, `Contract.Accounting.fs`, `Contract.Rondel.fs`, `Gameplay.fs/.fsi`, `Accounting.fs/.fsi`, `Rondel.fs/.fsi`).
 - `tests/Imperium.UnitTests` contains Expecto-based unit tests; test modules mirror source structure (e.g., `RondelTests.fs` tests `Rondel.fs` handlers, `RondelContractTests.fs` tests `Rondel.fs` transformation layer).
 - **Primitives module:** Foundational types with no `.fsi` file (intentionally public)
@@ -27,10 +34,10 @@ Last verified: 2026-02-15
   - `Contract.Rondel.RondelState`: Serializable DTOs (Guid/string) for persistence. NationPositions is `Map<string, string option>` at the serialization boundary and PendingMovements is keyed by nation name for O(log n) lookups.
   - `Rondel.RondelState`: Domain state uses strong types (`Id`, `Space option`, `RondelBillingId`). NationPositions is `Map<string, Space option>` and PendingMovement uses `Space` TargetSpace + `RondelBillingId` BillingId. Transformations live in `Rondel.fs` (`RondelState.toContract/fromContract`), not in a separate adapter.
 - `src/Imperium.Web` bootstraps the HTTP layer (`Program.fs`). Reference the core project via the existing project reference instead of duplicating logic.
-- `src/Imperium.Terminal` (planned): Terminal UI app with Hex1b, MailboxProcessor hosting, in-memory store, cross-context Bus. See `docs/architecture.md` for design.
+- `src/Imperium.Terminal`: Terminal UI app with Terminal.Gui v2, MailboxProcessor hosting, in-memory store, cross-context Bus. See `docs/architecture.md` for design.
 - `docs/` stores reference rulebooks; official rule PDFs live in `docs/official_rules/`. Architecture docs in `docs/architecture.md`, pending technology choices in `docs/future_decisions.md`. Leave build artefacts inside each project's `bin/` and `obj/` directories untouched.
 - Rondel spaces (board order): `Investor`, `Import`, `ProductionOne`, `ManeuverOne`, `Taxation`, `Factory`, `ProductionTwo`, `ManeuverTwo`.
-- Rondel rules source: mechanic follows the boardgame "rondel" described in `docs/Imperial_English_Rules.pdf`. Keep only a quick cheat sheet here; see the PDF for full details. Key movement: clockwise, cannot stay put; 1–3 spaces free, 4–6 cost 2M per additional space beyond the first 3 free spaces (4 spaces = 2M, 5 spaces = 4M, 6 spaces = 6M; max distance 6), first turn may start anywhere. Actions: Factory (build own city for 5M, no hostile upright armies), Production (each unoccupied home factory produces 1 unit), Import (buy up to 3 units for 1M each in home provinces), Maneuver (fleets adjacent sea; armies adjacent land or via fleets; rail within home; 3 armies can destroy a factory; place flags in newly occupied regions), Investor (pay bond interest; investor card gets 2M and may invest; Swiss bank owners may also invest; passing executes investor steps 2–3), Taxation (tax: 2M per unoccupied factory, 1M per flag; dividend if tax track increases; add power points; treasury collects tax minus 1M per army/fleet). Game ends at 25 power points; score = bond interest x nation factor + personal cash.
+- Rondel rules source: mechanic follows the boardgame "rondel" described in `docs/official_rules/Imperial_English_Rules.pdf`. Keep only a quick cheat sheet here; see the PDF for full details. Key movement: clockwise, cannot stay put; 1–3 spaces free, 4–6 cost 2M per additional space beyond the first 3 free spaces (4 spaces = 2M, 5 spaces = 4M, 6 spaces = 6M; max distance 6), first turn may start anywhere. Actions: Factory (build own city for 5M, no hostile upright armies), Production (each unoccupied home factory produces 1 unit), Import (buy up to 3 units for 1M each in home provinces), Maneuver (fleets adjacent sea; armies adjacent land or via fleets; rail within home; 3 armies can destroy a factory; place flags in newly occupied regions), Investor (pay bond interest; investor card gets 2M and may invest; Swiss bank owners may also invest; passing executes investor steps 2–3), Taxation (tax: 2M per unoccupied factory, 1M per flag; dividend if tax track increases; add power points; treasury collects tax minus 1M per army/fleet). Game ends at 25 power points; score = bond interest x nation factor + personal cash.
 
 ### Handler Signature Pattern
 - **Transformation modules** (`SetToStartingPositionsCommand.fromContract`, `MoveCommand.fromContract`, `InvoicePaidInboundEvent.fromContract`, `InvoicePaymentFailedInboundEvent.fromContract`): Modules named after domain types; accept Contract types, validate inputs, return `Result<DomainType, string>` with plain string errors
@@ -101,18 +108,25 @@ Last verified: 2026-02-15
 - **RondelView architecture:** Stateless `RondelCanvas` (zero mutable fields) reads from shared `RondelViewState` record with mutable fields (`CurrentGame`, `Selection`, `Positions`). `SelectionMode` record (`Nation` + `Space`) replaces separate selection tracking — single `Option` makes state transitions atomic. `SyncFocus()` method toggles canvas focus based on selection state. Navigation uses `RondelLayout.nextSpace`/`prevSpace` helpers. `onSpaceSelected: Space -> unit` callback replaces direct `RondelHost` dependency. Color scheme: Investor=teal, Import=orange, Production=grey, Maneuver=green, Taxation=yellow, Factory=blue. Emoji flags (🇦🇹🇫🇷🇩🇪🇬🇧🇮🇹🇷🇺) on nation abbreviations with `displayWidth` helper for correct terminal centering.
 
 ## Build, Test, and Development Commands
-- Restore dependencies: `dotnet restore Imperium.sln`.
-- Compile everything: `dotnet build Imperium.sln` (fails fast on warnings-as-errors configured per project).
+- Restore dependencies: `dotnet restore Imperium.slnx`.
+- Compile everything: `dotnet build Imperium.slnx` (fails fast on warnings-as-errors configured per project).
 - Run the web host locally: `dotnet run --project src/Imperium.Web/Imperium.Web.fsproj`.
 - Live reload during UI work: `dotnet watch --project src/Imperium.Web/Imperium.Web.fsproj run`.
 - Run unit tests: `dotnet test` (VS Code integration via YoloDev.Expecto.TestSdk) or `dotnet run --project tests/Imperium.UnitTests/Imperium.UnitTests.fsproj` (native Expecto runner).
+
+### Pre-Commit Checklist
+
+Before every commit, always run these steps in order:
+1. `dotnet fantomas .` — format all F# files
+2. `dotnet build` — ensure the whole solution compiles with 0 errors and 0 warnings
+3. `dotnet test` — ensure all tests pass
 
 ### Launch Terminal App for Review
 
 To launch the terminal app in a separate Ghostty window for visual review:
 
 ```bash
-open -na Ghostty.app --args --command="dotnet run --project /Users/bartul/code/imperium-experiment-terminal-ui/src/Imperium.Terminal" --window-width=160 --window-height=50 --quit-after-last-window-closed=true
+open -na Ghostty.app --args --command="dotnet run --project src/Imperium.Terminal" --window-width=160 --window-height=50 --quit-after-last-window-closed=true
 ```
 
 Use this as part of the inner development loop: make changes, launch for review, collect feedback, iterate.
@@ -122,6 +136,20 @@ Use this as part of the inner development loop: make changes, launch for review,
 - Group related functions into modules that mirror file names (`Rondel`, `MonetarySystem`); expose a minimal public surface.
 - Prefer expression-based code and pattern matching over mutable branches.
 - Before committing, run `dotnet fantomas .` to format code (configured via `.config/dotnet-tools.json`); keep diffs tidy and minimal.
+
+### Signature Files: Function vs Value
+
+F# distinguishes function definitions from computed values. Avoid partial applications in signatures unless explicitly parenthesized.
+
+```fsharp
+// Prefer explicit function definition for tryParse helpers
+let tryParse raw = Id.tryParseMap GameId raw
+
+// If you expose a computed value, mark it in the signature:
+val tryParse : (string -> Result<T, string>)
+```
+
+Reasoning: preserves IL shape, avoids unwanted module-load computation, and keeps inlining options.
 
 ### Module File Organization
 
@@ -188,7 +216,6 @@ Domain modules (`.fsi` and `.fs` pairs) follow a consistent sectioned structure.
 - Execute `dotnet test` (via TestSdk) or `dotnet run --project tests/Imperium.UnitTests/Imperium.UnitTests.fsproj` (native Expecto runner with colorized output).
 - Test organization: group related tests with `testList`, use descriptive test names in lowercase ("accepts valid GUID", not "AcceptsValidGuid").
 - Cover edge cases: null inputs, empty strings, invalid formats, boundary conditions.
-- Follow three-phase module development process documented in `docs/architecture.md`: define interface, write tests, implement functionality.
 
 ### CE-Based Testing (Simple.Testing style)
 
@@ -324,8 +351,8 @@ All changes must go through pull requests to maintain code quality and enable pr
 
 3. **Verify locally** - Ensure all checks pass before pushing
    ```bash
-   dotnet build Imperium.sln --configuration Release
-   dotnet test Imperium.sln --configuration Release
+   dotnet build Imperium.slnx --configuration Release
+   dotnet test Imperium.slnx --configuration Release
    ```
 
 4. **Push and create PR** - Push your branch and open a pull request
@@ -348,23 +375,15 @@ All changes must go through pull requests to maintain code quality and enable pr
    - Use "Merge commit" to preserve detailed commit history
    - Delete branch after merging
 
-### Branch Protection (Workaround)
+### Branch Protection
 
-GitHub branch protection rules require GitHub Pro for private repositories. Until upgraded:
-
-- **Team Agreement**: Never push directly to `master` except for emergencies
+- Never push directly to `master` except for emergencies
 - **CI as Quality Gate**: The "Continuous Integration" workflow provides automated quality checks
 - **Self-Review**: Before merging your own PR, verify:
   - CI passes (green checkmark)
   - Code follows project conventions
   - Tests provide adequate coverage
   - Documentation is updated if needed
-
-**Future**: When GitHub Pro is enabled, configure these branch protection rules:
-- Require pull request before merging
-- Require status checks to pass (Continuous Integration workflow)
-- Require conversation resolution before merging
-- Do not allow bypassing the above settings
 
 ## Commit & Pull Request Guidelines
 
@@ -388,7 +407,7 @@ The project uses GitHub Actions for automated quality checks on all pull request
 **Build Steps:**
 1. **Restore tools**: `dotnet tool restore` (Fantomas from `.config/dotnet-tools.json`)
 2. **Cache NuGet packages**: Speeds up builds by ~30%
-3. **Restore dependencies**: `dotnet restore Imperium.sln`
+3. **Restore dependencies**: `dotnet restore Imperium.slnx`
 4. **Build**: `dotnet build --configuration Release` (warnings as errors)
 5. **Test**: `dotnet test` with multiple loggers:
    - Console logger for CI output
