@@ -264,17 +264,18 @@ let private moveSpecs =
                 NationPositions = Map [ ("France", Some Space.ProductionOne); ("Austria", None); ("Germany", None) ]
                 PendingMovements = Map.empty }
 
-          when_
-              [ Move { GameId = gameId; Nation = "France"; Space = Space.Import } |> Execute ]
+          when_ [ Move { GameId = gameId; Nation = "France"; Space = Space.Import } |> Execute ]
 
           expect
               "rejects the move"
               (hasExactEvent (MoveToActionSpaceRejected { GameId = gameId; Nation = "France"; Space = Space.Import }))
+
           expect "no action determined" (hasActionDetermined >> not)
           expect "no payment required" (hasChargeCommand >> not)
       }
 
       let previousBillingId = Guid.NewGuid() |> Id |> RondelBillingId.ofId
+
       spec "moving a nation with a pending paid move to another paid move voids the old charge" {
           on (fun () -> createContext gameId)
 
@@ -282,47 +283,54 @@ let private moveSpecs =
               { GameId = gameId
                 NationPositions = Map [ ("France", Some Space.ProductionOne); ("Austria", None); ("Germany", None) ]
                 PendingMovements =
-                    Map
-                        [ ("France",
-                           { Nation = "France"
-                             TargetSpace = Space.ProductionTwo
-                             BillingId = previousBillingId }) ] }
+                  Map
+                      [ ("France",
+                         { Nation = "France"; TargetSpace = Space.ProductionTwo; BillingId = previousBillingId }) ] }
 
           when_
-              [ Move { GameId = gameId; Nation = "France"; Space = Space.ManeuverTwo } |> Execute ]
+              [ Move { GameId = gameId; Nation = "France"; Space = Space.ManeuverTwo }
+                |> Execute ]
 
           expect
               "pending move is rejected"
-              (hasExactEvent (MoveToActionSpaceRejected { GameId = gameId; Nation = "France"; Space = Space.ProductionTwo }))
+              (hasExactEvent (
+                  MoveToActionSpaceRejected { GameId = gameId; Nation = "France"; Space = Space.ProductionTwo }
+              ))
+
           expect
               "previous charge is voided"
               (hasExactCommand (VoidCharge { GameId = gameId; BillingId = previousBillingId }))
+
           expect "new payment is required" hasChargeCommand
           expect "payment amount is 4M" (hasChargeCommandOfM 4)
           expect "no action determined" (hasActionDetermined >> not)
       }
 
-      spec "superseding pending paid move with free move voids charge and completes immediately" {
+      let previousBillingIdForFreeMove = Guid.NewGuid() |> Id |> RondelBillingId.ofId
+
+      spec "moving a nation with a pending paid move to a free move voids the old charge and completes immediately" {
           on (fun () -> createContext gameId)
 
-          when_
-              [ SetToStartingPositions { GameId = gameId; Nations = nations } |> Execute
-                // First move to ManeuverOne (establishes position)
-                Move { GameId = gameId; Nation = "Germany"; Space = Space.ManeuverOne }
-                |> Execute
-                ClearEvents
-                ClearCommands
-                // Second move: 5 spaces (pending payment) - ManeuverOne to Investor
-                Move { GameId = gameId; Nation = "Germany"; Space = Space.Investor } |> Execute
-                ClearEvents
-                ClearCommands
-                // Third move: 2 spaces (free, supersedes) - ManeuverOne to Factory
-                Move { GameId = gameId; Nation = "Germany"; Space = Space.Factory } |> Execute ]
+          state
+              { GameId = gameId
+                NationPositions = Map [ ("France", Some Space.ManeuverOne); ("Austria", None); ("Germany", None) ]
+                PendingMovements =
+                  Map
+                      [ ("France",
+                         { Nation = "France"; TargetSpace = Space.Investor; BillingId = previousBillingIdForFreeMove }) ] }
 
-          expect "old move rejected" hasRejection
-          expect "old charge voided" hasVoidCommand
-          expect "no new charge dispatched" (fun ctx -> chargeCount ctx = 0)
-          expect "action determined immediately" hasActionDetermined
+          when_ [ Move { GameId = gameId; Nation = "France"; Space = Space.Factory } |> Execute ]
+
+          expect
+              "pending move is rejected"
+              (hasExactEvent (MoveToActionSpaceRejected { GameId = gameId; Nation = "France"; Space = Space.Investor }))
+
+          expect
+              "previous charge is voided"
+              (hasExactCommand (VoidCharge { GameId = gameId; BillingId = previousBillingIdForFreeMove }))
+
+          expect "no payment is required" (hasChargeCommand >> not)
+          expect "action is determined" hasActionDetermined
       } ]
 
 let renderSpecMarkdown options =
