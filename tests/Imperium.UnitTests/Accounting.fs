@@ -37,8 +37,7 @@ let private runner: ISpecRunner<AccountingContext, NoState, NoState, AccountingC
 // Helpers
 // ────────────────────────────────────────────────────────────────────────────────
 
-let private hasEventCount expected ctx =
-    ctx.Events.Count = expected
+let private hasEventCount expected ctx = ctx.Events.Count = expected
 
 let private hasPaymentConfirmed ctx =
     ctx.Events
@@ -54,8 +53,7 @@ let private hasPaymentFailed ctx =
 
 let private hasExactPaymentConfirmed gameId billingId ctx =
     ctx.Events
-    |> Seq.exists (fun event ->
-        event = RondelInvoicePaid { GameId = gameId; BillingId = billingId })
+    |> Seq.exists (fun event -> event = RondelInvoicePaid { GameId = gameId; BillingId = billingId })
 
 // ────────────────────────────────────────────────────────────────────────────────
 // Specs
@@ -70,16 +68,11 @@ let private accountingSpecs =
 
           when_
               [ ChargeNationForRondelMovement
-                    { GameId = gameId
-                      Nation = "France"
-                      Amount = Amount.unsafe 4
-                      BillingId = billingId }
+                    { GameId = gameId; Nation = "France"; Amount = Amount.unsafe 4; BillingId = billingId }
                 |> Execute ]
 
           expect "payment is confirmed" hasPaymentConfirmed
-          expect
-              "payment confirmation matches requested invoice"
-              (hasExactPaymentConfirmed gameId billingId)
+          expect "payment confirmation matches requested invoice" (hasExactPaymentConfirmed gameId billingId)
           expect "payment is not marked as failed" (hasPaymentFailed >> not)
       }
 

@@ -28,7 +28,7 @@ src/
   Imperium.Terminal/     Terminal UI app using Terminal.Gui v2
   Imperium.Web/          ASP.NET Core web host (placeholder)
 tests/
-  Imperium.UnitTests/    83 tests (Expecto + CE-based specs)
+  Imperium.UnitTests/    90 tests (Expecto + CE-based specs)
 docs/                    Design documents and official game rules
 ```
 
@@ -53,6 +53,26 @@ dotnet fantomas .
 
 # Run terminal app
 dotnet run --project src/Imperium.Terminal
+```
+
+## CE-Based Specs
+
+Bounded-context behavior tests in this repository use computation expression-based specifications with a readable flow: `on` (context), `when_` (commands/events), `expect` (boolean predicates).  
+Each `expect` runs as an isolated test case that replays the full scenario setup.
+
+```fsharp
+let private specs =
+    [ spec "charging a nation for paid movement confirms payment" {
+          on createContext
+          when_
+              [ ChargeNationForRondelMovement
+                    { GameId = gameId
+                      Nation = "France"
+                      Amount = Amount.unsafe 4
+                      BillingId = billingId }
+                |> Execute ]
+          expect "payment is confirmed" hasPaymentConfirmed
+      } ]
 ```
 
 ## Tech Stack

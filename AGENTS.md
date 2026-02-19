@@ -1,5 +1,5 @@
 # Repository Guidelines
-Last verified: 2026-02-15
+Last verified: 2026-02-19
 
 ## Agent Priorities
 
@@ -11,7 +11,7 @@ Last verified: 2026-02-15
 ## Project Structure & Module Organization
 - `Imperium.slnx` stitches together the core F# library, ASP.NET Core web host, and unit test project.
 - `src/Imperium` contains domain modules (build order: `Primitives.fs`, `AsyncExtensions.fs`, `Contract.fs`, `Contract.Accounting.fs`, `Contract.Rondel.fs`, `Gameplay.fs/.fsi`, `Accounting.fs/.fsi`, `Rondel.fs/.fsi`).
-- `tests/Imperium.UnitTests` contains Expecto-based unit tests; test modules mirror source structure (e.g., `RondelTests.fs` tests `Rondel.fs` handlers, `RondelContractTests.fs` tests `Rondel.fs` transformation layer).
+- `tests/Imperium.UnitTests` contains Expecto-based unit tests; bounded-context behavior specs live in `Rondel.fs` and `Accounting.fs`, transformation validation lives in `*ContractTests.fs`, and infrastructure plumbing tests live in `*HostTests.fs` plus terminal bus/store test modules.
 - **Primitives module:** Foundational types with no `.fsi` file (intentionally public)
   - `Id` - Struct wrapping `Guid` with validation; provides `create`, `newId`, `value`, `toString`, `tryParse`, and mapper helpers
   - `Amount` - Measured struct wrapper (`int<M>`) with guarded construction; errors are plain strings; includes `tryParse`
@@ -211,7 +211,7 @@ Domain modules (`.fsi` and `.fs` pairs) follow a consistent sectioned structure.
 
 ## Testing Guidelines
 - Unit tests live in `tests/Imperium.UnitTests` using Expecto 10.2.3 with FsCheck integration for property-based testing.
-- Test modules mirror source structure with separation of concerns: `Imperium.UnitTests.RondelTests` tests handler behavior, `Imperium.UnitTests.RondelContractTests` tests transformation layer; file names use `*Tests.fs` suffix.
+- Test modules are organized by concern: bounded-context behavior specs in `Imperium.UnitTests.Rondel` and `Imperium.UnitTests.Accounting`, transformation validation in `*ContractTests.fs`, and infrastructure plumbing in `*HostTests.fs` plus terminal bus/store tests.
 - Use `[<Tests>]` attribute on test values for discovery by YoloDev.Expecto.TestSdk (enables VS Code Test Explorer integration).
 - Execute `dotnet test` (via TestSdk) or `dotnet run --project tests/Imperium.UnitTests/Imperium.UnitTests.fsproj` (native Expecto runner with colorized output).
 - Test organization: group related tests with `testList`, use descriptive test names in lowercase ("accepts valid GUID", not "AcceptsValidGuid").
@@ -223,8 +223,8 @@ The `Spec.fs` module provides a computation expression-based testing approach in
 
 **Core types:**
 - `Action<'cmd, 'evt>`: DU with `Execute`, `Handle` cases
-- `Specification<'ctx, 'cmd, 'evt>`: Pure data describing a test scenario
-- `ISpecRunner<'ctx, 'state, 'cmd, 'evt>`: Interface for context-specific execution
+- `Specification<'ctx, 'seed, 'cmd, 'evt>`: Pure data describing a test scenario
+- `ISpecRunner<'ctx, 'seed, 'state, 'cmd, 'evt>`: Interface for context-specific execution
 - `NoState`: Marker type for stateless contexts (F# doesn't allow `unit` as generic return type)
 
 **Usage pattern:**
@@ -258,41 +258,25 @@ when_ [ Move moveCmd |> Execute ]
 
 - **Testing approach:**
   - **Transformation validation tests** (in `*ContractTests.fs`): Test `fromContract` transformations with Contract types to verify input validation returns appropriate errors; use domain types directly in test setup
-  - **Handler behavior tests** (in `*Tests.fs`): Create domain types directly (no transformation layer), call routers (`execute`, `handle`) with union types to verify correct outcomes, events, and charges
-  - **Test helper pattern**: Use private record type grouping routers (e.g., `type private Rondel = { Execute: RondelCommand -> unit; Handle: RondelInboundEvent -> unit; GetNationPositions: GetNationPositionsQuery -> RondelPositionsView option; GetRondelOverview: GetRondelOverviewQuery -> RondelView option }`) with sync wrappers (`Async.RunSynchronously`), create factory function that returns router record with async dependencies wrapped in `async {}` + observable collections (events, commands) for verification
-  - **Separation**: Keep transformation layer testing separate from handler behavior testing for clearer test intent and reduced boilerplate
-- Current test coverage (83 tests total, all passing):
+  - **Behavior specs** (in `Rondel.fs` and `Accounting.fs`): Use CE-based `spec` definitions with `on`, optional `state`, optional setup `actions`, `when_`, and multiple `expect` predicates
+  - **Runner pattern**: Use `ISpecRunner` implementations to execute commands/events, optionally seed state (inline or via `SeedFor`), and capture state snapshots for reporting
+  - **Separation**: Keep transformation layer tests independent from behavior specs to reduce boilerplate and keep intent explicit
+- Current test coverage (90 tests total, all passing):
   - **AccountingContractTests.fs** (6 transformation validation tests):
     - ChargeNationForRondelMovementCommand.fromContract: requires valid GameId; requires valid BillingId; accepts valid command
     - VoidRondelChargeCommand.fromContract: requires valid GameId; requires valid BillingId; accepts valid command
-  - **AccountingTests.fs** (2 handler behavior tests):
-    - chargeNationForRondelMovement: auto-approves and publishes RondelInvoicePaid
-    - voidRondelCharge: does nothing (no event published)
-  - **Accounting.fs** (3 CE-based spec expectations):
-    - chargeNationForRondelMovement: publishes exactly one event; event is RondelInvoicePaid
-    - voidRondelCharge: no events published
+  - **Accounting.fs** (5 CE-based spec expectations across 2 specs):
+    - charging a nation for paid movement confirms payment
+    - voiding a charge records no accounting outcome
   - **RondelContractTests.fs** (5 transformation validation tests):
     - SetToStartingPositionsCommand.fromContract: rejects Guid.Empty; rejects empty nations array; accepts duplicate nations (Set deduplicates to 2 from 3)
     - MoveCommand.fromContract: rejects unknown rondel space; rejects Guid.Empty
-  - **RondelTests.fs** (23 handler behavior tests):
-    - setToStartingPositions: signals setup for roster; setting twice does not signal again
-    - move: cannot begin before starting positions are chosen
-    - move: nation's first move may choose any rondel space (property test, 15 iterations)
-    - move: rejects move to nation's current position repeatedly (property test, 15 iterations)
-    - move: multiple consecutive moves of 1-3 spaces are free (property test, 15 iterations)
-    - move: rejects moves of 7 spaces as exceeding maximum distance (property test, 15 iterations)
-    - move: moves of 4-6 spaces require payment with formula (distance - 3) * 2M (property test, 15 iterations)
-    - move: superseding pending paid move with another paid move voids old charge and rejects old move
-    - move: superseding pending paid move with free move voids charge and completes immediately
-    - onInvoicePaid: completes pending movement and publishes ActionDetermined event
-    - onInvoicePaid: paying twice for same movement only completes it once
-    - onInvoicePaid: payment for cancelled movement is ignored
-    - onInvoicePaymentFailed: payment failure removes pending movement and publishes rejection
-    - onInvoicePaymentFailed: processing payment failure twice only removes pending once
-    - onInvoicePaymentFailed: payment failure for voided charge is ignored
-    - onInvoicePaymentFailed: payment failure after successful payment is ignored
-    - getNationPositions: returns None for unknown game; returns positions for initialized game; returns current position after free move; returns pending space for paid move awaiting payment
-    - getRondelOverview: returns None for unknown game; returns overview for initialized game
+  - **Rondel.fs** (60 CE-based spec expectations across 25 specs):
+    - starting setup for nation roster (initial placement and idempotency)
+    - move validation and pricing rules (initialization required, stay-put rejection, free vs paid thresholds, max-distance rejection)
+    - superseding pending paid movements (voiding prior charge, rejecting stale target, completing free supersession)
+    - payment inbound events (`onInvoicePaid`, `onInvoicePaymentFailed`) including idempotency and voided/superseded payment handling
+    - query handlers (`getNationPositions`, `getRondelOverview`) for unknown and initialized game states
   - **TerminalBusTests.fs** (4 Bus tests):
     - publish with no subscribers does nothing
     - subscriber receives published event
@@ -311,6 +295,8 @@ when_ [ Move moveCmd |> Execute ]
   - **AccountingHostTests.fs** (2 plumbing tests):
     - wires command execution to domain
     - publishes events to bus
+  - **GameplayTests.fs** (placeholder module):
+    - currently no executable test cases
 
 ## Branch Naming Guidelines
 
