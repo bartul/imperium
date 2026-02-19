@@ -17,7 +17,8 @@ type RondelContext =
       Events: ResizeArray<RondelEvent>
       Commands: ResizeArray<RondelOutboundCommand>
       Store: Dictionary<Id, RondelState>
-      GameId: Id }
+      GameId: Id
+      GetNationPositions: unit -> RondelPositionsView option }
 
 let private createContext gameId =
     let store = Dictionary<Id, RondelState>()
@@ -46,11 +47,18 @@ let private createContext gameId =
             return Ok()
         }
 
+    let queryDeps: RondelQueryDependencies = { Load = load }
+
+    let getNationPositionsForGame () =
+        getNationPositions queryDeps { GameId = gameId }
+        |> Async.RunSynchronously
+
     { Deps = { Load = load; Save = save; Publish = publish; Dispatch = dispatch }
       Events = events
       Commands = commands
       Store = store
-      GameId = gameId }
+      GameId = gameId
+      GetNationPositions = getNationPositionsForGame }
 
 // ────────────────────────────────────────────────────────────────────────────────
 // Runner
@@ -123,6 +131,28 @@ let private countExactEvent event_ ctx =
 
 let private hasExactEventCount event_ expectedCount ctx =
     countExactEvent event_ ctx = expectedCount
+
+let private getNationPositionsResult ctx =
+    ctx.GetNationPositions ()
+
+let private hasNoNationPositions ctx =
+    getNationPositionsResult ctx |> Option.isNone
+
+let private hasNationPositions ctx =
+    getNationPositionsResult ctx |> Option.isSome
+
+let private hasNationPositionsForGameId gameId ctx =
+    getNationPositionsResult ctx
+    |> Option.exists (fun view -> view.GameId = gameId)
+
+let private hasNationPositionsCount expectedCount ctx =
+    getNationPositionsResult ctx
+    |> Option.exists (fun view -> List.length view.Positions = expectedCount)
+
+let private hasNationPosition nation currentSpace pendingSpace ctx =
+    getNationPositionsResult ctx
+    |> Option.bind (fun view -> view.Positions |> List.tryFind (fun p -> p.Nation = nation))
+    |> Option.exists (fun position -> position.CurrentSpace = currentSpace && position.PendingSpace = pendingSpace)
 
 let private hasVoidCommand ctx =
     ctx.Commands
@@ -550,6 +580,50 @@ let private rondelSpecs =
           expect
               "subsequent move starts from paid target space"
               (hasExactEvent (ActionDetermined { GameId = gameId; Nation = "Britain"; Action = Action.Maneuver }))
+      }
+
+      spec "query nation positions returns none for unknown game" {
+          on (fun () -> createContext gameId)
+
+          when_ []
+
+          expect "no positions are returned" hasNoNationPositions
+      }
+
+      spec "query nation positions returns initialized nations before any move" {
+          on (fun () -> createContext gameId)
+
+          when_ [ SetToStartingPositions { GameId = gameId; Nations = nations } |> Execute ]
+
+          expect "positions are returned" hasNationPositions
+          expect "query result belongs to current game" (hasNationPositionsForGameId gameId)
+          expect "all initialized nations are present" (hasNationPositionsCount 2)
+          expect "nation has no current or pending space" (hasNationPosition "France" None None)
+      }
+
+      spec "query nation positions returns current space after a free move" {
+          on (fun () -> createContext gameId)
+
+          when_
+              [ SetToStartingPositions { GameId = gameId; Nations = nations } |> Execute
+                Move { GameId = gameId; Nation = "France"; Space = Space.Factory } |> Execute ]
+
+          expect "positions are returned" hasNationPositions
+          expect "nation's current space is updated" (hasNationPosition "France" (Some Space.Factory) None)
+      }
+
+      spec "query nation positions returns pending space for an unpaid move" {
+          on (fun () -> createContext gameId)
+
+          when_
+              [ SetToStartingPositions { GameId = gameId; Nations = Set.ofList [ "Austria" ] } |> Execute
+                Move { GameId = gameId; Nation = "Austria"; Space = Space.Investor } |> Execute
+                Move { GameId = gameId; Nation = "Austria"; Space = Space.Factory } |> Execute ]
+
+          expect "positions are returned" hasNationPositions
+          expect
+              "nation shows current and pending spaces"
+              (hasNationPosition "Austria" (Some Space.Investor) (Some Space.Factory))
       } ]
 
 let renderSpecMarkdown options =
