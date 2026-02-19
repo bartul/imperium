@@ -121,6 +121,9 @@ let private hasExactCommand command ctx =
 let private countExactEvent event_ ctx =
     ctx.Events |> Seq.filter (fun item -> item = event_) |> Seq.length
 
+let private hasExactEventCount event_ expectedCount ctx =
+    countExactEvent event_ ctx = expectedCount
+
 let private hasVoidCommand ctx =
     ctx.Commands
     |> Seq.exists (function
@@ -397,7 +400,7 @@ let private rondelSpecs =
                 InvoicePaid { GameId = gameId; BillingId = invoicePaidBillingId } |> Handle ]
 
           expect "action is determined from pending movement, only once" (fun ctx ->
-              countExactEvent (ActionDetermined { GameId = gameId; Nation = "Austria"; Action = Action.Investor }) ctx = 1)
+              hasExactEventCount (ActionDetermined { GameId = gameId; Nation = "Austria"; Action = Action.Investor }) 1 ctx)
       }
 
       let voidedBillingId = Guid.NewGuid() |> Id |> RondelBillingId.ofId
@@ -425,6 +428,128 @@ let private rondelSpecs =
           expect
               "late payment does not determine the action"
               (hasExactEvent (ActionDetermined { GameId = gameId; Nation = "France"; Action = Action.Investor }) >> not)
+      }
+
+      let invoicePaymentFailedBillingId = Guid.NewGuid() |> Id |> RondelBillingId.ofId
+
+      spec "payment failure rejects pending movement and keeps original position" {
+          on (fun () -> createContext gameId)
+
+          state
+              { GameId = gameId
+                NationPositions = Map [ ("Austria", Some Space.ManeuverOne) ]
+                PendingMovements =
+                  Map
+                      [ ("Austria",
+                         { Nation = "Austria"; TargetSpace = Space.Investor; BillingId = invoicePaymentFailedBillingId }) ] }
+
+          when_
+              [ InvoicePaymentFailed { GameId = gameId; BillingId = invoicePaymentFailedBillingId } |> Handle
+                Move { GameId = gameId; Nation = "Austria"; Space = Space.Factory } |> Execute ]
+
+          expect
+              "pending movement is rejected"
+              (hasExactEvent (MoveToActionSpaceRejected { GameId = gameId; Nation = "Austria"; Space = Space.Investor }))
+
+          expect
+              "failed payment does not determine pending action"
+              (hasExactEvent (ActionDetermined { GameId = gameId; Nation = "Austria"; Action = Action.Investor }) >> not)
+
+          expect
+              "subsequent move starts from original position"
+              (hasExactEvent (ActionDetermined { GameId = gameId; Nation = "Austria"; Action = Action.Factory }))
+      }
+
+      let invoicePaymentFailedTwiceBillingId = Guid.NewGuid() |> Id |> RondelBillingId.ofId
+
+      spec "processing the same payment failure twice rejects pending movement only once" {
+          on (fun () -> createContext gameId)
+
+          state
+              { GameId = gameId
+                NationPositions = Map [ ("Austria", Some Space.ManeuverOne) ]
+                PendingMovements =
+                  Map
+                      [ ("Austria",
+                         { Nation = "Austria"
+                           TargetSpace = Space.ManeuverTwo
+                           BillingId = invoicePaymentFailedTwiceBillingId }) ] }
+
+          when_
+              [ InvoicePaymentFailed { GameId = gameId; BillingId = invoicePaymentFailedTwiceBillingId } |> Handle
+                InvoicePaymentFailed { GameId = gameId; BillingId = invoicePaymentFailedTwiceBillingId } |> Handle
+                Move { GameId = gameId; Nation = "Austria"; Space = Space.Factory } |> Execute ]
+
+          expect
+              "pending movement is rejected only once"
+              (hasExactEventCount
+                  (MoveToActionSpaceRejected { GameId = gameId; Nation = "Austria"; Space = Space.ManeuverTwo })
+                  1)
+
+          expect
+              "subsequent move starts from original position"
+              (hasExactEvent (ActionDetermined { GameId = gameId; Nation = "Austria"; Action = Action.Factory }))
+      }
+
+      let voidedChargeFailureBillingId = Guid.NewGuid() |> Id |> RondelBillingId.ofId
+
+      spec "payment failure for a voided charge is ignored" {
+          on (fun () -> createContext gameId)
+
+          state
+              { GameId = gameId
+                NationPositions = Map [ ("France", Some Space.ProductionOne); ("Austria", None) ]
+                PendingMovements =
+                  Map
+                      [ ("France",
+                         { Nation = "France"; TargetSpace = Space.ProductionTwo; BillingId = voidedChargeFailureBillingId }) ] }
+
+          actions [ Move { GameId = gameId; Nation = "France"; Space = Space.Taxation } |> Execute ]
+          preserve
+
+          when_
+              [ InvoicePaymentFailed { GameId = gameId; BillingId = voidedChargeFailureBillingId } |> Handle
+                Move { GameId = gameId; Nation = "France"; Space = Space.Factory } |> Execute ]
+
+          expect
+              "voided pending movement is not rejected again"
+              (hasExactEventCount
+                  (MoveToActionSpaceRejected { GameId = gameId; Nation = "France"; Space = Space.ProductionTwo })
+                  1)
+
+          expect
+              "late failure preserves the already completed movement"
+              (hasExactEvent (ActionDetermined { GameId = gameId; Nation = "France"; Action = Action.Factory }))
+      }
+
+      let paymentThenFailureBillingId = Guid.NewGuid() |> Id |> RondelBillingId.ofId
+
+      spec "payment failure after successful payment is ignored" {
+          on (fun () -> createContext gameId)
+
+          state
+              { GameId = gameId
+                NationPositions = Map [ ("Britain", Some Space.Import) ]
+                PendingMovements =
+                  Map
+                      [ ("Britain",
+                         { Nation = "Britain"; TargetSpace = Space.ProductionTwo; BillingId = paymentThenFailureBillingId }) ] }
+
+          actions [ InvoicePaid { GameId = gameId; BillingId = paymentThenFailureBillingId } |> Handle ]
+
+          when_
+              [ InvoicePaymentFailed { GameId = gameId; BillingId = paymentThenFailureBillingId } |> Handle
+                Move { GameId = gameId; Nation = "Britain"; Space = Space.ManeuverTwo } |> Execute ]
+
+          expect
+              "late failure does not reject already completed movement"
+              (hasExactEventCount
+                  (MoveToActionSpaceRejected { GameId = gameId; Nation = "Britain"; Space = Space.ProductionTwo })
+                  0)
+
+          expect
+              "subsequent move starts from paid target space"
+              (hasExactEvent (ActionDetermined { GameId = gameId; Nation = "Britain"; Action = Action.Maneuver }))
       } ]
 
 let renderSpecMarkdown options =
