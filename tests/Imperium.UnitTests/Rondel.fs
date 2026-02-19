@@ -117,6 +117,9 @@ let private hasChargeCommandOfM millions =
 let private hasExactCommand command ctx =
     ctx.Commands |> Seq.exists (fun item -> item = command)
 
+let private countExactEvent event_ ctx =
+    ctx.Events |> Seq.filter (fun item -> item = event_) |> Seq.length
+
 let private hasVoidCommand ctx =
     ctx.Commands
     |> Seq.exists (function
@@ -349,6 +352,70 @@ let private rondelSpecs =
 
           expect "no payment is required" (hasChargeCommand >> not)
           expect "action is determined" hasActionDetermined
+      }
+
+      let invoicePaidBillingId = Guid.NewGuid() |> Id |> RondelBillingId.ofId
+
+      spec "paying a pending movement completes it and determines action" {
+          on (fun () -> createContext gameId)
+
+          state
+              { GameId = gameId
+                NationPositions = Map [ ("Austria", Some Space.ManeuverOne) ]
+                PendingMovements =
+                  Map
+                      [ ("Austria",
+                         { Nation = "Austria"; TargetSpace = Space.Investor; BillingId = invoicePaidBillingId }) ] }
+
+          when_
+              [ InvoicePaid { GameId = gameId; BillingId = invoicePaidBillingId } |> Handle
+                Move { GameId = gameId; Nation = "Austria"; Space = Space.Import } |> Execute ]
+
+          expect
+              "action is determined from pending movement"
+              (hasExactEvent (ActionDetermined { GameId = gameId; Nation = "Austria"; Action = Action.Investor }))
+
+          expect
+              "subsequent move uses starts from updated position"
+              (hasExactEvent (ActionDetermined { GameId = gameId; Nation = "Austria"; Action = Action.Import }))
+      }
+
+      spec "paying the same pending movement twice completes it only once" {
+          on (fun () -> createContext gameId)
+
+          state
+              { GameId = gameId
+                NationPositions = Map [ ("Austria", Some Space.ManeuverOne) ]
+                PendingMovements =
+                  Map
+                      [ ("Austria",
+                         { Nation = "Austria"; TargetSpace = Space.Investor; BillingId = invoicePaidBillingId }) ] }
+
+          when_
+              [ InvoicePaid { GameId = gameId; BillingId = invoicePaidBillingId } |> Handle
+                InvoicePaid { GameId = gameId; BillingId = invoicePaidBillingId } |> Handle ]
+
+          expect "action is determined from pending movement, only one" (fun ctx ->
+              countExactEvent (ActionDetermined { GameId = gameId; Nation = "Austria"; Action = Action.Investor }) ctx = 1)
+      }
+
+      let voidedBillingId = Guid.NewGuid() |> Id |> RondelBillingId.ofId
+
+      spec "payment for a voided pending movement is ignored" {
+          on (fun () -> createContext gameId)
+
+          state
+              { GameId = gameId
+                NationPositions = Map [ ("France", Some Space.Taxation); ("Austria", None) ]
+                PendingMovements = Map.empty }
+
+          when_
+              [ InvoicePaid { GameId = gameId; BillingId = voidedBillingId } |> Handle
+                Move { GameId = gameId; Nation = "France"; Space = Space.Factory } |> Execute ]
+
+          expect
+              "late payment does not change position"
+              (hasExactEvent (ActionDetermined { GameId = gameId; Nation = "France"; Action = Action.Factory }))
       } ]
 
 let renderSpecMarkdown options =
