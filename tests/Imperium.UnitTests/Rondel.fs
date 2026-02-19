@@ -2,6 +2,7 @@ module Imperium.UnitTests.Rondel
 
 open System
 open System.Collections.Generic
+open System.Security.AccessControl
 open Expecto
 open Spec
 open Imperium.Rondel
@@ -16,15 +17,16 @@ type RondelContext =
       Events: ResizeArray<RondelEvent>
       Commands: ResizeArray<RondelOutboundCommand>
       Store: Dictionary<Id, RondelState>
-      GameId: Id }
+      GameId: Id
+      GetNationPositions: unit -> RondelPositionsView option
+      GetRondelOverview: unit -> RondelView option }
 
-let private createContext () =
+let private createContext gameId =
     let store = Dictionary<Id, RondelState>()
     let events = ResizeArray<RondelEvent>()
     let commands = ResizeArray<RondelOutboundCommand>()
-    let gameId = Guid.NewGuid() |> Id
 
-    let load (id: Id) : Async<RondelState option> =
+    let load id =
         async {
             return
                 match store.TryGetValue(id) with
@@ -32,32 +34,42 @@ let private createContext () =
                 | false, _ -> None
         }
 
-    let save (state: RondelState) : Async<Result<unit, string>> =
+    let save (state: RondelState) =
         async {
-            store.[state.GameId] <- state
+            store[state.GameId] <- state
             return Ok()
         }
 
-    let publish (event: RondelEvent) : Async<unit> = async { events.Add event }
+    let publish event = async { events.Add event }
 
-    let dispatch (command: RondelOutboundCommand) : Async<Result<unit, string>> =
+    let dispatch command =
         async {
             commands.Add command
             return Ok()
         }
 
+    let queryDeps: RondelQueryDependencies = { Load = load }
+
+    let getNationPositionsForGame () =
+        getNationPositions queryDeps { GameId = gameId } |> Async.RunSynchronously
+
+    let getRondelOverviewForGame () =
+        getRondelOverview queryDeps { GameId = gameId } |> Async.RunSynchronously
+
     { Deps = { Load = load; Save = save; Publish = publish; Dispatch = dispatch }
       Events = events
       Commands = commands
       Store = store
-      GameId = gameId }
+      GameId = gameId
+      GetNationPositions = getNationPositionsForGame
+      GetRondelOverview = getRondelOverviewForGame }
 
 // ────────────────────────────────────────────────────────────────────────────────
 // Runner
 // ────────────────────────────────────────────────────────────────────────────────
 
-let private runner: ISpecRunner<RondelContext, RondelState option, RondelCommand, RondelInboundEvent> =
-    { new ISpecRunner<RondelContext, RondelState option, RondelCommand, RondelInboundEvent> with
+let private runner =
+    { new ISpecRunner<RondelContext, RondelState, RondelState option, RondelCommand, RondelInboundEvent> with
         member _.Execute ctx cmd =
             execute ctx.Deps cmd |> Async.RunSynchronously
 
@@ -66,6 +78,8 @@ let private runner: ISpecRunner<RondelContext, RondelState option, RondelCommand
 
         member _.ClearEvents ctx = ctx.Events.Clear()
         member _.ClearCommands ctx = ctx.Commands.Clear()
+        member _.SeedState ctx state = ctx.Store[ctx.GameId] <- state
+        member _.SeedFor _ = None
 
         member _.CaptureState ctx =
             match ctx.Store.TryGetValue(ctx.GameId) with
@@ -76,35 +90,94 @@ let private runner: ISpecRunner<RondelContext, RondelState option, RondelCommand
 // Helpers
 // ────────────────────────────────────────────────────────────────────────────────
 
-let private hasEvent (predicate: RondelEvent -> bool) (ctx: RondelContext) = ctx.Events |> Seq.exists predicate
+let hasExactEvent event_ ctx =
+    ctx.Events |> Seq.exists (fun item -> item = event_)
 
-let private hasActionDetermined (ctx: RondelContext) =
+let private hasStartingPositionsSet gameId =
+    hasExactEvent (PositionedAtStart { GameId = gameId })
+
+let private hasEvent predicate ctx = ctx.Events |> Seq.exists predicate
+
+let private hasActionDetermined ctx =
     hasEvent
         (function
         | ActionDetermined _ -> true
         | _ -> false)
         ctx
 
-let private hasRejection (ctx: RondelContext) =
+let private hasRejection ctx =
     hasEvent
         (function
         | MoveToActionSpaceRejected _ -> true
         | _ -> false)
         ctx
 
-let private hasChargeCommand (ctx: RondelContext) =
+let private hasChargeCommand ctx =
     ctx.Commands
     |> Seq.exists (function
         | ChargeMovement _ -> true
         | _ -> false)
 
-let private hasVoidCommand (ctx: RondelContext) =
+let private hasChargeCommandOf (amount: Amount) ctx =
+    ctx.Commands
+    |> Seq.exists (function
+        | ChargeMovement cmd when cmd.Amount = amount -> true
+        | _ -> false)
+
+let private hasChargeCommandOfM millions =
+    hasChargeCommandOf (Amount.unsafe millions)
+
+let private hasExactCommand command ctx =
+    ctx.Commands |> Seq.exists (fun item -> item = command)
+
+let private countExactEvent event_ ctx =
+    ctx.Events |> Seq.filter (fun item -> item = event_) |> Seq.length
+
+let private hasExactEventCount event_ expectedCount ctx =
+    countExactEvent event_ ctx = expectedCount
+
+let private getNationPositionsResult ctx = ctx.GetNationPositions()
+
+let private hasNoNationPositions ctx =
+    getNationPositionsResult ctx |> Option.isNone
+
+let private hasNationPositions ctx =
+    getNationPositionsResult ctx |> Option.isSome
+
+let private hasNationPositionsForGameId gameId ctx =
+    getNationPositionsResult ctx |> Option.exists (fun view -> view.GameId = gameId)
+
+let private hasNationPositionsCount expectedCount ctx =
+    getNationPositionsResult ctx
+    |> Option.exists (fun view -> List.length view.Positions = expectedCount)
+
+let private hasNationPosition nation currentSpace pendingSpace ctx =
+    getNationPositionsResult ctx
+    |> Option.bind (fun view -> view.Positions |> List.tryFind (fun p -> p.Nation = nation))
+    |> Option.exists (fun position -> position.CurrentSpace = currentSpace && position.PendingSpace = pendingSpace)
+
+let private getRondelOverviewResult ctx = ctx.GetRondelOverview()
+
+let private hasNoRondelOverview ctx =
+    getRondelOverviewResult ctx |> Option.isNone
+
+let private hasRondelOverview ctx =
+    getRondelOverviewResult ctx |> Option.isSome
+
+let private hasRondelOverviewForGameId gameId ctx =
+    getRondelOverviewResult ctx |> Option.exists (fun view -> view.GameId = gameId)
+
+let private hasRondelOverviewNationNames expectedNames ctx =
+    getRondelOverviewResult ctx
+    |> Option.exists (fun view -> (view.NationNames |> List.sort) = (expectedNames |> List.sort))
+
+let private hasVoidCommand ctx =
     ctx.Commands
     |> Seq.exists (function
         | VoidCharge _ -> true
         | _ -> false)
 
-let private chargeCount (ctx: RondelContext) =
+let private chargeCount ctx =
     ctx.Commands
     |> Seq.filter (function
         | ChargeMovement _ -> true
@@ -115,214 +188,511 @@ let private chargeCount (ctx: RondelContext) =
 // Specs: move
 // ────────────────────────────────────────────────────────────────────────────────
 
-let private moveSpecs =
+let private rondelSpecs =
     let gameId = Guid.NewGuid() |> Id
-    let nations = Set.ofList [ "Austria"; "France"; "Germany" ]
+    let nations = Set.ofList [ "France"; "Austria" ]
 
-    [ spec "move cannot begin before starting positions are chosen" {
-          on createContext
+    [ spec "starting setup places nations at their opening positions" {
+          on (fun () -> createContext gameId)
 
-          when_ [ Move { GameId = gameId; Nation = "France"; Space = Space.Factory } |> Execute ]
+          when_ [ SetToStartingPositions { GameId = gameId; Nations = nations } |> Execute ]
 
-          expect "rejects the move" hasRejection
-          expect "no action determined" (hasActionDetermined >> not)
-          expect "no charge dispatched" (hasChargeCommand >> not)
+          expect "opening positions are set" (hasStartingPositionsSet gameId)
       }
 
-      spec "first move to any space is free" {
-          on createContext
+      spec "starting setup can be applied only once per game" {
+          on (fun () -> createContext gameId)
+
+          state
+              { GameId = gameId
+                NationPositions = Map [ ("France", None); ("Austria", None) ]
+                PendingMovements = Map.empty }
+
+          when_ [ SetToStartingPositions { GameId = gameId; Nations = nations } |> Execute ]
+
+          expect "second setup attempt is ignored" (hasStartingPositionsSet gameId >> not)
+      }
+
+      spec "any attempted move is rejected until nations are set to starting positions" {
+          on (fun () -> createContext gameId)
 
           when_
-              [ SetToStartingPositions { GameId = gameId; Nations = nations } |> Execute
-                ClearEvents
-                Move { GameId = gameId; Nation = "France"; Space = Space.Factory } |> Execute ]
+              [ Move { GameId = gameId; Nation = "France"; Space = Space.Factory } |> Execute
+                Move { GameId = gameId; Nation = "Austria"; Space = Space.Investor } |> Execute ]
 
-          expect "action is determined" hasActionDetermined
-          expect "no charge dispatched" (hasChargeCommand >> not)
+          expect
+              "reject the move"
+              (hasExactEvent (MoveToActionSpaceRejected { GameId = gameId; Nation = "France"; Space = Space.Factory }))
+
+          expect "no action determined" (hasActionDetermined >> not)
+          expect "no payment required" (hasChargeCommand >> not)
       }
 
-      spec "rejects move to current position (stay put)" {
-          on createContext
+      spec "moving a nation for the first time does not require payment regardless of destination" {
+          on (fun () -> createContext gameId)
 
           when_
               [ SetToStartingPositions { GameId = gameId; Nations = nations } |> Execute
                 Move { GameId = gameId; Nation = "France"; Space = Space.Factory } |> Execute
-                ClearEvents
-                ClearCommands
-                Move { GameId = gameId; Nation = "France"; Space = Space.Factory } |> Execute ]
+                Move { GameId = gameId; Nation = "Austria"; Space = Space.Investor } |> Execute ]
 
-          expect "rejects the move" hasRejection
-          expect "no action determined" (hasActionDetermined >> not)
-          expect "no charge dispatched" (hasChargeCommand >> not)
+          expect
+              "action is determined"
+              (hasExactEvent (ActionDetermined { GameId = gameId; Nation = "France"; Action = Action.Factory }))
+
+          expect "no payment required" (hasChargeCommand >> not)
       }
 
-      spec "move of 1-3 spaces is free" {
-          on createContext
+      spec "moving a nation to its current position is rejected (stay put)" {
+          on (fun () -> createContext gameId)
+
+          state
+              { GameId = gameId
+                NationPositions = Map [ ("France", Some Space.Factory); ("Austria", Some Space.Investor) ]
+                PendingMovements = Map.empty }
 
           when_
-              [ SetToStartingPositions { GameId = gameId; Nations = nations } |> Execute
-                // First move to Investor (establishes position)
-                Move { GameId = gameId; Nation = "France"; Space = Space.Investor } |> Execute
-                ClearEvents
-                ClearCommands
-                // Second move: 2 spaces (Investor -> ProductionOne)
-                Move { GameId = gameId; Nation = "France"; Space = Space.ProductionOne }
+              [ Move { GameId = gameId; Nation = "France"; Space = Space.Factory } |> Execute
+                Move { GameId = gameId; Nation = "Austria"; Space = Space.Investor } |> Execute ]
+
+          expect
+              "rejects the move"
+              (hasExactEvent (MoveToActionSpaceRejected { GameId = gameId; Nation = "France"; Space = Space.Factory }))
+
+          expect "no action determined" (hasActionDetermined >> not)
+          expect "no payment required" (hasChargeCommand >> not)
+      }
+
+      spec "moving a nation 1-3 spaces is free" {
+          on (fun () -> createContext gameId)
+
+          state
+              { GameId = gameId
+                NationPositions = Map [ ("France", Some Space.Investor); ("Austria", None) ]
+                PendingMovements = Map.empty }
+
+          when_
+              [ Move { GameId = gameId; Nation = "France"; Space = Space.ProductionOne }
                 |> Execute ]
 
           expect "action is determined" hasActionDetermined
-          expect "no charge dispatched" (hasChargeCommand >> not)
+          expect "no payment required" (hasChargeCommand >> not)
       }
 
-      spec "move of 4 spaces requires payment of 2M" {
-          on createContext
+      spec "moving a nation 4 spaces requires payment of 2M" {
+          on (fun () -> createContext gameId)
+
+          state
+              { GameId = gameId
+                NationPositions = Map [ ("France", Some Space.ProductionOne); ("Austria", None) ]
+                PendingMovements = Map.empty }
 
           when_
-              [ SetToStartingPositions { GameId = gameId; Nations = nations } |> Execute
-                // First move to ProductionOne (establishes position)
-                Move { GameId = gameId; Nation = "France"; Space = Space.ProductionOne }
-                |> Execute
-                ClearEvents
-                ClearCommands
-                // Second move: 4 spaces (ProductionOne -> ProductionTwo)
-                Move { GameId = gameId; Nation = "France"; Space = Space.ProductionTwo }
+              [ Move { GameId = gameId; Nation = "France"; Space = Space.ProductionTwo }
                 |> Execute ]
 
-          expect "no action determined yet" (hasActionDetermined >> not)
-          expect "charge dispatched" hasChargeCommand
-
-          expect "charge amount is 2M" (fun ctx ->
-              ctx.Commands
-              |> Seq.choose (function
-                  | ChargeMovement cmd -> Some cmd.Amount
-                  | _ -> None)
-              |> Seq.tryHead
-              |> Option.map (fun a -> a = Amount.unsafe 2)
-              |> Option.defaultValue false)
-      }
-
-      spec "move of 5 spaces requires payment of 4M" {
-          on createContext
-
-          when_
-              [ SetToStartingPositions { GameId = gameId; Nations = nations } |> Execute
-                // First move to ManeuverOne (establishes position)
-                Move { GameId = gameId; Nation = "France"; Space = Space.ManeuverOne }
-                |> Execute
-                ClearEvents
-                ClearCommands
-                // Second move: 5 spaces (ManeuverOne -> Investor)
-                Move { GameId = gameId; Nation = "France"; Space = Space.Investor } |> Execute ]
-
-          expect "no action determined yet" (hasActionDetermined >> not)
-          expect "charge dispatched" hasChargeCommand
-
-          expect "charge amount is 4M" (fun ctx ->
-              ctx.Commands
-              |> Seq.choose (function
-                  | ChargeMovement cmd -> Some cmd.Amount
-                  | _ -> None)
-              |> Seq.tryHead
-              |> Option.map (fun a -> a = Amount.unsafe 4)
-              |> Option.defaultValue false)
-      }
-
-      spec "move of 6 spaces requires payment of 6M" {
-          on createContext
-
-          when_
-              [ SetToStartingPositions { GameId = gameId; Nations = nations } |> Execute
-                // First move to Investor (establishes position at index 0)
-                Move { GameId = gameId; Nation = "France"; Space = Space.Investor } |> Execute
-                ClearEvents
-                ClearCommands
-                // Second move: 6 spaces (Investor(0) -> ProductionTwo(6))
-                Move { GameId = gameId; Nation = "France"; Space = Space.ProductionTwo }
-                |> Execute ]
-
-          expect "no action determined yet" (hasActionDetermined >> not)
-          expect "charge dispatched" hasChargeCommand
-
-          expect "charge amount is 6M" (fun ctx ->
-              ctx.Commands
-              |> Seq.choose (function
-                  | ChargeMovement cmd -> Some cmd.Amount
-                  | _ -> None)
-              |> Seq.tryHead
-              |> Option.map (fun a -> a = Amount.unsafe 6)
-              |> Option.defaultValue false)
-      }
-
-      spec "move of 7 spaces exceeds maximum and is rejected" {
-          on createContext
-
-          when_
-              [ SetToStartingPositions { GameId = gameId; Nations = nations } |> Execute
-                // First move to ProductionOne (establishes position at index 2)
-                Move { GameId = gameId; Nation = "France"; Space = Space.ProductionOne }
-                |> Execute
-                ClearEvents
-                ClearCommands
-                // Second move: 7 spaces (ProductionOne -> Import, wrapping around)
-                // Prod1(2) + 7 = 9, 9 % 8 = 1 = Import
-                Move { GameId = gameId; Nation = "France"; Space = Space.Import } |> Execute ]
-
-          expect "rejects the move" hasRejection
           expect "no action determined" (hasActionDetermined >> not)
-          expect "no charge dispatched" (hasChargeCommand >> not)
+          expect "payment is required" hasChargeCommand
+          expect "payment amount is 2M" (hasChargeCommandOfM 2)
       }
 
-      spec "superseding pending paid move with another paid move voids old charge" {
-          on createContext
+      spec "moving a nation 5 spaces requires payment of 4M" {
+          on (fun () -> createContext gameId)
+
+          state
+              { GameId = gameId
+                NationPositions = Map [ ("France", Some Space.ManeuverOne); ("Austria", None) ]
+                PendingMovements = Map.empty }
+
+          when_ [ Move { GameId = gameId; Nation = "France"; Space = Space.Investor } |> Execute ]
+
+          expect "no action determined" (hasActionDetermined >> not)
+          expect "payment is required" hasChargeCommand
+          expect "payment amount is 4M" (hasChargeCommandOfM 4)
+      }
+
+      spec "moving a nation 6 spaces requires payment of 6M" {
+          on (fun () -> createContext gameId)
+
+          state
+              { GameId = gameId
+                NationPositions = Map [ ("France", Some Space.Investor); ("Austria", None) ]
+                PendingMovements = Map.empty }
 
           when_
-              [ SetToStartingPositions { GameId = gameId; Nations = nations } |> Execute
-                // First move to ProductionOne (establishes position)
-                Move { GameId = gameId; Nation = "France"; Space = Space.ProductionOne }
-                |> Execute
-                ClearEvents
-                ClearCommands
-                // Second move: 4 spaces (pending payment)
-                Move { GameId = gameId; Nation = "France"; Space = Space.ProductionTwo }
-                |> Execute
-                ClearEvents
-                ClearCommands
-                // Third move: 5 spaces (supersedes, should void old charge)
-                Move { GameId = gameId; Nation = "France"; Space = Space.ManeuverTwo }
+              [ Move { GameId = gameId; Nation = "France"; Space = Space.ProductionTwo }
                 |> Execute ]
 
-          expect "old move rejected" hasRejection
-          expect "old charge voided" hasVoidCommand
-          expect "new charge dispatched" (fun ctx -> chargeCount ctx = 1)
+          expect "no action determined" (hasActionDetermined >> not)
+          expect "payment is required" hasChargeCommand
+          expect "payment amount is 6M" (hasChargeCommandOfM 6)
+      }
+
+      spec "moving a nation 7 spaces is rejected as exceeding maximum distance" {
+          on (fun () -> createContext gameId)
+
+          state
+              { GameId = gameId
+                NationPositions = Map [ ("France", Some Space.ProductionOne); ("Austria", None) ]
+                PendingMovements = Map.empty }
+
+          when_ [ Move { GameId = gameId; Nation = "France"; Space = Space.Import } |> Execute ]
+
+          expect
+              "rejects the move"
+              (hasExactEvent (MoveToActionSpaceRejected { GameId = gameId; Nation = "France"; Space = Space.Import }))
+
+          expect "no action determined" (hasActionDetermined >> not)
+          expect "no payment required" (hasChargeCommand >> not)
+      }
+
+      let previousBillingId = Guid.NewGuid() |> Id |> RondelBillingId.ofId
+
+      spec "moving a nation with a pending paid move to another paid move voids the old charge" {
+          on (fun () -> createContext gameId)
+
+          state
+              { GameId = gameId
+                NationPositions = Map [ ("France", Some Space.ProductionOne); ("Austria", None) ]
+                PendingMovements =
+                  Map
+                      [ ("France",
+                         { Nation = "France"; TargetSpace = Space.ProductionTwo; BillingId = previousBillingId }) ] }
+
+          when_
+              [ Move { GameId = gameId; Nation = "France"; Space = Space.ManeuverTwo }
+                |> Execute ]
+
+          expect
+              "pending move is rejected"
+              (hasExactEvent (
+                  MoveToActionSpaceRejected { GameId = gameId; Nation = "France"; Space = Space.ProductionTwo }
+              ))
+
+          expect
+              "previous charge is voided"
+              (hasExactCommand (VoidCharge { GameId = gameId; BillingId = previousBillingId }))
+
+          expect "new payment is required" hasChargeCommand
+          expect "payment amount is 4M" (hasChargeCommandOfM 4)
           expect "no action determined" (hasActionDetermined >> not)
       }
 
-      spec "superseding pending paid move with free move voids charge and completes immediately" {
-          on createContext
+      let previousBillingIdForFreeMove = Guid.NewGuid() |> Id |> RondelBillingId.ofId
+
+      spec "moving a nation with a pending paid move to a free move voids the old charge and completes immediately" {
+          on (fun () -> createContext gameId)
+
+          state
+              { GameId = gameId
+                NationPositions = Map [ ("France", Some Space.ManeuverOne); ("Austria", None) ]
+                PendingMovements =
+                  Map
+                      [ ("France",
+                         { Nation = "France"; TargetSpace = Space.Investor; BillingId = previousBillingIdForFreeMove }) ] }
+
+          when_ [ Move { GameId = gameId; Nation = "France"; Space = Space.Factory } |> Execute ]
+
+          expect
+              "pending move is rejected"
+              (hasExactEvent (MoveToActionSpaceRejected { GameId = gameId; Nation = "France"; Space = Space.Investor }))
+
+          expect
+              "previous charge is voided"
+              (hasExactCommand (VoidCharge { GameId = gameId; BillingId = previousBillingIdForFreeMove }))
+
+          expect "no payment is required" (hasChargeCommand >> not)
+          expect "action is determined" hasActionDetermined
+      }
+
+      let invoicePaidBillingId = Guid.NewGuid() |> Id |> RondelBillingId.ofId
+
+      spec "paying a pending movement completes it and determines action" {
+          on (fun () -> createContext gameId)
+
+          state
+              { GameId = gameId
+                NationPositions = Map [ ("Austria", Some Space.ManeuverOne) ]
+                PendingMovements =
+                  Map
+                      [ ("Austria",
+                         { Nation = "Austria"; TargetSpace = Space.Investor; BillingId = invoicePaidBillingId }) ] }
+
+          when_
+              [ InvoicePaid { GameId = gameId; BillingId = invoicePaidBillingId } |> Handle
+                Move { GameId = gameId; Nation = "Austria"; Space = Space.Import } |> Execute ]
+
+          expect
+              "action is determined from pending movement"
+              (hasExactEvent (ActionDetermined { GameId = gameId; Nation = "Austria"; Action = Action.Investor }))
+
+          expect
+              "subsequent move uses starts from updated position"
+              (hasExactEvent (ActionDetermined { GameId = gameId; Nation = "Austria"; Action = Action.Import }))
+      }
+
+      spec "paying the same pending movement twice completes it only once" {
+          on (fun () -> createContext gameId)
+
+          state
+              { GameId = gameId
+                NationPositions = Map [ ("Austria", Some Space.ManeuverOne) ]
+                PendingMovements =
+                  Map
+                      [ ("Austria",
+                         { Nation = "Austria"; TargetSpace = Space.Investor; BillingId = invoicePaidBillingId }) ] }
+
+          when_
+              [ InvoicePaid { GameId = gameId; BillingId = invoicePaidBillingId } |> Handle
+                InvoicePaid { GameId = gameId; BillingId = invoicePaidBillingId } |> Handle ]
+
+          expect "action is determined from pending movement, only once" (fun ctx ->
+              hasExactEventCount
+                  (ActionDetermined { GameId = gameId; Nation = "Austria"; Action = Action.Investor })
+                  1
+                  ctx)
+      }
+
+      let voidedBillingId = Guid.NewGuid() |> Id |> RondelBillingId.ofId
+
+      spec "payment for a voided pending movement is ignored" {
+          on (fun () -> createContext gameId)
+
+          state
+              { GameId = gameId
+                NationPositions = Map [ ("France", Some Space.Taxation); ("Austria", None) ]
+                PendingMovements = Map.empty }
+
+          actions
+              [ Move { Nation = "France"; Space = Space.Investor; GameId = gameId } |> Execute
+                InvoicePaymentFailed { BillingId = invoicePaidBillingId; GameId = gameId }
+                |> Handle ]
+
+          when_
+              [ InvoicePaid { GameId = gameId; BillingId = voidedBillingId } |> Handle
+                Move { GameId = gameId; Nation = "France"; Space = Space.Factory } |> Execute ]
+
+          expect
+              "late payment preserves the already completed movement"
+              (hasExactEvent (ActionDetermined { GameId = gameId; Nation = "France"; Action = Action.Factory }))
+
+          expect
+              "late payment does not determine the action"
+              (hasExactEvent (ActionDetermined { GameId = gameId; Nation = "France"; Action = Action.Investor })
+               >> not)
+      }
+
+      let invoicePaymentFailedBillingId = Guid.NewGuid() |> Id |> RondelBillingId.ofId
+
+      spec "payment failure rejects pending movement and keeps original position" {
+          on (fun () -> createContext gameId)
+
+          state
+              { GameId = gameId
+                NationPositions = Map [ ("Austria", Some Space.ManeuverOne) ]
+                PendingMovements =
+                  Map
+                      [ ("Austria",
+                         { Nation = "Austria"; TargetSpace = Space.Investor; BillingId = invoicePaymentFailedBillingId }) ] }
+
+          when_
+              [ InvoicePaymentFailed { GameId = gameId; BillingId = invoicePaymentFailedBillingId }
+                |> Handle
+                Move { GameId = gameId; Nation = "Austria"; Space = Space.Factory } |> Execute ]
+
+          expect
+              "pending movement is rejected"
+              (hasExactEvent (MoveToActionSpaceRejected { GameId = gameId; Nation = "Austria"; Space = Space.Investor }))
+
+          expect
+              "failed payment does not determine pending action"
+              (hasExactEvent (ActionDetermined { GameId = gameId; Nation = "Austria"; Action = Action.Investor })
+               >> not)
+
+          expect
+              "subsequent move starts from original position"
+              (hasExactEvent (ActionDetermined { GameId = gameId; Nation = "Austria"; Action = Action.Factory }))
+      }
+
+      let invoicePaymentFailedTwiceBillingId =
+          Guid.NewGuid() |> Id |> RondelBillingId.ofId
+
+      spec "processing the same payment failure twice rejects pending movement only once" {
+          on (fun () -> createContext gameId)
+
+          state
+              { GameId = gameId
+                NationPositions = Map [ ("Austria", Some Space.ManeuverOne) ]
+                PendingMovements =
+                  Map
+                      [ ("Austria",
+                         { Nation = "Austria"
+                           TargetSpace = Space.ManeuverTwo
+                           BillingId = invoicePaymentFailedTwiceBillingId }) ] }
+
+          when_
+              [ InvoicePaymentFailed { GameId = gameId; BillingId = invoicePaymentFailedTwiceBillingId }
+                |> Handle
+                InvoicePaymentFailed { GameId = gameId; BillingId = invoicePaymentFailedTwiceBillingId }
+                |> Handle
+                Move { GameId = gameId; Nation = "Austria"; Space = Space.Factory } |> Execute ]
+
+          expect
+              "pending movement is rejected only once"
+              (hasExactEventCount
+                  (MoveToActionSpaceRejected { GameId = gameId; Nation = "Austria"; Space = Space.ManeuverTwo })
+                  1)
+
+          expect
+              "subsequent move starts from original position"
+              (hasExactEvent (ActionDetermined { GameId = gameId; Nation = "Austria"; Action = Action.Factory }))
+      }
+
+      let voidedChargeFailureBillingId = Guid.NewGuid() |> Id |> RondelBillingId.ofId
+
+      spec "payment failure for a voided charge is ignored" {
+          on (fun () -> createContext gameId)
+
+          state
+              { GameId = gameId
+                NationPositions = Map [ ("France", Some Space.ProductionOne); ("Austria", None) ]
+                PendingMovements =
+                  Map
+                      [ ("France",
+                         { Nation = "France"
+                           TargetSpace = Space.ProductionTwo
+                           BillingId = voidedChargeFailureBillingId }) ] }
+
+          actions [ Move { GameId = gameId; Nation = "France"; Space = Space.Taxation } |> Execute ]
+          preserve
+
+          when_
+              [ InvoicePaymentFailed { GameId = gameId; BillingId = voidedChargeFailureBillingId }
+                |> Handle
+                Move { GameId = gameId; Nation = "France"; Space = Space.Factory } |> Execute ]
+
+          expect
+              "voided pending movement is not rejected again"
+              (hasExactEventCount
+                  (MoveToActionSpaceRejected { GameId = gameId; Nation = "France"; Space = Space.ProductionTwo })
+                  1)
+
+          expect
+              "late failure preserves the already completed movement"
+              (hasExactEvent (ActionDetermined { GameId = gameId; Nation = "France"; Action = Action.Factory }))
+      }
+
+      let paymentThenFailureBillingId = Guid.NewGuid() |> Id |> RondelBillingId.ofId
+
+      spec "payment failure after successful payment is ignored" {
+          on (fun () -> createContext gameId)
+
+          state
+              { GameId = gameId
+                NationPositions = Map [ ("Britain", Some Space.Import) ]
+                PendingMovements =
+                  Map
+                      [ ("Britain",
+                         { Nation = "Britain"
+                           TargetSpace = Space.ProductionTwo
+                           BillingId = paymentThenFailureBillingId }) ] }
+
+          actions
+              [ InvoicePaid { GameId = gameId; BillingId = paymentThenFailureBillingId }
+                |> Handle ]
+
+          when_
+              [ InvoicePaymentFailed { GameId = gameId; BillingId = paymentThenFailureBillingId }
+                |> Handle
+                Move { GameId = gameId; Nation = "Britain"; Space = Space.ManeuverTwo }
+                |> Execute ]
+
+          expect
+              "late failure does not reject already completed movement"
+              (hasExactEventCount
+                  (MoveToActionSpaceRejected { GameId = gameId; Nation = "Britain"; Space = Space.ProductionTwo })
+                  0)
+
+          expect
+              "subsequent move starts from paid target space"
+              (hasExactEvent (ActionDetermined { GameId = gameId; Nation = "Britain"; Action = Action.Maneuver }))
+      }
+
+      spec "query nation positions returns none for unknown game" {
+          on (fun () -> createContext gameId)
+
+          when_ []
+
+          expect "no positions are returned" hasNoNationPositions
+      }
+
+      spec "query nation positions returns initialized nations before any move" {
+          on (fun () -> createContext gameId)
+
+          when_ [ SetToStartingPositions { GameId = gameId; Nations = nations } |> Execute ]
+
+          expect "positions are returned" hasNationPositions
+          expect "query result belongs to current game" (hasNationPositionsForGameId gameId)
+          expect "all initialized nations are present" (hasNationPositionsCount 2)
+          expect "nation has no current or pending space" (hasNationPosition "France" None None)
+      }
+
+      spec "query nation positions returns current space after a free move" {
+          on (fun () -> createContext gameId)
 
           when_
               [ SetToStartingPositions { GameId = gameId; Nations = nations } |> Execute
-                // First move to ManeuverOne (establishes position)
-                Move { GameId = gameId; Nation = "Germany"; Space = Space.ManeuverOne }
-                |> Execute
-                ClearEvents
-                ClearCommands
-                // Second move: 5 spaces (pending payment) - ManeuverOne to Investor
-                Move { GameId = gameId; Nation = "Germany"; Space = Space.Investor } |> Execute
-                ClearEvents
-                ClearCommands
-                // Third move: 2 spaces (free, supersedes) - ManeuverOne to Factory
-                Move { GameId = gameId; Nation = "Germany"; Space = Space.Factory } |> Execute ]
+                Move { GameId = gameId; Nation = "France"; Space = Space.Factory } |> Execute ]
 
-          expect "old move rejected" hasRejection
-          expect "old charge voided" hasVoidCommand
-          expect "no new charge dispatched" (fun ctx -> chargeCount ctx = 0)
-          expect "action determined immediately" hasActionDetermined
+          expect "positions are returned" hasNationPositions
+          expect "nation's current space is updated" (hasNationPosition "France" (Some Space.Factory) None)
+      }
+
+      spec "query nation positions returns pending space for an unpaid move" {
+          on (fun () -> createContext gameId)
+
+          when_
+              [ SetToStartingPositions { GameId = gameId; Nations = Set.ofList [ "Austria" ] }
+                |> Execute
+                Move { GameId = gameId; Nation = "Austria"; Space = Space.Investor } |> Execute
+                Move { GameId = gameId; Nation = "Austria"; Space = Space.Factory } |> Execute ]
+
+          expect "positions are returned" hasNationPositions
+
+          expect
+              "nation shows current and pending spaces"
+              (hasNationPosition "Austria" (Some Space.Investor) (Some Space.Factory))
+      }
+
+      spec "query rondel overview returns none for unknown game" {
+          on (fun () -> createContext gameId)
+
+          when_ []
+
+          expect "no overview is returned" hasNoRondelOverview
+      }
+
+      spec "query rondel overview returns initialized nation names" {
+          on (fun () -> createContext gameId)
+
+          when_
+              [ SetToStartingPositions { GameId = gameId; Nations = Set.ofList [ "France"; "Germany"; "Austria" ] }
+                |> Execute ]
+
+          expect "overview is returned" hasRondelOverview
+          expect "query result belongs to current game" (hasRondelOverviewForGameId gameId)
+
+          expect
+              "overview contains initialized nations"
+              (hasRondelOverviewNationNames [ "Austria"; "France"; "Germany" ])
       } ]
+
+let renderSpecMarkdown options =
+    SpecMarkdown.toMarkdownDocument options runner rondelSpecs
 
 // ────────────────────────────────────────────────────────────────────────────────
 // Test Registration
 // ────────────────────────────────────────────────────────────────────────────────
 
 [<Tests>]
-let tests =
-    testList "Rondel" [ testList "move" (moveSpecs |> List.map (toExpecto runner)) ]
+let tests = testList "Rondel" (rondelSpecs |> List.map (toExpecto runner))

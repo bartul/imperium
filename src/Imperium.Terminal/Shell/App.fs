@@ -126,10 +126,7 @@ module App =
         // F6/Shift+F6 switches between panels (TabGroup default)
         let statusBar = new StatusBar()
 
-        statusBar.Add(
-            UI.shortcut Key.N.WithCtrl "New Game" handleNewGame,
-            UI.shortcut Key.Q.WithCtrl "Quit" handleQuit
-        )
+        statusBar.Add(UI.shortcut Key.N.WithCtrl "New Game" handleNewGame, UI.shortcut Key.Q.WithCtrl "Quit" handleQuit)
         |> ignore
 
         // Initial log entry

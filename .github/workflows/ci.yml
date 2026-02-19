@@ -9,6 +9,7 @@ on:
     branches: [ "master" ]
   pull_request:
     branches: [ "master" ]
+  workflow_dispatch:
 
 jobs:
   build-and-test:
@@ -89,6 +90,14 @@ jobs:
           echo "failed=0" >> $GITHUB_OUTPUT
         fi
 
+    - name: Render spec markdown
+      if: always()
+      id: spec_markdown
+      run: |
+        mkdir -p ./TestResults
+        dotnet tests/Imperium.UnitTests/bin/Release/net10.0/Imperium.UnitTests.dll --render-spec-markdown > ./TestResults/spec-markdown.md
+      continue-on-error: true
+
     - name: Generate job summary
       if: always()
       run: |
@@ -127,6 +136,14 @@ jobs:
           echo "✅ Code is properly formatted" >> $GITHUB_STEP_SUMMARY
         else
           echo "⚠️ Code formatting issues detected (run \`dotnet fantomas .\` locally)" >> $GITHUB_STEP_SUMMARY
+        fi
+        echo "" >> $GITHUB_STEP_SUMMARY
+
+        # Spec markdown summary
+        if [ "${{ steps.spec_markdown.outcome }}" == "success" ] && [ -f ./TestResults/spec-markdown.md ]; then
+          cat ./TestResults/spec-markdown.md >> $GITHUB_STEP_SUMMARY
+        else
+          echo "_Spec markdown rendering unavailable._" >> $GITHUB_STEP_SUMMARY
         fi
         echo "" >> $GITHUB_STEP_SUMMARY
 

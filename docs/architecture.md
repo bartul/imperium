@@ -76,6 +76,29 @@ All modules follow a three-phase, interface-first, test-driven approach:
 
 Anti-patterns: skipping the interface phase, writing tests after implementation, modifying `.fsi` during implementation, testing internal details.
 
+## Specification Test Architecture
+
+The unit test project uses computation expression-based specifications to define bounded-context behavior scenarios as data.
+
+Conceptually, a spec contains:
+
+- **Context factory (`on`)** — builds fresh test context per expectation
+- **Optional seed (`state` / `SeedFor`)** — injects initial state when needed
+- **Optional setup actions (`actions`)** — preconditions executed before `when_`
+- **Main actions (`when_`)** — commands/events under test
+- **Expectations (`expect`)** — pure `'ctx -> bool` predicates
+
+Execution flow per expectation:
+
+1. Build context via `on`
+2. Seed state from inline `state` or runner-provided `SeedFor`
+3. Run setup `actions`
+4. Clear setup side-effects unless `preserve` is enabled
+5. Run `when_` actions
+6. Evaluate one `expect` predicate
+
+Each `expect` is materialized as its own test case and reruns the full flow above, providing deterministic isolation between expectations.
+
 ## Terminal App Architecture
 
 The terminal app (`Imperium.Terminal`) hosts bounded contexts in-process using Terminal.Gui v2.
