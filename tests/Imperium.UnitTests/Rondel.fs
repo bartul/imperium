@@ -80,6 +80,9 @@ let private runner =
 let hasExactEvent event_ ctx =
     ctx.Events |> Seq.exists (fun item -> item = event_)
 
+let private hasStartingPositionsSet gameId =
+    hasExactEvent (PositionedAtStart { GameId = gameId })
+
 let private hasEvent predicate ctx = ctx.Events |> Seq.exists predicate
 
 let private hasActionDetermined ctx =
@@ -136,20 +139,17 @@ let private rondelSpecs =
     let nations = Set.ofList [ "France"; "Austria"; "Germany" ]
     let startingNations = Set.ofList [ "France"; "Germany" ]
 
-    [ spec "setting starting positions publishes PositionedAtStart for the roster" {
+    [ spec "starting setup places nations at their opening positions" {
           on (fun () -> createContext gameId)
 
-          actions
+          when_
               [ SetToStartingPositions { GameId = gameId; Nations = startingNations }
                 |> Execute ]
 
-          preserve
-          when_ []
-
-          expect "publishes PositionedAtStart" (hasExactEvent (PositionedAtStart { GameId = gameId }))
+          expect "opening positions are set" (hasStartingPositionsSet gameId)
       }
 
-      spec "setting starting positions for an already initialized game does not publish PositionedAtStart" {
+      spec "starting setup can be applied only once per game" {
           on (fun () -> createContext gameId)
 
           state
@@ -159,9 +159,7 @@ let private rondelSpecs =
 
           when_ [ SetToStartingPositions { GameId = gameId; Nations = startingNations } |> Execute ]
 
-          expect
-              "no PositionedAtStart event is published"
-              (hasExactEvent (PositionedAtStart { GameId = gameId }) >> not)
+          expect "second setup attempt is ignored" (hasStartingPositionsSet gameId >> not)
       }
 
       spec "any attempted move is rejected until nations are set to starting positions" {
