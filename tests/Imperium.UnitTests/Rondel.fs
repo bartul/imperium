@@ -18,7 +18,8 @@ type RondelContext =
       Commands: ResizeArray<RondelOutboundCommand>
       Store: Dictionary<Id, RondelState>
       GameId: Id
-      GetNationPositions: unit -> RondelPositionsView option }
+      GetNationPositions: unit -> RondelPositionsView option
+      GetRondelOverview: unit -> RondelView option }
 
 let private createContext gameId =
     let store = Dictionary<Id, RondelState>()
@@ -50,15 +51,18 @@ let private createContext gameId =
     let queryDeps: RondelQueryDependencies = { Load = load }
 
     let getNationPositionsForGame () =
-        getNationPositions queryDeps { GameId = gameId }
-        |> Async.RunSynchronously
+        getNationPositions queryDeps { GameId = gameId } |> Async.RunSynchronously
+
+    let getRondelOverviewForGame () =
+        getRondelOverview queryDeps { GameId = gameId } |> Async.RunSynchronously
 
     { Deps = { Load = load; Save = save; Publish = publish; Dispatch = dispatch }
       Events = events
       Commands = commands
       Store = store
       GameId = gameId
-      GetNationPositions = getNationPositionsForGame }
+      GetNationPositions = getNationPositionsForGame
+      GetRondelOverview = getRondelOverviewForGame }
 
 // ────────────────────────────────────────────────────────────────────────────────
 // Runner
@@ -132,8 +136,7 @@ let private countExactEvent event_ ctx =
 let private hasExactEventCount event_ expectedCount ctx =
     countExactEvent event_ ctx = expectedCount
 
-let private getNationPositionsResult ctx =
-    ctx.GetNationPositions ()
+let private getNationPositionsResult ctx = ctx.GetNationPositions()
 
 let private hasNoNationPositions ctx =
     getNationPositionsResult ctx |> Option.isNone
@@ -142,8 +145,7 @@ let private hasNationPositions ctx =
     getNationPositionsResult ctx |> Option.isSome
 
 let private hasNationPositionsForGameId gameId ctx =
-    getNationPositionsResult ctx
-    |> Option.exists (fun view -> view.GameId = gameId)
+    getNationPositionsResult ctx |> Option.exists (fun view -> view.GameId = gameId)
 
 let private hasNationPositionsCount expectedCount ctx =
     getNationPositionsResult ctx
@@ -153,6 +155,21 @@ let private hasNationPosition nation currentSpace pendingSpace ctx =
     getNationPositionsResult ctx
     |> Option.bind (fun view -> view.Positions |> List.tryFind (fun p -> p.Nation = nation))
     |> Option.exists (fun position -> position.CurrentSpace = currentSpace && position.PendingSpace = pendingSpace)
+
+let private getRondelOverviewResult ctx = ctx.GetRondelOverview()
+
+let private hasNoRondelOverview ctx =
+    getRondelOverviewResult ctx |> Option.isNone
+
+let private hasRondelOverview ctx =
+    getRondelOverviewResult ctx |> Option.isSome
+
+let private hasRondelOverviewForGameId gameId ctx =
+    getRondelOverviewResult ctx |> Option.exists (fun view -> view.GameId = gameId)
+
+let private hasRondelOverviewNationNames expectedNames ctx =
+    getRondelOverviewResult ctx
+    |> Option.exists (fun view -> (view.NationNames |> List.sort) = (expectedNames |> List.sort))
 
 let private hasVoidCommand ctx =
     ctx.Commands
@@ -430,7 +447,10 @@ let private rondelSpecs =
                 InvoicePaid { GameId = gameId; BillingId = invoicePaidBillingId } |> Handle ]
 
           expect "action is determined from pending movement, only once" (fun ctx ->
-              hasExactEventCount (ActionDetermined { GameId = gameId; Nation = "Austria"; Action = Action.Investor }) 1 ctx)
+              hasExactEventCount
+                  (ActionDetermined { GameId = gameId; Nation = "Austria"; Action = Action.Investor })
+                  1
+                  ctx)
       }
 
       let voidedBillingId = Guid.NewGuid() |> Id |> RondelBillingId.ofId
@@ -442,10 +462,11 @@ let private rondelSpecs =
               { GameId = gameId
                 NationPositions = Map [ ("France", Some Space.Taxation); ("Austria", None) ]
                 PendingMovements = Map.empty }
-          
+
           actions
               [ Move { Nation = "France"; Space = Space.Investor; GameId = gameId } |> Execute
-                InvoicePaymentFailed { BillingId = invoicePaidBillingId; GameId = gameId  } |> Handle ]
+                InvoicePaymentFailed { BillingId = invoicePaidBillingId; GameId = gameId }
+                |> Handle ]
 
           when_
               [ InvoicePaid { GameId = gameId; BillingId = voidedBillingId } |> Handle
@@ -457,7 +478,8 @@ let private rondelSpecs =
 
           expect
               "late payment does not determine the action"
-              (hasExactEvent (ActionDetermined { GameId = gameId; Nation = "France"; Action = Action.Investor }) >> not)
+              (hasExactEvent (ActionDetermined { GameId = gameId; Nation = "France"; Action = Action.Investor })
+               >> not)
       }
 
       let invoicePaymentFailedBillingId = Guid.NewGuid() |> Id |> RondelBillingId.ofId
@@ -474,7 +496,8 @@ let private rondelSpecs =
                          { Nation = "Austria"; TargetSpace = Space.Investor; BillingId = invoicePaymentFailedBillingId }) ] }
 
           when_
-              [ InvoicePaymentFailed { GameId = gameId; BillingId = invoicePaymentFailedBillingId } |> Handle
+              [ InvoicePaymentFailed { GameId = gameId; BillingId = invoicePaymentFailedBillingId }
+                |> Handle
                 Move { GameId = gameId; Nation = "Austria"; Space = Space.Factory } |> Execute ]
 
           expect
@@ -483,14 +506,16 @@ let private rondelSpecs =
 
           expect
               "failed payment does not determine pending action"
-              (hasExactEvent (ActionDetermined { GameId = gameId; Nation = "Austria"; Action = Action.Investor }) >> not)
+              (hasExactEvent (ActionDetermined { GameId = gameId; Nation = "Austria"; Action = Action.Investor })
+               >> not)
 
           expect
               "subsequent move starts from original position"
               (hasExactEvent (ActionDetermined { GameId = gameId; Nation = "Austria"; Action = Action.Factory }))
       }
 
-      let invoicePaymentFailedTwiceBillingId = Guid.NewGuid() |> Id |> RondelBillingId.ofId
+      let invoicePaymentFailedTwiceBillingId =
+          Guid.NewGuid() |> Id |> RondelBillingId.ofId
 
       spec "processing the same payment failure twice rejects pending movement only once" {
           on (fun () -> createContext gameId)
@@ -506,8 +531,10 @@ let private rondelSpecs =
                            BillingId = invoicePaymentFailedTwiceBillingId }) ] }
 
           when_
-              [ InvoicePaymentFailed { GameId = gameId; BillingId = invoicePaymentFailedTwiceBillingId } |> Handle
-                InvoicePaymentFailed { GameId = gameId; BillingId = invoicePaymentFailedTwiceBillingId } |> Handle
+              [ InvoicePaymentFailed { GameId = gameId; BillingId = invoicePaymentFailedTwiceBillingId }
+                |> Handle
+                InvoicePaymentFailed { GameId = gameId; BillingId = invoicePaymentFailedTwiceBillingId }
+                |> Handle
                 Move { GameId = gameId; Nation = "Austria"; Space = Space.Factory } |> Execute ]
 
           expect
@@ -532,13 +559,16 @@ let private rondelSpecs =
                 PendingMovements =
                   Map
                       [ ("France",
-                         { Nation = "France"; TargetSpace = Space.ProductionTwo; BillingId = voidedChargeFailureBillingId }) ] }
+                         { Nation = "France"
+                           TargetSpace = Space.ProductionTwo
+                           BillingId = voidedChargeFailureBillingId }) ] }
 
           actions [ Move { GameId = gameId; Nation = "France"; Space = Space.Taxation } |> Execute ]
           preserve
 
           when_
-              [ InvoicePaymentFailed { GameId = gameId; BillingId = voidedChargeFailureBillingId } |> Handle
+              [ InvoicePaymentFailed { GameId = gameId; BillingId = voidedChargeFailureBillingId }
+                |> Handle
                 Move { GameId = gameId; Nation = "France"; Space = Space.Factory } |> Execute ]
 
           expect
@@ -563,13 +593,19 @@ let private rondelSpecs =
                 PendingMovements =
                   Map
                       [ ("Britain",
-                         { Nation = "Britain"; TargetSpace = Space.ProductionTwo; BillingId = paymentThenFailureBillingId }) ] }
+                         { Nation = "Britain"
+                           TargetSpace = Space.ProductionTwo
+                           BillingId = paymentThenFailureBillingId }) ] }
 
-          actions [ InvoicePaid { GameId = gameId; BillingId = paymentThenFailureBillingId } |> Handle ]
+          actions
+              [ InvoicePaid { GameId = gameId; BillingId = paymentThenFailureBillingId }
+                |> Handle ]
 
           when_
-              [ InvoicePaymentFailed { GameId = gameId; BillingId = paymentThenFailureBillingId } |> Handle
-                Move { GameId = gameId; Nation = "Britain"; Space = Space.ManeuverTwo } |> Execute ]
+              [ InvoicePaymentFailed { GameId = gameId; BillingId = paymentThenFailureBillingId }
+                |> Handle
+                Move { GameId = gameId; Nation = "Britain"; Space = Space.ManeuverTwo }
+                |> Execute ]
 
           expect
               "late failure does not reject already completed movement"
@@ -616,14 +652,39 @@ let private rondelSpecs =
           on (fun () -> createContext gameId)
 
           when_
-              [ SetToStartingPositions { GameId = gameId; Nations = Set.ofList [ "Austria" ] } |> Execute
+              [ SetToStartingPositions { GameId = gameId; Nations = Set.ofList [ "Austria" ] }
+                |> Execute
                 Move { GameId = gameId; Nation = "Austria"; Space = Space.Investor } |> Execute
                 Move { GameId = gameId; Nation = "Austria"; Space = Space.Factory } |> Execute ]
 
           expect "positions are returned" hasNationPositions
+
           expect
               "nation shows current and pending spaces"
               (hasNationPosition "Austria" (Some Space.Investor) (Some Space.Factory))
+      }
+
+      spec "query rondel overview returns none for unknown game" {
+          on (fun () -> createContext gameId)
+
+          when_ []
+
+          expect "no overview is returned" hasNoRondelOverview
+      }
+
+      spec "query rondel overview returns initialized nation names" {
+          on (fun () -> createContext gameId)
+
+          when_
+              [ SetToStartingPositions { GameId = gameId; Nations = Set.ofList [ "France"; "Germany"; "Austria" ] }
+                |> Execute ]
+
+          expect "overview is returned" hasRondelOverview
+          expect "query result belongs to current game" (hasRondelOverviewForGameId gameId)
+
+          expect
+              "overview contains initialized nations"
+              (hasRondelOverviewNationNames [ "Austria"; "France"; "Germany" ])
       } ]
 
 let renderSpecMarkdown options =
@@ -634,5 +695,4 @@ let renderSpecMarkdown options =
 // ────────────────────────────────────────────────────────────────────────────────
 
 [<Tests>]
-let tests =
-    testList "Rondel" (rondelSpecs |> List.map (toExpecto runner)) 
+let tests = testList "Rondel" (rondelSpecs |> List.map (toExpecto runner))

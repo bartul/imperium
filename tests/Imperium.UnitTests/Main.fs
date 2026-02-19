@@ -30,7 +30,6 @@ let main args =
             testList
                 "Imperium"
                 [ Gameplay.tests
-                  RondelTests.tests
                   Rondel.tests
                   RondelHostTests.tests
                   TerminalBusTests.tests
