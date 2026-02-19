@@ -55,17 +55,29 @@ jobs:
 
           echo "Repository settings applied."
 
+      - name: Check repository visibility
+        id: visibility
+        env:
+          GH_TOKEN: ${{ secrets.REPO_ADMIN_TOKEN }}
+        run: |
+          VISIBILITY=$(gh api repos/${{ github.repository }} --jq '.visibility')
+          echo "visibility=$VISIBILITY" >> $GITHUB_OUTPUT
+          echo "Repository visibility: $VISIBILITY"
+
       - name: Apply branch protection
         env:
           GH_TOKEN: ${{ secrets.REPO_ADMIN_TOKEN }}
         run: |
           echo "Applying branch protection for master..."
 
-          gh api repos/${{ github.repository }}/branches/master/protection \
+          if gh api repos/${{ github.repository }}/branches/master/protection \
             --method PUT \
-            --input .github/branch-protection.json
-
-          echo "Branch protection applied."
+            --input .github/branch-protection.json 2>&1; then
+            echo "Branch protection applied."
+          else
+            echo "::warning::Branch protection requires a public repo or GitHub Pro. Skipping."
+            echo "- **Branch protection**: Skipped (requires public repo or GitHub Pro)" >> $GITHUB_STEP_SUMMARY
+          fi
 
       - name: Restrict GitHub Actions to verified
         env:
@@ -100,10 +112,10 @@ jobs:
           gh api repos/${{ github.repository }}/automated-security-fixes \
             --method PUT
 
-          # Enable secret scanning
-          gh api repos/${{ github.repository }} \
+          # Secret scanning requires public repo or GitHub Advanced Security
+          if gh api repos/${{ github.repository }} \
             --method PATCH \
-            --input - <<'EOF'
+            --input - <<'EOF' 2>&1; then
           {
             "security_and_analysis": {
               "secret_scanning": { "status": "enabled" },
@@ -111,6 +123,11 @@ jobs:
             }
           }
           EOF
+            echo "Secret scanning enabled."
+          else
+            echo "::warning::Secret scanning requires a public repo or GitHub Advanced Security. Skipping."
+            echo "- **Secret scanning**: Skipped (requires public repo or GitHub Advanced Security)" >> $GITHUB_STEP_SUMMARY
+          fi
 
           echo "Security features enabled."
 
@@ -152,5 +169,22 @@ jobs:
           echo "$ACTIONS" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
 
+          # Verify branch protection (may not be available on private free repos)
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "All settings enforced successfully." >> $GITHUB_STEP_SUMMARY
+          if PROTECTION=$(gh api repos/${{ github.repository }}/branches/master/protection --jq '{
+            required_status_checks: .required_status_checks.contexts,
+            enforce_admins: .enforce_admins.enabled,
+            allow_force_pushes: .allow_force_pushes.enabled,
+            allow_deletions: .allow_deletions.enabled
+          }' 2>&1); then
+            echo "### Branch Protection" >> $GITHUB_STEP_SUMMARY
+            echo '```json' >> $GITHUB_STEP_SUMMARY
+            echo "$PROTECTION" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### Branch Protection" >> $GITHUB_STEP_SUMMARY
+            echo "> Not available (requires public repo or GitHub Pro)" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Enforcement complete." >> $GITHUB_STEP_SUMMARY
