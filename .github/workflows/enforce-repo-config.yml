@@ -1,0 +1,156 @@
+# Enforces repository configuration as code.
+# Reconciles GitHub settings from checked-in JSON files on a daily schedule,
+# on config file changes, or on manual trigger.
+#
+# Requires a fine-grained PAT stored as REPO_ADMIN_TOKEN with:
+#   - Administration: read/write
+#   - Metadata: read
+
+name: Enforce Repo Configuration
+
+on:
+  schedule:
+    - cron: "0 6 * * *" # Daily at 06:00 UTC
+  push:
+    branches: [master]
+    paths:
+      - ".github/repo-config.json"
+      - ".github/branch-protection.json"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  enforce:
+    name: Apply Repository Settings
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout config files
+        uses: actions/checkout@v6
+        with:
+          sparse-checkout: .github
+
+      - name: Apply repository settings
+        env:
+          GH_TOKEN: ${{ secrets.REPO_ADMIN_TOKEN }}
+        run: |
+          echo "Applying repository settings..."
+
+          # Extract topics (handled via separate endpoint)
+          TOPICS=$(jq -c '.topics' .github/repo-config.json)
+
+          # Apply general repo settings (exclude topics — different endpoint)
+          jq 'del(.topics)' .github/repo-config.json | \
+            gh api repos/${{ github.repository }} \
+              --method PATCH \
+              --input -
+
+          # Apply topics
+          echo "{\"names\": $TOPICS}" | \
+            gh api repos/${{ github.repository }}/topics \
+              --method PUT \
+              --input -
+
+          echo "Repository settings applied."
+
+      - name: Apply branch protection
+        env:
+          GH_TOKEN: ${{ secrets.REPO_ADMIN_TOKEN }}
+        run: |
+          echo "Applying branch protection for master..."
+
+          gh api repos/${{ github.repository }}/branches/master/protection \
+            --method PUT \
+            --input .github/branch-protection.json
+
+          echo "Branch protection applied."
+
+      - name: Restrict GitHub Actions to verified
+        env:
+          GH_TOKEN: ${{ secrets.REPO_ADMIN_TOKEN }}
+        run: |
+          echo "Restricting Actions to GitHub-owned and verified creators..."
+
+          gh api repos/${{ github.repository }}/actions/permissions \
+            --method PUT \
+            --field enabled=true \
+            --field allowed_actions=selected
+
+          gh api repos/${{ github.repository }}/actions/permissions/selected-actions \
+            --method PUT \
+            --field github_owned_allowed=true \
+            --field verified_allowed=true \
+            --field patterns='[]'
+
+          echo "Actions restrictions applied."
+
+      - name: Enable security features
+        env:
+          GH_TOKEN: ${{ secrets.REPO_ADMIN_TOKEN }}
+        run: |
+          echo "Enabling security features..."
+
+          # Enable Dependabot vulnerability alerts
+          gh api repos/${{ github.repository }}/vulnerability-alerts \
+            --method PUT
+
+          # Enable Dependabot security updates (auto PRs for vulnerabilities)
+          gh api repos/${{ github.repository }}/automated-security-fixes \
+            --method PUT
+
+          # Enable secret scanning
+          gh api repos/${{ github.repository }} \
+            --method PATCH \
+            --input - <<'EOF'
+          {
+            "security_and_analysis": {
+              "secret_scanning": { "status": "enabled" },
+              "secret_scanning_push_protection": { "status": "enabled" }
+            }
+          }
+          EOF
+
+          echo "Security features enabled."
+
+      - name: Verify applied settings
+        env:
+          GH_TOKEN: ${{ secrets.REPO_ADMIN_TOKEN }}
+        run: |
+          echo "## Repo Config Enforcement Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Verify repo settings
+          CURRENT=$(gh api repos/${{ github.repository }} --jq '{
+            description: .description,
+            has_wiki: .has_wiki,
+            has_projects: .has_projects,
+            allow_squash_merge: .allow_squash_merge,
+            allow_merge_commit: .allow_merge_commit,
+            allow_rebase_merge: .allow_rebase_merge,
+            delete_branch_on_merge: .delete_branch_on_merge
+          }')
+          echo "### Repository Settings" >> $GITHUB_STEP_SUMMARY
+          echo '```json' >> $GITHUB_STEP_SUMMARY
+          echo "$CURRENT" | jq . >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Verify topics
+          TOPICS=$(gh api repos/${{ github.repository }}/topics --jq '.names')
+          echo "### Topics" >> $GITHUB_STEP_SUMMARY
+          echo '```json' >> $GITHUB_STEP_SUMMARY
+          echo "$TOPICS" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Verify actions permissions
+          ACTIONS=$(gh api repos/${{ github.repository }}/actions/permissions --jq '{enabled: .enabled, allowed_actions: .allowed_actions}')
+          echo "### Actions Permissions" >> $GITHUB_STEP_SUMMARY
+          echo '```json' >> $GITHUB_STEP_SUMMARY
+          echo "$ACTIONS" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "All settings enforced successfully." >> $GITHUB_STEP_SUMMARY
