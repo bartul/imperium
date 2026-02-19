@@ -2,6 +2,7 @@ module Imperium.UnitTests.Rondel
 
 open System
 open System.Collections.Generic
+open System.Security.AccessControl
 open Expecto
 open Spec
 open Imperium.Rondel
@@ -395,7 +396,7 @@ let private rondelSpecs =
               [ InvoicePaid { GameId = gameId; BillingId = invoicePaidBillingId } |> Handle
                 InvoicePaid { GameId = gameId; BillingId = invoicePaidBillingId } |> Handle ]
 
-          expect "action is determined from pending movement, only one" (fun ctx ->
+          expect "action is determined from pending movement, only once" (fun ctx ->
               countExactEvent (ActionDetermined { GameId = gameId; Nation = "Austria"; Action = Action.Investor }) ctx = 1)
       }
 
@@ -408,14 +409,22 @@ let private rondelSpecs =
               { GameId = gameId
                 NationPositions = Map [ ("France", Some Space.Taxation); ("Austria", None) ]
                 PendingMovements = Map.empty }
+          
+          actions
+              [ Move { Nation = "France"; Space = Space.Investor; GameId = gameId } |> Execute
+                InvoicePaymentFailed { BillingId = invoicePaidBillingId; GameId = gameId  } |> Handle ]
 
           when_
               [ InvoicePaid { GameId = gameId; BillingId = voidedBillingId } |> Handle
                 Move { GameId = gameId; Nation = "France"; Space = Space.Factory } |> Execute ]
 
           expect
-              "late payment does not change position"
+              "late payment preserves the already completed movement"
               (hasExactEvent (ActionDetermined { GameId = gameId; Nation = "France"; Action = Action.Factory }))
+
+          expect
+              "late payment does not determine the action"
+              (hasExactEvent (ActionDetermined { GameId = gameId; Nation = "France"; Action = Action.Investor }) >> not)
       } ]
 
 let renderSpecMarkdown options =
@@ -427,4 +436,4 @@ let renderSpecMarkdown options =
 
 [<Tests>]
 let tests =
-    testList "Rondel" [ testList "move" (rondelSpecs |> List.map (toExpecto runner)) ]
+    testList "Rondel" (rondelSpecs |> List.map (toExpecto runner)) 
