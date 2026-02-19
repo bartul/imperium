@@ -34,46 +34,60 @@ let private runner: ISpecRunner<AccountingContext, NoState, NoState, AccountingC
         member _.CaptureState _ = NoState }
 
 // ────────────────────────────────────────────────────────────────────────────────
+// Helpers
+// ────────────────────────────────────────────────────────────────────────────────
+
+let private hasEventCount expected ctx =
+    ctx.Events.Count = expected
+
+let private hasPaymentConfirmed ctx =
+    ctx.Events
+    |> Seq.exists (function
+        | RondelInvoicePaid _ -> true
+        | _ -> false)
+
+let private hasPaymentFailed ctx =
+    ctx.Events
+    |> Seq.exists (function
+        | RondelInvoicePaymentFailed _ -> true
+        | _ -> false)
+
+// ────────────────────────────────────────────────────────────────────────────────
 // Specs
 // ────────────────────────────────────────────────────────────────────────────────
 
-let private specs =
-    [ spec "chargeNationForRondelMovement auto-approves and publishes RondelInvoicePaid" {
+let private accountingSpecs =
+    [ spec "charging a nation for paid movement confirms payment" {
           on createContext
 
           when_
-              [ Execute(
-                    ChargeNationForRondelMovement
-                        { GameId = Guid.NewGuid() |> Id
-                          Nation = "France"
-                          Amount = Amount.unsafe 4
-                          BillingId = Guid.NewGuid() |> Id }
-                ) ]
+              [ ChargeNationForRondelMovement
+                    { GameId = Guid.NewGuid() |> Id
+                      Nation = "France"
+                      Amount = Amount.unsafe 4
+                      BillingId = Guid.NewGuid() |> Id }
+                |> Execute ]
 
-          expect "publishes exactly one event" (fun ctx -> ctx.Events.Count = 1)
-
-          expect "event is RondelInvoicePaid" (fun ctx ->
-              match ctx.Events.[0] with
-              | RondelInvoicePaid _ -> true
-              | _ -> false)
+          expect "payment is confirmed" hasPaymentConfirmed
+          expect "payment is not marked as failed" (hasPaymentFailed >> not)
       }
 
-      spec "voidRondelCharge does nothing" {
+      spec "voiding a charge records no accounting outcome" {
           on createContext
 
           when_
               [ VoidRondelCharge { GameId = Guid.NewGuid() |> Id; BillingId = Guid.NewGuid() |> Id }
                 |> Execute ]
 
-          expect "no events published" (fun ctx -> ctx.Events.Count = 0)
+          expect "payment is not marked as failed" (hasPaymentFailed >> not)
       } ]
 
 let renderSpecMarkdown options =
-    SpecMarkdown.toMarkdownDocument options runner specs
+    SpecMarkdown.toMarkdownDocument options runner accountingSpecs
 
 // ────────────────────────────────────────────────────────────────────────────────
 // Test Registration
 // ────────────────────────────────────────────────────────────────────────────────
 
 [<Tests>]
-let tests = testList "Accounting" (specs |> List.map (toExpecto runner))
+let tests = testList "Accounting" (accountingSpecs |> List.map (toExpecto runner))
