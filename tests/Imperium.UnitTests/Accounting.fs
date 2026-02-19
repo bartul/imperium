@@ -52,23 +52,34 @@ let private hasPaymentFailed ctx =
         | RondelInvoicePaymentFailed _ -> true
         | _ -> false)
 
+let private hasExactPaymentConfirmed gameId billingId ctx =
+    ctx.Events
+    |> Seq.exists (fun event ->
+        event = RondelInvoicePaid { GameId = gameId; BillingId = billingId })
+
 // ────────────────────────────────────────────────────────────────────────────────
 // Specs
 // ────────────────────────────────────────────────────────────────────────────────
 
 let private accountingSpecs =
+    let gameId = Guid.NewGuid() |> Id
+    let billingId = Guid.NewGuid() |> Id
+
     [ spec "charging a nation for paid movement confirms payment" {
           on createContext
 
           when_
               [ ChargeNationForRondelMovement
-                    { GameId = Guid.NewGuid() |> Id
+                    { GameId = gameId
                       Nation = "France"
                       Amount = Amount.unsafe 4
-                      BillingId = Guid.NewGuid() |> Id }
+                      BillingId = billingId }
                 |> Execute ]
 
           expect "payment is confirmed" hasPaymentConfirmed
+          expect
+              "payment confirmation matches requested invoice"
+              (hasExactPaymentConfirmed gameId billingId)
           expect "payment is not marked as failed" (hasPaymentFailed >> not)
       }
 
@@ -79,6 +90,7 @@ let private accountingSpecs =
               [ VoidRondelCharge { GameId = Guid.NewGuid() |> Id; BillingId = Guid.NewGuid() |> Id }
                 |> Execute ]
 
+          expect "no accounting outcomes are published" (hasEventCount 0)
           expect "payment is not marked as failed" (hasPaymentFailed >> not)
       } ]
 
