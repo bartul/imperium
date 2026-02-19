@@ -97,8 +97,7 @@ let allSpaces =
 let tests =
     testList
         "Rondel"
-        [
-          testList
+        [ testList
               "onInvoicePaid"
               [ testCase "completes pending movement and publishes ActionDetermined event"
                 <| fun _ ->

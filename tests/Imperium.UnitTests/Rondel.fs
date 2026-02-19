@@ -136,15 +136,12 @@ let private chargeCount ctx =
 
 let private rondelSpecs =
     let gameId = Guid.NewGuid() |> Id
-    let nations = Set.ofList [ "France"; "Austria"; "Germany" ]
-    let startingNations = Set.ofList [ "France"; "Germany" ]
+    let nations = Set.ofList [ "France"; "Austria" ]
 
     [ spec "starting setup places nations at their opening positions" {
           on (fun () -> createContext gameId)
 
-          when_
-              [ SetToStartingPositions { GameId = gameId; Nations = startingNations }
-                |> Execute ]
+          when_ [ SetToStartingPositions { GameId = gameId; Nations = nations } |> Execute ]
 
           expect "opening positions are set" (hasStartingPositionsSet gameId)
       }
@@ -154,10 +151,10 @@ let private rondelSpecs =
 
           state
               { GameId = gameId
-                NationPositions = Map [ ("France", None); ("Germany", None) ]
+                NationPositions = Map [ ("France", None); ("Austria", None) ]
                 PendingMovements = Map.empty }
 
-          when_ [ SetToStartingPositions { GameId = gameId; Nations = startingNations } |> Execute ]
+          when_ [ SetToStartingPositions { GameId = gameId; Nations = nations } |> Execute ]
 
           expect "second setup attempt is ignored" (hasStartingPositionsSet gameId >> not)
       }
@@ -183,8 +180,7 @@ let private rondelSpecs =
           when_
               [ SetToStartingPositions { GameId = gameId; Nations = nations } |> Execute
                 Move { GameId = gameId; Nation = "France"; Space = Space.Factory } |> Execute
-                Move { GameId = gameId; Nation = "Austria"; Space = Space.Investor } |> Execute
-                Move { GameId = gameId; Nation = "Germany"; Space = Space.Import } |> Execute ]
+                Move { GameId = gameId; Nation = "Austria"; Space = Space.Investor } |> Execute ]
 
           expect
               "action is determined"
@@ -198,17 +194,12 @@ let private rondelSpecs =
 
           state
               { GameId = gameId
-                NationPositions =
-                  Map
-                      [ ("France", Some Space.Factory)
-                        ("Austria", Some Space.Investor)
-                        ("Germany", Some Space.Import) ]
+                NationPositions = Map [ ("France", Some Space.Factory); ("Austria", Some Space.Investor) ]
                 PendingMovements = Map.empty }
 
           when_
               [ Move { GameId = gameId; Nation = "France"; Space = Space.Factory } |> Execute
-                Move { GameId = gameId; Nation = "Austria"; Space = Space.Investor } |> Execute
-                Move { GameId = gameId; Nation = "Germany"; Space = Space.Import } |> Execute ]
+                Move { GameId = gameId; Nation = "Austria"; Space = Space.Investor } |> Execute ]
 
           expect
               "rejects the move"
@@ -223,7 +214,7 @@ let private rondelSpecs =
 
           state
               { GameId = gameId
-                NationPositions = Map [ ("France", Some Space.Investor); ("Austria", None); ("Germany", None) ]
+                NationPositions = Map [ ("France", Some Space.Investor); ("Austria", None) ]
                 PendingMovements = Map.empty }
 
           when_
@@ -239,7 +230,7 @@ let private rondelSpecs =
 
           state
               { GameId = gameId
-                NationPositions = Map [ ("France", Some Space.ProductionOne); ("Austria", None); ("Germany", None) ]
+                NationPositions = Map [ ("France", Some Space.ProductionOne); ("Austria", None) ]
                 PendingMovements = Map.empty }
 
           when_
@@ -256,7 +247,7 @@ let private rondelSpecs =
 
           state
               { GameId = gameId
-                NationPositions = Map [ ("France", Some Space.ManeuverOne); ("Austria", None); ("Germany", None) ]
+                NationPositions = Map [ ("France", Some Space.ManeuverOne); ("Austria", None) ]
                 PendingMovements = Map.empty }
 
           when_ [ Move { GameId = gameId; Nation = "France"; Space = Space.Investor } |> Execute ]
@@ -271,7 +262,7 @@ let private rondelSpecs =
 
           state
               { GameId = gameId
-                NationPositions = Map [ ("France", Some Space.Investor); ("Austria", None); ("Germany", None) ]
+                NationPositions = Map [ ("France", Some Space.Investor); ("Austria", None) ]
                 PendingMovements = Map.empty }
 
           when_
@@ -288,7 +279,7 @@ let private rondelSpecs =
 
           state
               { GameId = gameId
-                NationPositions = Map [ ("France", Some Space.ProductionOne); ("Austria", None); ("Germany", None) ]
+                NationPositions = Map [ ("France", Some Space.ProductionOne); ("Austria", None) ]
                 PendingMovements = Map.empty }
 
           when_ [ Move { GameId = gameId; Nation = "France"; Space = Space.Import } |> Execute ]
@@ -308,7 +299,7 @@ let private rondelSpecs =
 
           state
               { GameId = gameId
-                NationPositions = Map [ ("France", Some Space.ProductionOne); ("Austria", None); ("Germany", None) ]
+                NationPositions = Map [ ("France", Some Space.ProductionOne); ("Austria", None) ]
                 PendingMovements =
                   Map
                       [ ("France",
@@ -340,7 +331,7 @@ let private rondelSpecs =
 
           state
               { GameId = gameId
-                NationPositions = Map [ ("France", Some Space.ManeuverOne); ("Austria", None); ("Germany", None) ]
+                NationPositions = Map [ ("France", Some Space.ManeuverOne); ("Austria", None) ]
                 PendingMovements =
                   Map
                       [ ("France",

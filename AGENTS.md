@@ -222,7 +222,7 @@ Domain modules (`.fsi` and `.fs` pairs) follow a consistent sectioned structure.
 The `Spec.fs` module provides a computation expression-based testing approach inspired by Gregory Young's Simple.Testing pattern. Use declarative `on`/`when_`/`expect` syntax for readable, isolated test specifications.
 
 **Core types:**
-- `Action<'cmd, 'evt>`: DU with `Execute`, `Handle`, `ClearEvents`, `ClearCommands` cases
+- `Action<'cmd, 'evt>`: DU with `Execute`, `Handle` cases
 - `Specification<'ctx, 'cmd, 'evt>`: Pure data describing a test scenario
 - `ISpecRunner<'ctx, 'state, 'cmd, 'evt>`: Interface for context-specific execution
 - `NoState`: Marker type for stateless contexts (F# doesn't allow `unit` as generic return type)
@@ -250,11 +250,8 @@ let tests = testList "Accounting" (specs |> List.map (toExpecto runner))
 
 **Multi-step scenarios:**
 ```fsharp
-when_ [
-    SetToStartingPositions initCmd |> Execute
-    ClearEvents  // ignore setup events
-    Move moveCmd |> Execute
-]
+actions [ SetToStartingPositions initCmd |> Execute ]
+when_ [ Move moveCmd |> Execute ]
 ```
 
 **Reference implementation:** See `Accounting.fs` for complete example.

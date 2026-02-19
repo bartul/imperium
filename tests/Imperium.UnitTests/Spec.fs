@@ -17,8 +17,6 @@ type NoState = NoState
 type Action<'cmd, 'evt> =
     | Execute of 'cmd
     | Handle of 'evt
-    | ClearEvents
-    | ClearCommands
 
 // ────────────────────────────────────────────────────────────────────────────────
 // Expectation
@@ -123,8 +121,6 @@ let runActions (runner: ISpecRunner<'ctx, 'seed, 'state, 'cmd, 'evt>) ctx action
         match action with
         | Execute cmd -> runner.Execute ctx cmd
         | Handle evt -> runner.Handle ctx evt
-        | ClearEvents -> runner.ClearEvents ctx
-        | ClearCommands -> runner.ClearCommands ctx
 
 /// Build context and run optional setup phases before when_.
 let prepareContext

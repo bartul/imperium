@@ -48,8 +48,6 @@ let private formatAction action =
     match action with
     | Execute command -> Some(sprintf "Command `%A`" command)
     | Handle event -> Some(sprintf "Event `%A`" event)
-    | ClearEvents
-    | ClearCommands -> None
 
 let private captionRows caption items =
     match items with
