@@ -131,11 +131,40 @@ let private chargeCount ctx =
 // Specs: move
 // ────────────────────────────────────────────────────────────────────────────────
 
-let private moveSpecs =
+let private rondelSpecs =
     let gameId = Guid.NewGuid() |> Id
     let nations = Set.ofList [ "France"; "Austria"; "Germany" ]
+    let startingNations = Set.ofList [ "France"; "Germany" ]
 
-    [ spec "any attempted move is rejected until nations are set to starting positions" {
+    [ spec "setting starting positions publishes PositionedAtStart for the roster" {
+          on (fun () -> createContext gameId)
+
+          actions
+              [ SetToStartingPositions { GameId = gameId; Nations = startingNations }
+                |> Execute ]
+
+          preserve
+          when_ []
+
+          expect "publishes PositionedAtStart" (hasExactEvent (PositionedAtStart { GameId = gameId }))
+      }
+
+      spec "setting starting positions for an already initialized game does not publish PositionedAtStart" {
+          on (fun () -> createContext gameId)
+
+          state
+              { GameId = gameId
+                NationPositions = Map [ ("France", None); ("Germany", None) ]
+                PendingMovements = Map.empty }
+
+          when_ [ SetToStartingPositions { GameId = gameId; Nations = startingNations } |> Execute ]
+
+          expect
+              "no PositionedAtStart event is published"
+              (hasExactEvent (PositionedAtStart { GameId = gameId }) >> not)
+      }
+
+      spec "any attempted move is rejected until nations are set to starting positions" {
           on (fun () -> createContext gameId)
 
           when_
@@ -334,7 +363,7 @@ let private moveSpecs =
       } ]
 
 let renderSpecMarkdown options =
-    SpecMarkdown.toMarkdownDocument options runner moveSpecs
+    SpecMarkdown.toMarkdownDocument options runner rondelSpecs
 
 // ────────────────────────────────────────────────────────────────────────────────
 // Test Registration
@@ -342,4 +371,4 @@ let renderSpecMarkdown options =
 
 [<Tests>]
 let tests =
-    testList "Rondel" [ testList "move" (moveSpecs |> List.map (toExpecto runner)) ]
+    testList "Rondel" [ testList "move" (rondelSpecs |> List.map (toExpecto runner)) ]

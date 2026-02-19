@@ -98,47 +98,6 @@ let tests =
     testList
         "Rondel"
         [
-          // Tests for public Rondel API
-          testList
-              "starting positions"
-              [ testCase "signals setup for the roster"
-                <| fun _ ->
-                    let rondel, publishedEvents, _ = createRondel ()
-
-                    let command =
-                        { GameId = Guid.NewGuid() |> Id; Nations = Set.ofList [ "France"; "Germany" ] }
-                    // Handler succeeds
-                    rondel.Execute <| SetToStartingPositions command
-                    Expect.isNonEmpty publishedEvents "the rondel should signal that starting positions are set"
-
-                    Expect.contains
-                        publishedEvents
-                        (PositionedAtStart { GameId = command.GameId })
-                        "the rondel should signal that starting positions are set"
-                testCase "setting twice does not signal again"
-                <| fun _ ->
-                    let rondel, publishedEvents, _ = createRondel ()
-
-                    let command =
-                        { GameId = Guid.NewGuid() |> Id; Nations = Set.ofList [ "France"; "Germany" ] }
-
-                    // First call to set positions
-                    rondel.Execute <| SetToStartingPositions command
-                    publishedEvents.Clear()
-                    // Second call to set positions again
-                    rondel.Execute <| SetToStartingPositions command
-
-                    let positionedAtStartPublishedEvents =
-                        publishedEvents
-                        |> Seq.filter (function
-                            | PositionedAtStart _ -> true
-                            | _ -> false)
-                        |> Seq.toList
-
-                    Expect.equal
-                        (List.length positionedAtStartPublishedEvents)
-                        0
-                        "setting starting positions twice should not signal starting positions again" ]
           testList
               "onInvoicePaid"
               [ testCase "completes pending movement and publishes ActionDetermined event"
