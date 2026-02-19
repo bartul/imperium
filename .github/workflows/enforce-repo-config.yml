@@ -112,6 +112,15 @@ jobs:
           gh api repos/${{ github.repository }}/automated-security-fixes \
             --method PUT
 
+          # Enable private vulnerability reporting
+          if gh api repos/${{ github.repository }}/private-vulnerability-reporting \
+            --method PUT 2>&1; then
+            echo "Private vulnerability reporting enabled."
+          else
+            echo "::warning::Private vulnerability reporting requires a public repo. Skipping."
+            echo "- **Private vulnerability reporting**: Skipped (requires public repo)" >> $GITHUB_STEP_SUMMARY
+          fi
+
           # Secret scanning requires public repo or GitHub Advanced Security
           if gh api repos/${{ github.repository }} \
             --method PATCH \
