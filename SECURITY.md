@@ -4,8 +4,8 @@
 
 If you discover a security vulnerability in this project, please report it responsibly:
 
-1. **Email**: Send details to [bartul.bonacic@live.com](mailto:bartul.bonacic@live.com)
-2. **GitHub Issue**: Open an issue at [github.com/bartul/imperium/issues](https://github.com/bartul/imperium/issues) with the label `security`
+1. **Private vulnerability report**: Use the [Security tab](https://github.com/bartul/imperium/security/advisories/new) to submit a private report
+2. **GitHub Issue**: For non-sensitive issues, open an issue at [github.com/bartul/imperium/issues](https://github.com/bartul/imperium/issues) with the label `security`
 
 Please include:
 
