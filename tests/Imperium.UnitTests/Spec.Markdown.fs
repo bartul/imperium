@@ -62,7 +62,6 @@ let rec private formatValue (value: obj) (valueType: Type) =
             let unionCase, fields = FSharpValue.GetUnionFields(value, valueType)
 
             match unionCase.Name, fields with
-            | "None", _ -> "None"
             | "Some", [| inner |] ->
                 let innerType = valueType.GetGenericArguments().[0]
                 $"Some({formatValue inner innerType})"
