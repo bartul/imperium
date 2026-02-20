@@ -2,7 +2,9 @@
 module Imperium.UnitTests.SpecMarkdown
 
 open System
+open System.Collections
 open System.Text.RegularExpressions
+open Microsoft.FSharp.Reflection
 open Spec
 
 // ────────────────────────────────────────────────────────────────────────────────
@@ -44,6 +46,65 @@ let private escapeCell (value: string) =
     value.Replace("\r\n", " ").Replace("\n", " ").Replace("\r", " ").Replace("|", "\\|")
     |> fun text -> Regex.Replace(text, @"\s+", " ").Trim()
 
+let private isOptionType (valueType: Type) =
+    valueType.IsGenericType
+    && valueType.GetGenericTypeDefinition() = typedefof<option<_>>
+
+let private isMapType (valueType: Type) =
+    valueType.IsGenericType
+    && valueType.GetGenericTypeDefinition() = typedefof<Map<_, _>>
+
+let rec private formatValue (value: obj) (valueType: Type) =
+    if isOptionType valueType then
+        if obj.ReferenceEquals(value, null) then
+            "None"
+        else
+            let unionCase, fields = FSharpValue.GetUnionFields(value, valueType)
+
+            match unionCase.Name, fields with
+            | "None", _ -> "None"
+            | "Some", [| inner |] ->
+                let innerType = valueType.GetGenericArguments().[0]
+                $"Some({formatValue inner innerType})"
+            | _ -> sprintf "%A" value
+    elif obj.ReferenceEquals(value, null) then
+        "null"
+    elif isMapType valueType then
+        let entries =
+            value :?> IEnumerable
+            |> Seq.cast<obj>
+            |> Seq.map (fun entry ->
+                let entryType = entry.GetType()
+                let keyProperty = entryType.GetProperty("Key")
+                let valueProperty = entryType.GetProperty("Value")
+
+                let keyText =
+                    keyProperty.GetValue(entry)
+                    |> fun key -> formatValue key keyProperty.PropertyType
+
+                let valueText =
+                    valueProperty.GetValue(entry)
+                    |> fun entryValue -> formatValue entryValue valueProperty.PropertyType
+
+                $"({keyText}, {valueText})")
+            |> String.concat "; "
+
+        $"map [{entries}]"
+    elif FSharpType.IsRecord valueType then
+        let fields = FSharpType.GetRecordFields valueType
+        let values = FSharpValue.GetRecordFields value
+
+        let formattedFields =
+            Array.zip fields values
+            |> Array.map (fun (field, fieldValue) -> $"{field.Name} = {formatValue fieldValue field.PropertyType}")
+            |> String.concat "; "
+
+        $"{{ {formattedFields} }}"
+    else
+        sprintf "%A" value
+
+let private formatState (state: 'state) = formatValue (box state) typeof<'state>
+
 let private formatAction action =
     match action with
     | Execute command -> Some(sprintf "Command `%A`" command)
@@ -63,10 +124,12 @@ let toMarkdown
     =
     let context = prepareContext runner spec
     let initialState = runner.CaptureState context
+    let initialStateText = formatState initialState
 
     runActions runner context spec.Actions
 
     let finalState = runner.CaptureState context
+    let finalStateText = formatState finalState
 
     let givenActionItems =
         spec.GivenActions |> List.choose formatAction |> List.map escapeCell
@@ -79,7 +142,7 @@ let toMarkdown
     let whenItems = spec.Actions |> List.choose formatAction |> List.map escapeCell
 
     let thenItems =
-        [ $"State `%A{finalState}`" |> escapeCell
+        [ $"State `{finalStateText}`" |> escapeCell
           yield!
               spec.Expectations
               |> List.map (fun expectation ->
@@ -94,7 +157,7 @@ let toMarkdown
            ""
            "| Step | Details |"
            "| --- | --- |"
-           sprintf "| Given | State %s |" (escapeCell $"`%A{initialState}`") ]
+           sprintf "| Given | State %s |" (escapeCell $"`{initialStateText}`") ]
          @ givenActionRows
          @ captionRows "When" whenItems
          @ captionRows "Then" thenItems
