@@ -1,5 +1,10 @@
 # 🚧 Imperium
 
+[![CI](https://github.com/bartul/imperium/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/bartul/imperium/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![.NET](https://img.shields.io/badge/.NET-10-512BD4)](https://dotnet.microsoft.com)
+[![F#](https://img.shields.io/badge/F%23-378BBA?logo=fsharp&logoColor=white)](https://fsharp.org)
+
 An experimental project exploring **AI-assisted software development** techniques and advanced F# design patterns — built around implementing the engine for [Imperial](https://boardgamegeek.com/boardgame/24181/imperial), a strategy board game by Mac Gerdts where players act as investors controlling European nations in the early 20th century.
 
 > **Work in Progress** — This project is far from complete. Only the **Rondel** bounded context (the central movement mechanic of the game) is implemented to any satisfactory level. Other areas like gameplay, scoring, and full game flow remain unimplemented or skeletal.
