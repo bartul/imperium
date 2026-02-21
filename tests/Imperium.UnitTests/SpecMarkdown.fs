@@ -77,6 +77,17 @@ let rec private formatValue (value: obj) (valueType: Type) =
                 let keyProperty = entryType.GetProperty("Key")
                 let valueProperty = entryType.GetProperty("Value")
 
+                if isNull keyProperty || isNull valueProperty then
+                    sprintf "%A" entry
+                else
+                    let keyText =
+                        keyProperty.GetValue(entry)
+                        |> fun key -> formatValue key keyProperty.PropertyType
+
+                    let valueText =
+                        valueProperty.GetValue(entry)
+                        |> fun entryValue -> formatValue entryValue valueProperty.PropertyType
+
                 let keyText =
                     keyProperty.GetValue(entry)
                     |> fun key -> formatValue key keyProperty.PropertyType
