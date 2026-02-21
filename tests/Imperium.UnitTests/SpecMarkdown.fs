@@ -88,15 +88,7 @@ let rec private formatValue (value: obj) (valueType: Type) =
                         valueProperty.GetValue(entry)
                         |> fun entryValue -> formatValue entryValue valueProperty.PropertyType
 
-                let keyText =
-                    keyProperty.GetValue(entry)
-                    |> fun key -> formatValue key keyProperty.PropertyType
-
-                let valueText =
-                    valueProperty.GetValue(entry)
-                    |> fun entryValue -> formatValue entryValue valueProperty.PropertyType
-
-                $"({keyText}, {valueText})")
+                    $"({keyText}, {valueText})")
             |> String.concat "; "
 
         $"map [{entries}]"
