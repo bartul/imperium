@@ -7,7 +7,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="Spec.fs" />
-    <Compile Include="Spec.Markdown.fs" />
+    <Compile Include="SpecMarkdown.fs" />
     <Compile Include="AccountingContractTests.fs" />
     <Compile Include="Accounting.fs" />
     <Compile Include="GameplayTests.fs" />
