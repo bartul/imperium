@@ -8,6 +8,24 @@ Last verified: 2026-02-19
 - Public API uses routers (`execute`, `handle`) as single entry points; individual handlers are internal implementation details.
 - Prefer minimal public surface; align `.fs` to `.fsi` without widening the API.
 
+## Decision & Improvement Tracking
+
+- Use **GitHub issues** as the system of record for architecture decisions and improvement proposals.
+- Do **not** create ADR markdown files in `docs/` for this workflow.
+- Create one umbrella tracking issue, then link child issues for:
+  - Decision records (`type = decision` in title/body)
+  - Actionable improvements (`type = improvement` in title/body)
+- Reuse existing repository labels. For priority, use only:
+  - `priority: high`
+  - `priority: medium`
+  - `priority: low`
+- Each decision/improvement issue must include:
+  - Parent issue reference
+  - Context/problem
+  - Decision/proposed change
+  - Acceptance criteria or consequences
+  - Explicit status (`approved`, `proposed`, or `deferred`)
+
 ## Project Structure & Module Organization
 - `Imperium.slnx` stitches together the core F# library, ASP.NET Core web host, and unit test project.
 - `src/Imperium` contains domain modules (build order: `Primitives.fs`, `AsyncExtensions.fs`, `Contract.fs`, `Contract.Accounting.fs`, `Contract.Rondel.fs`, `Gameplay.fs/.fsi`, `Accounting.fs/.fsi`, `Rondel.fs/.fsi`).
