@@ -1,5 +1,7 @@
 module Imperium.UnitTests.TerminalBusTests
 
+open System
+open System.Threading
 open Expecto
 open Imperium.Terminal
 
@@ -61,4 +63,71 @@ let tests =
               bus.Publish { Value = 1 } |> Async.RunSynchronously
 
               Expect.equal receivedA.Count 1 "type A handler should be called"
-              Expect.equal receivedB.Count 0 "type B handler should not be called" ]
+              Expect.equal receivedB.Count 0 "type B handler should not be called"
+
+          testCase "failing subscriber does not block later subscribers"
+          <| fun _ ->
+              let bus = Bus.create ()
+              let received = ResizeArray<string>()
+
+              bus.Subscribe<TestEventA>(fun _ ->
+                  async {
+                      received.Add("failing")
+                      failwith "boom"
+                  })
+
+              bus.Subscribe<TestEventA>(fun _ -> async { received.Add("healthy") })
+
+              bus.Publish { Value = 7 } |> Async.RunSynchronously
+
+              Expect.containsAll received [ "failing"; "healthy" ] "all subscribers should be invoked"
+
+          testCase "subscriber added during publish only affects later publishes"
+          <| fun _ ->
+              let bus = Bus.create ()
+              let timeout: TimeSpan = TimeSpan.FromSeconds 5.0
+              use enteredPublish = new ManualResetEventSlim(false)
+              use releasePublish = new ManualResetEventSlim(false)
+              let received = ResizeArray<string>()
+
+              bus.Subscribe<TestEventA>(fun event ->
+                  async {
+                      received.Add($"initial:{event.Value}")
+
+                      if event.Value = 1 then
+                          enteredPublish.Set()
+
+                          if not (releasePublish.Wait timeout) then
+                              failwith "releasePublish timed out"
+                  })
+
+              let publishTask = bus.Publish { Value = 1 } |> Async.StartAsTask
+
+              Expect.isTrue (enteredPublish.Wait timeout) "publish should reach the initial subscriber"
+
+              bus.Subscribe<TestEventA>(fun event -> async { received.Add($"new:{event.Value}") })
+
+              releasePublish.Set()
+              Expect.isTrue (publishTask.Wait timeout) "publish task should complete"
+
+              bus.Publish { Value = 2 } |> Async.RunSynchronously
+
+              Expect.equal
+                  (received |> Seq.filter ((=) "new:1") |> Seq.length)
+                  0
+                  "new subscriber should not observe the in-flight publish"
+
+              Expect.equal
+                  (received |> Seq.filter ((=) "initial:1") |> Seq.length)
+                  1
+                  "initial subscriber should observe the in-flight publish"
+
+              Expect.equal
+                  (received |> Seq.filter ((=) "initial:2") |> Seq.length)
+                  1
+                  "initial subscriber should observe later publishes"
+
+              Expect.equal
+                  (received |> Seq.filter ((=) "new:2") |> Seq.length)
+                  1
+                  "new subscriber should observe later publishes" ]
