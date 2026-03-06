@@ -1,5 +1,6 @@
 module Imperium.UnitTests.TerminalBusTests
 
+open System
 open System.Threading
 open Expecto
 open Imperium.Terminal
@@ -84,8 +85,9 @@ let tests =
           testCase "subscriber added during publish only affects later publishes"
           <| fun _ ->
               let bus = Bus.create ()
-              let enteredPublish = new ManualResetEventSlim(false)
-              let releasePublish = new ManualResetEventSlim(false)
+              let timeout: TimeSpan = TimeSpan.FromSeconds 5.0
+              use enteredPublish = new ManualResetEventSlim(false)
+              use releasePublish = new ManualResetEventSlim(false)
               let received = ResizeArray<string>()
 
               bus.Subscribe<TestEventA>(fun event ->
@@ -94,17 +96,19 @@ let tests =
 
                       if event.Value = 1 then
                           enteredPublish.Set()
-                          releasePublish.Wait()
+
+                          if not (releasePublish.Wait timeout) then
+                              failwith "releasePublish timed out"
                   })
 
               let publishTask = bus.Publish { Value = 1 } |> Async.StartAsTask
 
-              enteredPublish.Wait()
+              Expect.isTrue (enteredPublish.Wait timeout) "publish should reach the initial subscriber"
 
               bus.Subscribe<TestEventA>(fun event -> async { received.Add($"new:{event.Value}") })
 
               releasePublish.Set()
-              publishTask.Wait()
+              Expect.isTrue (publishTask.Wait timeout) "publish task should complete"
 
               bus.Publish { Value = 2 } |> Async.RunSynchronously
 
