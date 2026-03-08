@@ -133,9 +133,11 @@ let tests =
 
               let hasPublishedAccountingEvent () =
                   publishedEvents
-                  |> Seq.exists (function
+                  |> Seq.filter (function
                       | :? AccountingEvent -> true
                       | _ -> false)
+                  |> Seq.length
+                  |> (=) 1
 
               waitFor (fun () -> hasMailboxErrorNotification () && hasPublishedAccountingEvent ())
               Expect.isTrue (hasMailboxErrorNotification ()) "mailbox failure should publish a system notification"
