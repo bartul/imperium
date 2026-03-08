@@ -27,6 +27,10 @@ module EventLogView =
         | RondelInvoicePaid e -> sprintf "Invoice paid (BillingId: %s)" (Id.toString e.BillingId)
         | RondelInvoicePaymentFailed e -> sprintf "Invoice payment FAILED (BillingId: %s)" (Id.toString e.BillingId)
 
+    let private formatSystemNotification =
+        function
+        | { Severity = severity; Source = source; Message = message } -> sprintf "[%A] [%A] %s" severity source message
+
     let private formatSystemEvent =
         function
         | AppStarted -> "Welcome to Imperium. Use Game > New Game to begin."
@@ -51,6 +55,9 @@ module EventLogView =
         bus.Subscribe<RondelEvent>(fun event_ -> async { formatRondelEvent event_ |> addEntry "Rondel" })
 
         bus.Subscribe<AccountingEvent>(fun event_ -> async { formatAccountingEvent event_ |> addEntry "Accounting" })
+
+        bus.Subscribe<SystemNotification>(fun notification ->
+            async { formatSystemNotification notification |> addEntry "System" })
 
         bus.Subscribe<SystemEvent>(fun event_ ->
             async {

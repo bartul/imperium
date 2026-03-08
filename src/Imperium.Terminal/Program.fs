@@ -19,11 +19,8 @@ let private createHosts () =
         lazy
             (RondelHost.create store bus (fun () cmd ->
                 async {
-                    try
-                        do! accountingHost.Value.Execute cmd
-                        return Ok()
-                    with ex ->
-                        return Error ex.Message
+                    do! accountingHost.Value.Execute cmd
+                    return Ok()
                 }))
 
     and accountingHost: Lazy<AccountingHost> = lazy (AccountingHost.create bus)
