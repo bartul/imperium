@@ -8,7 +8,7 @@ description: >
   to investigate before implementation.
 argument-hint: <issue-number>
 disable-model-invocation: true
-allowed-tools: Read, Grep, Glob, Bash(gh issue view:*), Bash(gh api:*), Agent, WebSearch, WebFetch
+allowed-tools: Read, Write, Grep, Glob, Bash(gh issue view:*), Bash(gh api:*), Agent, WebSearch, WebFetch
 ---
 
 # Research Issue
