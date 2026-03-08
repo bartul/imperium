@@ -22,21 +22,34 @@ let private waitFor (check: unit -> bool) =
 
     loop 5 12
 
-let private createAccountingHost () =
+let private createAccountingHost (publishAccountingEvent: AccountingEvent -> Async<unit>) =
     let publishedEvents = ResizeArray<obj>()
     let innerBus = Bus.create ()
 
     let bus =
         { new IBus with
             member _.Publish<'T>(event: 'T) =
-                publishedEvents.Add(box event)
-                innerBus.Publish event
+                async {
+                    if typeof<'T> = typeof<AccountingEvent> then
+                        let accountingEvent = box event :?> AccountingEvent
+                        do! publishAccountingEvent accountingEvent
+                        publishedEvents.Add(box accountingEvent)
+                        do! innerBus.Publish accountingEvent
+                    else
+                        publishedEvents.Add(box event)
+                        do! innerBus.Publish event
+                }
 
             member _.Subscribe<'T>(handler: 'T -> Async<unit>) = innerBus.Subscribe<'T> handler }
 
     let host = AccountingHost.create bus
 
     {| Execute = fun cmd -> host.Execute cmd |> Async.RunSynchronously |}, publishedEvents, bus
+
+let private createAccountingHostWithDefaults () =
+    let publishAccountingEvent (_: AccountingEvent) = async { return () }
+
+    createAccountingHost publishAccountingEvent
 
 // ──────────────────────────────────────────────────────────────────────────
 // Tests - Plumbing verification only
@@ -48,7 +61,7 @@ let tests =
         "Terminal.AccountingHost"
         [ testCase "wires command execution to domain"
           <| fun _ ->
-              let host, _, _ = createAccountingHost ()
+              let host, _, _ = createAccountingHostWithDefaults ()
               let gameId = Id.newId ()
               let billingId = Id.newId ()
 
@@ -61,7 +74,7 @@ let tests =
 
           testCase "publishes events to bus"
           <| fun _ ->
-              let host, publishedEvents, _ = createAccountingHost ()
+              let host, publishedEvents, _ = createAccountingHostWithDefaults ()
               let gameId = Id.newId ()
               let billingId = Id.newId ()
 
@@ -81,4 +94,32 @@ let tests =
                           | _ -> false
                       | _ -> false)
 
-              Expect.isTrue hasPaidEvent "should publish RondelInvoicePaid AccountingEvent" ]
+              Expect.isTrue hasPaidEvent "should publish RondelInvoicePaid AccountingEvent"
+
+          testCase "keeps processing commands after a handler failure"
+          <| fun _ ->
+              let mutable shouldFail = true
+
+              let publishAccountingEvent (event: AccountingEvent) =
+                  async {
+                      if shouldFail then
+                          shouldFail <- false
+                          failwith "publish failed"
+
+                      return ()
+                  }
+
+              let host, publishedEvents, _ = createAccountingHost publishAccountingEvent
+
+              let gameId = Id.newId ()
+
+              ChargeNationForRondelMovement
+                  { GameId = gameId; Nation = "Austria"; Amount = Amount.unsafe 2; BillingId = Id.newId () }
+              |> host.Execute
+
+              ChargeNationForRondelMovement
+                  { GameId = gameId; Nation = "Austria"; Amount = Amount.unsafe 2; BillingId = Id.newId () }
+              |> host.Execute
+
+              waitFor (fun () -> publishedEvents.Count = 1)
+              Expect.equal publishedEvents.Count 1 "mailbox should continue processing later commands" ]

@@ -7,19 +7,11 @@ type AccountingHost = { Execute: AccountingCommand -> Async<unit> }
 
 module AccountingHost =
     let create (bus: IBus) : AccountingHost =
+        let ignoreMailboxError (_: AccountingCommand) (_: exn) = ()
         let publish (evt: AccountingEvent) = bus.Publish evt
 
         let deps: AccountingDependencies = { Publish = publish }
 
-        let mailbox =
-            MailboxProcessor.Start(fun inbox ->
-                let rec loop () =
-                    async {
-                        let! cmd = inbox.Receive()
-                        do! execute deps cmd
-                        return! loop ()
-                    }
-
-                loop ())
+        let mailbox = SupervisedMailbox.start (execute deps) ignoreMailboxError
 
         { Execute = fun cmd -> async { mailbox.Post cmd } }

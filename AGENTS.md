@@ -99,6 +99,7 @@ Last verified: 2026-02-19
   - Thunk injection for cross-BC **commands** (breaks circular dependencies, type-safe direct calls)
   - Each BC has a `Host` (e.g., `RondelHost`, `AccountingHost`) with `Execute` entry point
   - MailboxProcessor serializes commands/events per BC with fire-and-forget `Post` (no reply channel); queries bypass for direct store access
+  - `SupervisedMailbox` centralizes per-message `try/with` so terminal hosts remain alive after individual handler failures; current host policy swallows errors locally until a reporting strategy is introduced
   - Domain events used directly (not contract types) since everything is in-process; `RondelBillingId.ofId` enables domain-to-domain event conversion without contract layer
   - `SystemEvent` DU for UI lifecycle events (`AppStarted`, `NewGameStarted`, `GameEnded`, `MoveNationRequested`) — published on bus, views subscribe to update state
   - UI views are module functions (`RondelView.create`, `EventLogView.create`) returning `FrameView` — all state managed via shared mutable records, views subscribe to bus events
@@ -106,6 +107,7 @@ Last verified: 2026-02-19
   ```
   src/Imperium.Terminal/
   ├── Bus.fs                    # IBus interface and factory
+  ├── SupervisedMailbox.fs      # Shared mailbox supervision helper for terminal hosts
   ├── Rondel/
   │   ├── Store.fs              # RondelStore with InMemoryRondelStore
   │   ├── Host.fs               # RondelHost with MailboxProcessor, event subscriptions, query handlers
@@ -120,8 +122,8 @@ Last verified: 2026-02-19
   │   └── App.fs                # Application layout, menu bar, keyboard shortcuts
   └── Program.fs                # Entry point, wiring hosts and bus
   ```
-- **RondelHost implementation:** MailboxProcessor handles `Command` and `InboundEvent` messages; subscribes to `RondelInvoicePaidEvent`/`RondelInvoicePaymentFailedEvent` (domain types); converts using `RondelBillingId.ofId`; dispatches to Accounting via thunk; queries call domain handlers directly.
-- **AccountingHost implementation:** MailboxProcessor handles commands; publishes inner event types (`RondelInvoicePaidEvent`, `RondelInvoicePaymentFailedEvent`) directly to bus for RondelHost subscriptions.
+- **RondelHost implementation:** `SupervisedMailbox` processes `Command` and `InboundEvent` messages; subscribes to `AccountingEvent`; converts using `RondelBillingId.ofId`; dispatches to Accounting via thunk; queries call domain handlers directly. Host-local `ignoreMailboxError` is currently a no-op.
+- **AccountingHost implementation:** `SupervisedMailbox` processes commands; publishes `AccountingEvent` values directly to the bus for RondelHost subscriptions. Host-local `ignoreMailboxError` is currently a no-op.
 - **Technology choices (terminal):** Terminal.Gui v2 (TUI framework with views, menu bars, keyboard/mouse support), direct function calls for in-process messaging.
 - **RondelView architecture:** Stateless `RondelCanvas` (zero mutable fields) reads from shared `RondelViewState` record with mutable fields (`CurrentGame`, `Selection`, `Positions`). `SelectionMode` record (`Nation` + `Space`) replaces separate selection tracking — single `Option` makes state transitions atomic. `SyncFocus()` method toggles canvas focus based on selection state. Navigation uses `RondelLayout.nextSpace`/`prevSpace` helpers. `onSpaceSelected: Space -> unit` callback replaces direct `RondelHost` dependency. Color scheme: Investor=teal, Import=orange, Production=grey, Maneuver=green, Taxation=yellow, Factory=blue. Emoji flags (🇦🇹🇫🇷🇩🇪🇬🇧🇮🇹🇷🇺) on nation abbreviations with `displayWidth` helper for correct terminal centering.
 

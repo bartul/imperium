@@ -59,26 +59,20 @@ module RondelHost =
 
     /// Creates a new RondelHost with MailboxProcessor serialization
     let create (store: RondelStore) (bus: IBus) (dispatchToAccounting: DispatchToAccounting) : RondelHost =
+        let ignoreMailboxError (_: HostMessage) (_: exn) = ()
+
         let dispatch (outbound: RondelOutboundCommand) =
             toAccountingCommand outbound |> dispatchToAccounting ()
 
         let deps: RondelDependencies =
             { Load = store.Load; Save = store.Save; Publish = bus.Publish; Dispatch = dispatch }
 
-        let mailbox =
-            MailboxProcessor.Start(fun inbox ->
-                let rec loop () =
-                    async {
-                        let! msg = inbox.Receive()
+        let processMessage =
+            function
+            | Command cmd -> execute deps cmd
+            | InboundEvent evt -> handle deps evt
 
-                        match msg with
-                        | Command cmd -> do! execute deps cmd
-                        | InboundEvent evt -> do! handle deps evt
-
-                        return! loop ()
-                    }
-
-                loop ())
+        let mailbox = SupervisedMailbox.start processMessage ignoreMailboxError
 
         // Subscribe to Accounting events and convert to Rondel inbound events
         bus.Subscribe<AccountingEvent>(fun evt -> async { toInboundEvent evt |> InboundEvent |> mailbox.Post })
