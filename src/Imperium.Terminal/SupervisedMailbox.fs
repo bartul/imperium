@@ -1,7 +1,7 @@
 namespace Imperium.Terminal
 
 type ProcessMailboxMessage<'msg> = 'msg -> Async<unit>
-type MailboxErrorHandler<'msg> = 'msg -> exn -> unit
+type MailboxErrorHandler<'msg> = 'msg -> exn -> Async<unit>
 
 [<RequireQualifiedAccess>]
 module SupervisedMailbox =
@@ -19,7 +19,10 @@ module SupervisedMailbox =
                     try
                         do! processMessage msg
                     with ex ->
-                        onError msg ex
+                        try
+                            do! onError msg ex
+                        with _ ->
+                            ()
 
                     return! loop ()
                 }

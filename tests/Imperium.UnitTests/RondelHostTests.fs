@@ -5,6 +5,7 @@ open Imperium.Primitives
 open Imperium.Rondel
 open Imperium.Terminal
 open Imperium.Terminal.Rondel
+open Imperium.Terminal.Shell
 
 module Accounting = Imperium.Accounting
 
@@ -173,12 +174,12 @@ let tests =
                           async {
                               if shouldFail then
                                   shouldFail <- false
-                                  return Error "dispatch failed"
+                                  return Result.Error "dispatch failed"
                               else
-                                  return Ok()
+                                  return Result.Ok()
                           }
 
-              let host, _, store, _ = createRondelHost failingDispatch
+              let host, publishedEvents, store, _ = createRondelHost failingDispatch
               let firstGameId = Id.newId ()
               let secondGameId = Id.newId ()
 
@@ -194,5 +195,17 @@ let tests =
               SetToStartingPositions { GameId = secondGameId; Nations = set [ "B" ] }
               |> host.Execute
 
-              waitFor (fun () -> (store.Load secondGameId).IsSome)
+              let hasMailboxErrorNotification () =
+                  let events: obj seq = publishedEvents
+
+                  events
+                  |> Seq.exists (function
+                      | :? SystemNotification as notification ->
+                          notification.Severity = NotificationSeverity.Error
+                          && notification.Source = NotificationSource.RondelHost
+                          && notification.Message.Contains("Move")
+                      | _ -> false)
+
+              waitFor (fun () -> hasMailboxErrorNotification () && (store.Load secondGameId).IsSome)
+              Expect.isTrue (hasMailboxErrorNotification ()) "mailbox failure should publish a system notification"
               Expect.isSome (store.Load secondGameId) "mailbox should continue processing later commands" ]

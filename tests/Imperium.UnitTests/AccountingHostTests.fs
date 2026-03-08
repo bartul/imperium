@@ -5,6 +5,7 @@ open Imperium.Accounting
 open Imperium.Primitives
 open Imperium.Terminal
 open Imperium.Terminal.Accounting
+open Imperium.Terminal.Shell
 
 // ──────────────────────────────────────────────────────────────────────────
 // Test Helpers
@@ -121,5 +122,21 @@ let tests =
                   { GameId = gameId; Nation = "Austria"; Amount = Amount.unsafe 2; BillingId = Id.newId () }
               |> host.Execute
 
-              waitFor (fun () -> publishedEvents.Count = 1)
-              Expect.equal publishedEvents.Count 1 "mailbox should continue processing later commands" ]
+              let hasMailboxErrorNotification () =
+                  publishedEvents
+                  |> Seq.exists (function
+                      | :? SystemNotification as notification ->
+                          notification.Severity = NotificationSeverity.Error
+                          && notification.Source = NotificationSource.AccountingHost
+                          && notification.Message.Contains("ChargeNationForRondelMovement")
+                      | _ -> false)
+
+              let hasPublishedAccountingEvent () =
+                  publishedEvents
+                  |> Seq.exists (function
+                      | :? AccountingEvent -> true
+                      | _ -> false)
+
+              waitFor (fun () -> hasMailboxErrorNotification () && hasPublishedAccountingEvent ())
+              Expect.isTrue (hasMailboxErrorNotification ()) "mailbox failure should publish a system notification"
+              Expect.isTrue (hasPublishedAccountingEvent ()) "mailbox should continue processing later commands" ]

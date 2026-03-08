@@ -4,6 +4,7 @@ open Imperium.Accounting
 open Imperium.Primitives
 open Imperium.Rondel
 open Imperium.Terminal
+open Imperium.Terminal.Shell
 
 // ──────────────────────────────────────────────────────────────────────────
 // Types
@@ -53,13 +54,26 @@ module RondelHost =
         | RondelInvoicePaymentFailed e ->
             InvoicePaymentFailed { GameId = e.GameId; BillingId = RondelBillingId.ofId e.BillingId }
 
+    let private describeHostMessage =
+        function
+        | Command(SetToStartingPositions _) -> "SetToStartingPositions"
+        | Command(Move _) -> "Move"
+        | InboundEvent(InvoicePaid _) -> "InvoicePaid"
+        | InboundEvent(InvoicePaymentFailed _) -> "InvoicePaymentFailed"
+
     // ──────────────────────────────────────────────────────────────────────────
     // Factory
     // ──────────────────────────────────────────────────────────────────────────
 
     /// Creates a new RondelHost with MailboxProcessor serialization
     let create (store: RondelStore) (bus: IBus) (dispatchToAccounting: DispatchToAccounting) : RondelHost =
-        let ignoreMailboxError (_: HostMessage) (_: exn) = ()
+        let onMailboxError (msg: HostMessage) (ex: exn) : Async<unit> =
+            let notification: SystemNotification =
+                { Severity = NotificationSeverity.Error
+                  Source = NotificationSource.RondelHost
+                  Message = $"Failed processing {describeHostMessage msg}: {ex.Message}" }
+
+            bus.Publish notification
 
         let dispatch (outbound: RondelOutboundCommand) =
             toAccountingCommand outbound |> dispatchToAccounting ()
@@ -72,7 +86,7 @@ module RondelHost =
             | Command cmd -> execute deps cmd
             | InboundEvent evt -> handle deps evt
 
-        let mailbox = SupervisedMailbox.start processMessage ignoreMailboxError
+        let mailbox = SupervisedMailbox.start processMessage onMailboxError
 
         // Subscribe to Accounting events and convert to Rondel inbound events
         bus.Subscribe<AccountingEvent>(fun evt -> async { toInboundEvent evt |> InboundEvent |> mailbox.Post })
