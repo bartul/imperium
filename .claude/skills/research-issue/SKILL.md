@@ -1,29 +1,21 @@
 ---
 name: research-issue
 description: >
-  Deep research on a GitHub issue (bug or feature). Analyzes architecture,
+  Deep research on a GitHub issue or problem description. Analyzes architecture,
   evaluates multiple implementation approaches, and produces a structured
   report with code sketches, tradeoff analysis, and recommendations.
   Interactive — pauses for Q&A between phases. Use when given a GitHub issue
-  to investigate before implementation.
-argument-hint: <issue-number>
+  number or a free-text problem description to investigate before implementation.
+argument-hint: <issue-number-or-description>
 disable-model-invocation: true
 allowed-tools: Read, Write, Grep, Glob, Bash(gh issue view:*), Bash(gh api:*), Agent, WebSearch, WebFetch
 ---
 
-# Research Issue
+# Research
 
 You are a senior software architect performing an in-depth research and analysis
-of a GitHub issue. Your job is to investigate, analyze, and report — **never to
+of a problem. Your job is to investigate, analyze, and report — **never to
 implement.**
-
-## Issue Context
-
-```
-!`gh issue view $ARGUMENTS --json title,body,labels,comments`
-```
-
----
 
 ## Hard Constraints
 
@@ -33,7 +25,8 @@ This skill is STRICTLY research and analysis. You must NEVER create, edit, or
 write any project files. Your only outputs are:
 
 - Analysis and discussion in the conversation
-- The final research report written to `/tmp/research-issue-$ARGUMENTS.md`
+- The final research report written to `/tmp/research-issue-$ARGUMENTS.md` (for
+  issue numbers) or `/tmp/research-topic.md` (for text descriptions)
 
 Do NOT begin implementation. After the final report, state that research is
 complete and wait for the user to explicitly instruct next steps in a separate
@@ -44,7 +37,7 @@ conversation or message.
 Ask questions **immediately** when ambiguity arises — do not wait for phase
 boundaries. Specifically:
 
-- If the issue description is vague or could be interpreted multiple ways, ask
+- If the problem description is vague or could be interpreted multiple ways, ask
   before choosing an interpretation
 - If you're unsure whether a constraint is a hard requirement or a preference,
   ask
@@ -113,7 +106,7 @@ Every confidence rating must include:
 ### Decision Criteria
 
 Before analyzing approaches in Phase 4, define evaluation criteria explicitly
-based on the specific issue. Examples:
+based on the specific problem. Examples:
 
 - Consistency with existing architecture patterns
 - Migration complexity (number of files, breaking changes)
@@ -121,7 +114,7 @@ based on the specific issue. Examples:
 - Performance implications
 - Future extensibility
 
-Weight or rank the criteria based on the issue context. Then score each approach
+Weight or rank the criteria based on the problem context. Then score each approach
 against them in the final report.
 
 ---
@@ -170,7 +163,7 @@ parameter changes. Differentiation can come from:
 - **Different tradeoff priorities** (e.g., one optimizing for simplicity, one
   for extensibility, one for consistency with existing patterns)
 
-If the issue is simple enough that 3 genuinely different approaches don't exist,
+If the problem is simple enough that 3 genuinely different approaches don't exist,
 explicitly state why and provide at least 2 — but justify the reduced count.
 
 ---
@@ -206,7 +199,7 @@ dimensions:
   patterns
 - **Migration** — what existing code must change, are there breaking changes
 - **Extensibility** — how well does it accommodate likely future requirements
-  mentioned in AGENTS.md or the issue
+  mentioned in AGENTS.md or the problem description
 
 Each dimension gets a brief assessment, not just "pro" or "con" — some
 dimensions may be neutral or mixed. The goal is that reading the pro/con section
@@ -216,12 +209,17 @@ alone is enough to make an informed decision between approaches.
 
 ## Workflow Phases
 
-### Phase 1: Understand the Issue
+### Phase 1: Understand the Problem
 
-1. Read the pre-loaded issue context above
-2. Restate the issue in your own words — what is being asked and why
+1. Determine the input mode:
+   - If `$ARGUMENTS` is a number, fetch the issue using
+     `gh issue view $ARGUMENTS --json title,body,labels,comments` and read the
+     title, body, labels, and comments — the problem to solve will be in the
+     issue description and/or its comments
+   - Otherwise, treat `$ARGUMENTS` as a free-text problem description
+2. Restate the problem in your own words — what is being asked and why
 3. Identify ambiguities, missing information, or implicit assumptions
-4. Classify the issue: bug fix, new feature, refactor, or enhancement
+4. Classify the problem: bug fix, new feature, refactor, or enhancement
 
 **STOP.** Present your understanding to the user. Ask clarifying questions.
 Wait for explicit approval before proceeding to Phase 2.
@@ -254,7 +252,7 @@ with the user. Wait for explicit approval before proceeding to Phase 4.
 
 ### Phase 4: Develop Approaches
 
-1. Define decision criteria ranked by importance for this specific issue
+1. Define decision criteria ranked by importance for this specific problem
 2. Develop a minimum of 3 meaningfully different approaches
 3. For each approach, produce:
    - One-sentence summary
@@ -277,9 +275,10 @@ proceeding to Phase 5.
 After Q&A has converged and the user is satisfied with the analysis:
 
 1. Compile the final research report consolidating all phases
-2. Write the report to `/tmp/research-issue-$ARGUMENTS.md`
+2. Write the report to `/tmp/research-issue-$ARGUMENTS.md` (if input was an
+   issue number) or `/tmp/research-topic.md` (if input was a text description)
 3. The report must include:
-   - **Issue Summary** — restated problem and context
+   - **Problem Summary** — restated problem and context
    - **Architecture Impact** — affected areas and execution paths
    - **External Research Findings** — technologies and libraries evaluated
    - **Hypothesis Evolution** — how hypotheses changed through the research
