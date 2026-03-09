@@ -132,11 +132,11 @@ Last verified: 2026-02-19
 ### research-issue
 
 - **Location:** `.claude/skills/research-issue/SKILL.md`
-- **Invoke:** `/research-issue <issue-number>`
-- **Purpose:** In-depth research and analysis of a GitHub issue (bug or feature) before implementation. Produces a structured report with multiple competing approaches, code sketches, pro/con analysis, and architecture alignment assessment.
-- **Read-only:** The skill cannot modify project files — it only produces analysis and a research report at `/tmp/research-issue-{number}.md`.
+- **Invoke:** `/research-issue <issue-number-or-description>`
+- **Purpose:** In-depth research and analysis of a GitHub issue or free-text problem description before implementation. Produces a structured report with multiple competing approaches, code sketches, pro/con analysis, and architecture alignment assessment.
+- **Read-only:** The skill cannot modify project files — it only produces analysis and a research report at `/tmp/research-issue-{number}.md` or `/tmp/research-topic.md`.
 - **Interactive:** Runs inline with explicit pause points between phases for Q&A. Ask clarifying questions at any time.
-- **Phases:** Issue understanding → Architecture mapping → External research → Approach development (minimum 3) → Final report
+- **Phases:** Problem understanding → Architecture mapping → External research → Approach development (minimum 3) → Final report
 
 ## Build, Test, and Development Commands
 - Restore dependencies: `dotnet restore Imperium.slnx`.
