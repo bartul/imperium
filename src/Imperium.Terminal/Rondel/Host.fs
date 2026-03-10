@@ -68,8 +68,13 @@ module RondelHost =
     /// Creates a new RondelHost with MailboxProcessor serialization
     let create (store: RondelStore) (bus: IBus) (dispatchToAccounting: DispatchToAccounting) : RondelHost =
         let onMailboxError (msg: HostMessage) (ex: exn) : Async<unit> =
+            let severity =
+                match msg with
+                | Command _ -> NotificationSeverity.Error
+                | InboundEvent _ -> NotificationSeverity.Warning
+
             let notification: SystemNotification =
-                { Severity = NotificationSeverity.Error
+                { Severity = severity
                   Source = NotificationSource.RondelHost
                   Message = $"Failed processing {describeHostMessage msg}: {ex.Message}" }
 
