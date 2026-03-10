@@ -122,7 +122,7 @@ Last verified: 2026-02-19
   │   └── App.fs                # Application layout, menu bar, keyboard shortcuts
   └── Program.fs                # Entry point, wiring hosts and bus
   ```
-- **RondelHost implementation:** `SupervisedMailbox` processes `Command` and `InboundEvent` messages; subscribes to `AccountingEvent`; converts using `RondelBillingId.ofId`; dispatches to Accounting via thunk; queries call domain handlers directly. Mailbox failures publish `SystemNotification` with source `RondelHost`.
+- **RondelHost implementation:** `SupervisedMailbox` processes `Command` and `InboundEvent` messages; subscribes to `AccountingEvent`; converts using `RondelBillingId.ofId`; dispatches to Accounting via thunk; queries call domain handlers directly. Mailbox failures publish `SystemNotification` with source `RondelHost`; severity is `Error` for command failures and `Warning` for inbound event failures (e.g., events targeting unknown/uninitialized games are expected in sandbox phase).
 - **AccountingHost implementation:** `SupervisedMailbox` processes commands; publishes `AccountingEvent` values directly to the bus for RondelHost subscriptions. Mailbox failures publish `SystemNotification` with source `AccountingHost`.
 - **Technology choices (terminal):** Terminal.Gui v2 (TUI framework with views, menu bars, keyboard/mouse support), direct function calls for in-process messaging.
 - **RondelView architecture:** Stateless `RondelCanvas` (zero mutable fields) reads from shared `RondelViewState` record with mutable fields (`CurrentGame`, `Selection`, `Positions`). `SelectionMode` record (`Nation` + `Space`) replaces separate selection tracking — single `Option` makes state transitions atomic. `SyncFocus()` method toggles canvas focus based on selection state. Navigation uses `RondelLayout.nextSpace`/`prevSpace` helpers. `onSpaceSelected: Space -> unit` callback replaces direct `RondelHost` dependency. Color scheme: Investor=teal, Import=orange, Production=grey, Maneuver=green, Taxation=yellow, Factory=blue. Emoji flags (🇦🇹🇫🇷🇩🇪🇬🇧🇮🇹🇷🇺) on nation abbreviations with `displayWidth` helper for correct terminal centering.
@@ -292,7 +292,7 @@ when_ [ Move moveCmd |> Execute ]
   - **Behavior specs** (in `Rondel.fs` and `Accounting.fs`): Use CE-based `spec` definitions with `on`, optional `state`, optional setup `actions`, `when_`, and multiple `expect` predicates
   - **Runner pattern**: Use `ISpecRunner` implementations to execute commands/events, optionally seed state (inline or via `SeedFor`), and capture state snapshots for reporting
   - **Separation**: Keep transformation layer tests independent from behavior specs to reduce boilerplate and keep intent explicit
-- Current test coverage (90 tests total, all passing):
+- Current test coverage (95 tests total, all passing):
   - **AccountingContractTests.fs** (6 transformation validation tests):
     - ChargeNationForRondelMovementCommand.fromContract: requires valid GameId; requires valid BillingId; accepts valid command
     - VoidRondelChargeCommand.fromContract: requires valid GameId; requires valid BillingId; accepts valid command
@@ -308,24 +308,29 @@ when_ [ Move moveCmd |> Execute ]
     - superseding pending paid movements (voiding prior charge, rejecting stale target, completing free supersession)
     - payment inbound events (`onInvoicePaid`, `onInvoicePaymentFailed`) including idempotency and voided/superseded payment handling
     - query handlers (`getNationPositions`, `getRondelOverview`) for unknown and initialized game states
-  - **TerminalBusTests.fs** (4 Bus tests):
+  - **TerminalBusTests.fs** (6 Bus tests):
     - publish with no subscribers does nothing
     - subscriber receives published event
     - multiple subscribers receive same event
     - different event types are isolated
+    - failing subscriber does not block later subscribers
+    - subscriber added during publish only affects later publishes
   - **TerminalRondelStoreTests.fs** (3 store tests):
     - load returns None for unknown game
     - save then load returns saved state
     - save overwrites existing state
-  - **RondelHostTests.fs** (5 plumbing tests with exponential backoff):
+  - **RondelHostTests.fs** (7 plumbing tests with exponential backoff):
     - wires command execution to domain
     - wires domain events to bus
     - wires outbound commands to dispatch thunk
     - wires bus events to domain handler
     - wires queries to store
-  - **AccountingHostTests.fs** (2 plumbing tests):
+    - keeps processing commands after a handler failure
+    - logs warning when inbound event targets unknown game
+  - **AccountingHostTests.fs** (3 plumbing tests):
     - wires command execution to domain
     - publishes events to bus
+    - keeps processing commands after a handler failure
   - **GameplayTests.fs** (placeholder module):
     - currently no executable test cases
 
