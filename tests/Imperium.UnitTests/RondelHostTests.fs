@@ -208,4 +208,24 @@ let tests =
 
               waitFor (fun () -> hasMailboxErrorNotification () && (store.Load secondGameId).IsSome)
               Expect.isTrue (hasMailboxErrorNotification ()) "mailbox failure should publish a system notification"
-              Expect.isSome (store.Load secondGameId) "mailbox should continue processing later commands" ]
+              Expect.isSome (store.Load secondGameId) "mailbox should continue processing later commands"
+
+          testCase "logs warning when inbound event targets unknown game"
+          <| fun _ ->
+              let _, publishedEvents, _, _, bus = createRondelHostWithDefaults ()
+
+              Accounting.RondelInvoicePaid { GameId = Id.newId (); BillingId = Id.newId () }
+              |> bus.Publish
+
+              let hasWarningNotification () =
+                  let events: obj seq = publishedEvents
+
+                  events
+                  |> Seq.exists (function
+                      | :? SystemNotification as n ->
+                          n.Severity = NotificationSeverity.Warning
+                          && n.Source = NotificationSource.RondelHost
+                      | _ -> false)
+
+              waitFor hasWarningNotification
+              Expect.isTrue (hasWarningNotification ()) "inbound event failure should be a warning, not an error" ]
