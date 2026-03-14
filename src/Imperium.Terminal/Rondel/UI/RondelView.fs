@@ -397,13 +397,8 @@ module RondelView =
         let queryPositions gameId =
             async {
                 let! result = rondelHost.QueryPositions { GameId = gameId }
-
-                return
-                    match result with
-                    | Some view -> Some view.Positions
-                    | None -> None
+                return result |> Option.map (fun view -> view.Positions)
             }
-            |> Async.RunSynchronously
 
         let refresh () =
             UI.invokeOnMainThread app (fun _ ->
@@ -422,7 +417,12 @@ module RondelView =
                 | MoveToActionSpaceRejected _ -> state.Selection <- None
                 | _ -> ()
 
-                state.Positions <- queryPositions state.CurrentGame.Value
+                match state.CurrentGame with
+                | Some gameId ->
+                    let! positions = queryPositions gameId
+                    state.Positions <- positions
+                | None -> ()
+
                 refresh ()
             })
 
@@ -434,7 +434,8 @@ module RondelView =
                 | NewGameStarted gameId ->
                     state.CurrentGame <- Some gameId
                     state.Selection <- None
-                    state.Positions <- queryPositions gameId
+                    let! positions = queryPositions gameId
+                    state.Positions <- positions
 
                     refresh ()
                 | GameEnded ->
