@@ -4,7 +4,14 @@ open Imperium.Accounting
 open Imperium.Terminal
 open Imperium.Terminal.Shell
 
-type AccountingHost = { Execute: AccountingCommand -> Async<unit> }
+type AccountingHost =
+    {
+        /// Enqueues a command for serialized processing. Returns immediately after
+        /// the command enters the mailbox queue (enqueue acknowledgment only).
+        /// Does not await processing completion. Processing errors are reported
+        /// via SystemNotification on the bus.
+        Execute: AccountingCommand -> Async<unit>
+    }
 
 module AccountingHost =
     let private describeCommand =
