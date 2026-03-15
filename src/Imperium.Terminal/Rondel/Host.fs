@@ -16,7 +16,10 @@ type DispatchToAccounting = unit -> AccountingCommand -> Async<Result<unit, stri
 /// Host for Rondel bounded context with MailboxProcessor serialization
 type RondelHost =
     {
-        /// Commands serialized through MailboxProcessor
+        /// Enqueues a command for serialized processing. Returns immediately after
+        /// the command enters the mailbox queue (enqueue acknowledgment only).
+        /// Does not await processing completion. Processing errors are reported
+        /// via SystemNotification on the bus.
         Execute: RondelCommand -> Async<unit>
         /// Queries bypass mailbox, read directly from the store
         QueryPositions: GetNationPositionsQuery -> Async<RondelPositionsView option>
