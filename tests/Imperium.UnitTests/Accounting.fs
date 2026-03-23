@@ -30,23 +30,23 @@ let private runner: SpecRunner<AccountingContext, NoState, NoState, AccountingCo
 // Helpers
 // ────────────────────────────────────────────────────────────────────────────────
 
-let private hasEventCount expected ctx = ctx.Events.Count = expected
+let private events =
+    CollectionExpect.forAccessor (fun (ctx: AccountingContext) -> ctx.Events :> seq<_>)
 
-let private hasPaymentConfirmed ctx =
-    ctx.Events
-    |> Seq.exists (function
+let private hasEventCount expected = events.HasSize expected
+
+let private hasPaymentConfirmed =
+    events.HasAny (function
         | RondelInvoicePaid _ -> true
         | _ -> false)
 
-let private hasPaymentFailed ctx =
-    ctx.Events
-    |> Seq.exists (function
+let private hasPaymentFailed =
+    events.HasAny (function
         | RondelInvoicePaymentFailed _ -> true
         | _ -> false)
 
-let private hasExactPaymentConfirmed gameId billingId ctx =
-    ctx.Events
-    |> Seq.exists (fun event -> event = RondelInvoicePaid { GameId = gameId; BillingId = billingId })
+let private hasExactPaymentConfirmed gameId billingId =
+    events.Has(RondelInvoicePaid { GameId = gameId; BillingId = billingId })
 
 // ────────────────────────────────────────────────────────────────────────────────
 // Specs

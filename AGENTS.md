@@ -152,6 +152,7 @@ Before every commit, always run these steps in order:
 1. `dotnet fantomas .` — format all F# files
 2. `dotnet build` — ensure the whole solution compiles with 0 errors and 0 warnings
 3. `dotnet test` — ensure all tests pass
+4. `dotnet run --no-build --project tests/Imperium.UnitTests/Imperium.UnitTests.fsproj -- --render-spec-markdown` — ensure specification markdown still renders successfully
 
 ### Launch Terminal App for Review
 
@@ -246,6 +247,7 @@ Domain modules (`.fsi` and `.fs` pairs) follow a consistent sectioned structure.
 - Test modules are organized by concern: bounded-context behavior specs in `Imperium.UnitTests.Rondel` and `Imperium.UnitTests.Accounting`, transformation validation in `*ContractTests.fs`, and infrastructure plumbing in `*HostTests.fs` plus terminal bus/store tests.
 - Use `[<Tests>]` attribute on test values for discovery by YoloDev.Expecto.TestSdk (enables VS Code Test Explorer integration).
 - Execute `dotnet test` (via TestSdk) or `dotnet run --project tests/Imperium.UnitTests/Imperium.UnitTests.fsproj` (native Expecto runner with colorized output).
+- Execute `dotnet run --no-build --project tests/Imperium.UnitTests/Imperium.UnitTests.fsproj -- --render-spec-markdown` to verify the spec-markdown rendering path and regenerate the specification document output when needed.
 - Test organization: group related tests with `testList`, use descriptive test names in lowercase ("accepts valid GUID", not "AcceptsValidGuid").
 - Cover edge cases: null inputs, empty strings, invalid formats, boundary conditions.
 
@@ -257,6 +259,7 @@ The `Spec.fs` module provides a computation expression-based testing approach in
 - `Action<'cmd, 'evt>`: DU with `Execute`, `Handle` cases
 - `Specification<'ctx, 'seed, 'cmd, 'evt>`: Pure data describing a test scenario
 - `SpecRunner<'ctx, 'seed, 'state, 'cmd, 'evt>`: Record-of-functions for context-specific execution, with `SpecRunner.empty` providing no-op defaults
+- `CollectionExpect`: Accessor-bound helper for reusable predicates over context collections such as events and commands
 - `NoState`: Marker type for stateless contexts (F# doesn't allow `unit` as generic return type)
 
 **Usage pattern:**
@@ -279,6 +282,7 @@ let tests = testList "Accounting" (specs |> List.map (toExpecto runner))
 - **Each expectation is its own testCase**: `toExpecto` creates a `testList` where each expectation runs the full `on`/`when_` sequence independently for isolation.
 - **Actions as data**: `when_` collects actions declaratively; runner controls execution (enables logging, timing, etc.).
 - **State capture for reporting**: Runner's `CaptureState` provides initial/final state snapshots for failure output, not passed to expectations.
+- **Collection predicate reuse**: Prefer `CollectionExpect.forAccessor` to bind `events`, `commands`, or similar collections once per spec module, then compose predicates via `Has`, `HasAny`, `Count`, `HasCount`, and `HasSize` instead of repeating `Seq.exists`/`Seq.filter` helpers per domain.
 
 **Multi-step scenarios:**
 ```fsharp
@@ -292,6 +296,7 @@ when_ [ Move moveCmd |> Execute ]
   - **Transformation validation tests** (in `*ContractTests.fs`): Test `fromContract` transformations with Contract types to verify input validation returns appropriate errors; use domain types directly in test setup
   - **Behavior specs** (in `Rondel.fs` and `Accounting.fs`): Use CE-based `spec` definitions with `on`, optional `state`, optional setup `actions`, `when_`, and multiple `expect` predicates
   - **Runner pattern**: Use `{ SpecRunner.empty with ... }` to define runners that execute commands/events, optionally seed state, and capture state snapshots for reporting
+  - **Predicate helper pattern**: For repeated collection checks, define accessors like `let private events = CollectionExpect.forAccessor (fun (ctx: MyContext) -> ctx.Events :> seq<_>)` and compose module-local helpers from that accessor
   - **Separation**: Keep transformation layer tests independent from behavior specs to reduce boilerplate and keep intent explicit
 - Current test coverage (95 tests total, all passing):
   - **AccountingContractTests.fs** (6 transformation validation tests):

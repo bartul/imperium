@@ -98,6 +98,25 @@ module Specification =
         { specification with Preserve = true }
 
 // ────────────────────────────────────────────────────────────────────────────────
+// Collection Predicates
+// ────────────────────────────────────────────────────────────────────────────────
+
+module CollectionExpect =
+    type Accessor<'ctx, 'item> =
+        { Has: 'item -> 'ctx -> bool
+          HasAny: ('item -> bool) -> 'ctx -> bool
+          Count: 'item -> 'ctx -> int
+          HasCount: 'item -> int -> 'ctx -> bool
+          HasSize: int -> 'ctx -> bool }
+
+    let forAccessor (accessor: 'ctx -> seq<'item>) : Accessor<'ctx, 'item> =
+        { Has = fun item ctx -> accessor ctx |> Seq.exists (fun x -> x = item)
+          HasAny = fun predicate ctx -> accessor ctx |> Seq.exists predicate
+          Count = fun item ctx -> accessor ctx |> Seq.filter (fun x -> x = item) |> Seq.length
+          HasCount = fun item n ctx -> accessor ctx |> Seq.filter (fun x -> x = item) |> Seq.length = n
+          HasSize = fun n ctx -> accessor ctx |> Seq.length = n }
+
+// ────────────────────────────────────────────────────────────────────────────────
 // Runner Record
 // ────────────────────────────────────────────────────────────────────────────────
 

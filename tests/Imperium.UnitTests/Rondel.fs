@@ -84,51 +84,45 @@ let private runner =
 // Helpers
 // ────────────────────────────────────────────────────────────────────────────────
 
-let hasExactEvent event_ ctx =
-    ctx.Events |> Seq.exists (fun item -> item = event_)
+let private events =
+    CollectionExpect.forAccessor (fun (ctx: RondelContext) -> ctx.Events :> seq<_>)
+
+let private commands =
+    CollectionExpect.forAccessor (fun (ctx: RondelContext) -> ctx.Commands :> seq<_>)
+
+let hasExactEvent event_ = events.Has event_
 
 let private hasStartingPositionsSet gameId =
     hasExactEvent (PositionedAtStart { GameId = gameId })
 
-let private hasEvent predicate ctx = ctx.Events |> Seq.exists predicate
-
-let private hasActionDetermined ctx =
-    hasEvent
-        (function
+let private hasActionDetermined =
+    events.HasAny (function
         | ActionDetermined _ -> true
         | _ -> false)
-        ctx
 
-let private hasRejection ctx =
-    hasEvent
-        (function
+let private hasRejection =
+    events.HasAny (function
         | MoveToActionSpaceRejected _ -> true
         | _ -> false)
-        ctx
 
-let private hasChargeCommand ctx =
-    ctx.Commands
-    |> Seq.exists (function
+let private hasChargeCommand =
+    commands.HasAny (function
         | ChargeMovement _ -> true
         | _ -> false)
 
-let private hasChargeCommandOf (amount: Amount) ctx =
-    ctx.Commands
-    |> Seq.exists (function
+let private hasChargeCommandOf (amount: Amount) =
+    commands.HasAny (function
         | ChargeMovement cmd when cmd.Amount = amount -> true
         | _ -> false)
 
 let private hasChargeCommandOfM millions =
     hasChargeCommandOf (Amount.unsafe millions)
 
-let private hasExactCommand command ctx =
-    ctx.Commands |> Seq.exists (fun item -> item = command)
+let private hasExactCommand command = commands.Has command
 
-let private countExactEvent event_ ctx =
-    ctx.Events |> Seq.filter (fun item -> item = event_) |> Seq.length
+let private countExactEvent event_ = events.Count event_
 
-let private hasExactEventCount event_ expectedCount ctx =
-    countExactEvent event_ ctx = expectedCount
+let private hasExactEventCount event_ expectedCount = events.HasCount event_ expectedCount
 
 let private getNationPositionsResult ctx = ctx.GetNationPositions()
 
@@ -165,9 +159,8 @@ let private hasRondelOverviewNationNames expectedNames ctx =
     getRondelOverviewResult ctx
     |> Option.exists (fun view -> (view.NationNames |> List.sort) = (expectedNames |> List.sort))
 
-let private hasVoidCommand ctx =
-    ctx.Commands
-    |> Seq.exists (function
+let private hasVoidCommand =
+    commands.HasAny (function
         | VoidCharge _ -> true
         | _ -> false)
 
