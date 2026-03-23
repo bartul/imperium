@@ -121,17 +121,22 @@ let private captionRows caption items =
 
 let toMarkdown
     (options: MarkdownRenderOptions)
-    (runner: ISpecRunner<'ctx, 'seed, 'state, 'cmd, 'evt>)
+    (runner: SpecRunner<'ctx, 'seed, 'state, 'cmd, 'evt>)
     (spec: Specification<'ctx, 'seed, 'cmd, 'evt>)
     =
     let context = prepareContext runner spec
-    let initialState = runner.CaptureState context
-    let initialStateText = formatState initialState
+
+    let initialStateText =
+        runner.CaptureState
+        |> Option.map (fun capture -> capture context |> formatState)
+        |> Option.defaultValue "_no state capture_"
 
     runActions runner context spec.Actions
 
-    let finalState = runner.CaptureState context
-    let finalStateText = formatState finalState
+    let finalStateText =
+        runner.CaptureState
+        |> Option.map (fun capture -> capture context |> formatState)
+        |> Option.defaultValue "_no state capture_"
 
     let givenActionItems =
         spec.GivenActions |> List.choose formatAction |> List.map escapeCell
