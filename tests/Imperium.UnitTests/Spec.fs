@@ -98,25 +98,33 @@ module Specification =
         { specification with Preserve = true }
 
 // ────────────────────────────────────────────────────────────────────────────────
-// Runner Interface
+// Runner Record
 // ────────────────────────────────────────────────────────────────────────────────
 
-/// Runner interface - context-specific execution + state capture
-type ISpecRunner<'ctx, 'seed, 'state, 'cmd, 'evt> =
-    abstract Execute: 'ctx -> 'cmd -> unit
-    abstract Handle: 'ctx -> 'evt -> unit
-    abstract ClearEvents: 'ctx -> unit
-    abstract ClearCommands: 'ctx -> unit
-    abstract SeedState: 'ctx -> 'seed -> unit
-    abstract SeedFor: Specification<'ctx, 'seed, 'cmd, 'evt> -> 'seed option
-    abstract CaptureState: 'ctx -> 'state // For runner reporting, not expectations
+/// Runner record - context-specific execution + optional state capture
+type SpecRunner<'ctx, 'seed, 'state, 'cmd, 'evt> =
+    { Execute: 'ctx -> 'cmd -> unit
+      Handle: 'ctx -> 'evt -> unit
+      ClearEvents: 'ctx -> unit
+      ClearCommands: 'ctx -> unit
+      SeedState: 'ctx -> 'seed -> unit
+      CaptureState: ('ctx -> 'state) option }
+
+module SpecRunner =
+    let empty<'ctx, 'seed, 'state, 'cmd, 'evt> : SpecRunner<'ctx, 'seed, 'state, 'cmd, 'evt> =
+        { Execute = fun _ _ -> ()
+          Handle = fun _ _ -> ()
+          ClearEvents = fun _ -> ()
+          ClearCommands = fun _ -> ()
+          SeedState = fun _ _ -> ()
+          CaptureState = None }
 
 // ────────────────────────────────────────────────────────────────────────────────
 // Runner Helpers
 // ────────────────────────────────────────────────────────────────────────────────
 
 /// Run all actions on context using provided runner
-let runActions (runner: ISpecRunner<'ctx, 'seed, 'state, 'cmd, 'evt>) ctx actions =
+let runActions (runner: SpecRunner<'ctx, 'seed, 'state, 'cmd, 'evt>) ctx actions =
     for action in actions do
         match action with
         | Execute cmd -> runner.Execute ctx cmd
@@ -124,17 +132,11 @@ let runActions (runner: ISpecRunner<'ctx, 'seed, 'state, 'cmd, 'evt>) ctx action
 
 /// Build context and run optional setup phases before when_.
 let prepareContext
-    (runner: ISpecRunner<'ctx, 'seed, 'state, 'cmd, 'evt>)
+    (runner: SpecRunner<'ctx, 'seed, 'state, 'cmd, 'evt>)
     (specification: Specification<'ctx, 'seed, 'cmd, 'evt>)
     =
     let context = specification.On()
-
-    let seedState =
-        specification.State
-        |> Option.orElseWith (fun () -> runner.SeedFor specification)
-
-    seedState |> Option.iter (runner.SeedState context)
-
+    specification.State |> Option.iter (runner.SeedState context)
     runActions runner context specification.GivenActions
 
     if not specification.Preserve then
@@ -146,7 +148,7 @@ let prepareContext
 /// Convert Specification to Expecto testList where each expectation is its own testCase.
 /// Each testCase runs the full on/when_ sequence independently for isolation.
 let toExpecto
-    (runner: ISpecRunner<'ctx, 'seed, 'state, 'cmd, 'evt>)
+    (runner: SpecRunner<'ctx, 'seed, 'state, 'cmd, 'evt>)
     (specification: Specification<'ctx, 'seed, 'cmd, 'evt>)
     =
     let expectationTests =
@@ -155,9 +157,9 @@ let toExpecto
             testCase expectation.Description
             <| fun _ ->
                 let ctx = prepareContext runner specification
-                let _initialState = runner.CaptureState ctx
+                let _initialState = runner.CaptureState |> Option.map (fun capture -> capture ctx)
                 runActions runner ctx specification.Actions
-                let _finalState = runner.CaptureState ctx
+                let _finalState = runner.CaptureState |> Option.map (fun capture -> capture ctx)
                 let passed = expectation.Predicate ctx
                 Expect.isTrue passed expectation.Description)
 

@@ -256,7 +256,7 @@ The `Spec.fs` module provides a computation expression-based testing approach in
 **Core types:**
 - `Action<'cmd, 'evt>`: DU with `Execute`, `Handle` cases
 - `Specification<'ctx, 'seed, 'cmd, 'evt>`: Pure data describing a test scenario
-- `ISpecRunner<'ctx, 'seed, 'state, 'cmd, 'evt>`: Interface for context-specific execution
+- `SpecRunner<'ctx, 'seed, 'state, 'cmd, 'evt>`: Record-of-functions for context-specific execution, with `SpecRunner.empty` providing no-op defaults
 - `NoState`: Marker type for stateless contexts (F# doesn't allow `unit` as generic return type)
 
 **Usage pattern:**
@@ -291,7 +291,7 @@ when_ [ Move moveCmd |> Execute ]
 - **Testing approach:**
   - **Transformation validation tests** (in `*ContractTests.fs`): Test `fromContract` transformations with Contract types to verify input validation returns appropriate errors; use domain types directly in test setup
   - **Behavior specs** (in `Rondel.fs` and `Accounting.fs`): Use CE-based `spec` definitions with `on`, optional `state`, optional setup `actions`, `when_`, and multiple `expect` predicates
-  - **Runner pattern**: Use `ISpecRunner` implementations to execute commands/events, optionally seed state (inline or via `SeedFor`), and capture state snapshots for reporting
+  - **Runner pattern**: Use `{ SpecRunner.empty with ... }` to define runners that execute commands/events, optionally seed state, and capture state snapshots for reporting
   - **Separation**: Keep transformation layer tests independent from behavior specs to reduce boilerplate and keep intent explicit
 - Current test coverage (95 tests total, all passing):
   - **AccountingContractTests.fs** (6 transformation validation tests):

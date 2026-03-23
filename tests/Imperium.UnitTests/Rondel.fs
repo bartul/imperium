@@ -69,22 +69,17 @@ let private createContext gameId =
 // ────────────────────────────────────────────────────────────────────────────────
 
 let private runner =
-    { new ISpecRunner<RondelContext, RondelState, RondelState option, RondelCommand, RondelInboundEvent> with
-        member _.Execute ctx cmd =
-            execute ctx.Deps cmd |> Async.RunSynchronously
-
-        member _.Handle ctx evt =
-            handle ctx.Deps evt |> Async.RunSynchronously
-
-        member _.ClearEvents ctx = ctx.Events.Clear()
-        member _.ClearCommands ctx = ctx.Commands.Clear()
-        member _.SeedState ctx state = ctx.Store[ctx.GameId] <- state
-        member _.SeedFor _ = None
-
-        member _.CaptureState ctx =
-            match ctx.Store.TryGetValue(ctx.GameId) with
-            | true, state -> Some state
-            | false, _ -> None }
+    { SpecRunner.empty with
+        Execute = fun ctx cmd -> execute ctx.Deps cmd |> Async.RunSynchronously
+        Handle = fun ctx evt -> handle ctx.Deps evt |> Async.RunSynchronously
+        ClearEvents = fun ctx -> ctx.Events.Clear()
+        ClearCommands = fun ctx -> ctx.Commands.Clear()
+        SeedState = fun ctx state -> ctx.Store[ctx.GameId] <- state
+        CaptureState =
+            Some(fun ctx ->
+                match ctx.Store.TryGetValue(ctx.GameId) with
+                | true, state -> Some state
+                | false, _ -> None) }
 
 // ────────────────────────────────────────────────────────────────────────────────
 // Helpers

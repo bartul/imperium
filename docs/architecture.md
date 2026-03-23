@@ -83,7 +83,7 @@ The unit test project uses computation expression-based specifications to define
 Conceptually, a spec contains:
 
 - **Context factory (`on`)** — builds fresh test context per expectation
-- **Optional seed (`state` / `SeedFor`)** — injects initial state when needed
+- **Optional seed (`state`)** — injects initial state when needed
 - **Optional setup actions (`actions`)** — preconditions executed before `when_`
 - **Main actions (`when_`)** — commands/events under test
 - **Expectations (`expect`)** — pure `'ctx -> bool` predicates
@@ -91,7 +91,7 @@ Conceptually, a spec contains:
 Execution flow per expectation:
 
 1. Build context via `on`
-2. Seed state from inline `state` or runner-provided `SeedFor`
+2. Seed state from inline `state` if provided
 3. Run setup `actions`
 4. Clear setup side-effects unless `preserve` is enabled
 5. Run `when_` actions
