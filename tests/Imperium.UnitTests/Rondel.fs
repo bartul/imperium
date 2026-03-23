@@ -2,7 +2,6 @@ module Imperium.UnitTests.Rondel
 
 open System
 open System.Collections.Generic
-open System.Security.AccessControl
 open Expecto
 open Spec
 open Imperium.Rondel
