@@ -232,7 +232,7 @@ let private rondelSpecs =
 
           state (
               RondelState.create gameId nations
-              |> RondelState.withNationPositions [ "France", Some Space.Factory; "Austria", Some Space.Investor ]
+              |> RondelState.withNationPositions [ "France", Space.Factory; "Austria", Space.Investor ]
           )
 
           when_
@@ -252,7 +252,7 @@ let private rondelSpecs =
 
           state (
               RondelState.create gameId nations
-              |> RondelState.withNationPositions [ "France", Some Space.Investor; "Austria", None ]
+              |> RondelState.withNationPosition "France" Space.Investor
           )
 
           when_
@@ -268,7 +268,7 @@ let private rondelSpecs =
 
           state (
               RondelState.create gameId nations
-              |> RondelState.withNationPositions [ "France", Some Space.ProductionOne; "Austria", None ]
+              |> RondelState.withNationPosition "France" Space.ProductionOne
           )
 
           when_
@@ -285,7 +285,7 @@ let private rondelSpecs =
 
           state (
               RondelState.create gameId nations
-              |> RondelState.withNationPositions [ "France", Some Space.ManeuverOne; "Austria", None ]
+              |> RondelState.withNationPosition "France" Space.ManeuverOne
           )
 
           when_ [ Move { GameId = gameId; Nation = "France"; Space = Space.Investor } |> Execute ]
@@ -300,7 +300,7 @@ let private rondelSpecs =
 
           state (
               RondelState.create gameId nations
-              |> RondelState.withNationPositions [ "France", Some Space.Investor; "Austria", None ]
+              |> RondelState.withNationPosition "France" Space.Investor
           )
 
           when_
@@ -317,7 +317,7 @@ let private rondelSpecs =
 
           state (
               RondelState.create gameId nations
-              |> RondelState.withNationPositions [ "France", Some Space.ProductionOne; "Austria", None ]
+              |> RondelState.withNationPosition "France" Space.ProductionOne
           )
 
           when_ [ Move { GameId = gameId; Nation = "France"; Space = Space.Import } |> Execute ]
@@ -337,7 +337,7 @@ let private rondelSpecs =
 
           state (
               RondelState.create gameId nations
-              |> RondelState.withNationPositions [ "France", Some Space.ProductionOne; "Austria", None ]
+              |> RondelState.withNationPosition "France" Space.ProductionOne
               |> RondelState.withPendingMove "France" Space.ProductionTwo previousBillingId
           )
 
@@ -367,7 +367,7 @@ let private rondelSpecs =
 
           state (
               RondelState.create gameId nations
-              |> RondelState.withNationPositions [ "France", Some Space.ManeuverOne; "Austria", None ]
+              |> RondelState.withNationPosition "France" Space.ManeuverOne
               |> RondelState.withPendingMove "France" Space.Investor previousBillingIdForFreeMove
           )
 
@@ -392,7 +392,7 @@ let private rondelSpecs =
 
           state (
               RondelState.create gameId (Set.ofList [ "Austria" ])
-              |> RondelState.withNationPosition "Austria" (Some Space.ManeuverOne)
+              |> RondelState.withNationPosition "Austria" Space.ManeuverOne
               |> RondelState.withPendingMove "Austria" Space.Investor invoicePaidBillingId
           )
 
@@ -414,7 +414,7 @@ let private rondelSpecs =
 
           state (
               RondelState.create gameId (Set.ofList [ "Austria" ])
-              |> RondelState.withNationPosition "Austria" (Some Space.ManeuverOne)
+              |> RondelState.withNationPosition "Austria" Space.ManeuverOne
               |> RondelState.withPendingMove "Austria" Space.Investor invoicePaidBillingId
           )
 
@@ -436,7 +436,7 @@ let private rondelSpecs =
 
           state (
               RondelState.create gameId nations
-              |> RondelState.withNationPositions [ "France", Some Space.Taxation; "Austria", None ]
+              |> RondelState.withNationPosition "France" Space.Taxation
           )
 
           actions
@@ -465,7 +465,7 @@ let private rondelSpecs =
 
           state (
               RondelState.create gameId (Set.ofList [ "Austria" ])
-              |> RondelState.withNationPosition "Austria" (Some Space.ManeuverOne)
+              |> RondelState.withNationPosition "Austria" Space.ManeuverOne
               |> RondelState.withPendingMove "Austria" Space.Investor invoicePaymentFailedBillingId
           )
 
@@ -496,7 +496,7 @@ let private rondelSpecs =
 
           state (
               RondelState.create gameId (Set.ofList [ "Austria" ])
-              |> RondelState.withNationPosition "Austria" (Some Space.ManeuverOne)
+              |> RondelState.withNationPosition "Austria" Space.ManeuverOne
               |> RondelState.withPendingMove "Austria" Space.ManeuverTwo invoicePaymentFailedTwiceBillingId
           )
 
@@ -525,7 +525,7 @@ let private rondelSpecs =
 
           state (
               RondelState.create gameId nations
-              |> RondelState.withNationPositions [ "France", Some Space.ProductionOne; "Austria", None ]
+              |> RondelState.withNationPosition "France" Space.ProductionOne
               |> RondelState.withPendingMove "France" Space.ProductionTwo voidedChargeFailureBillingId
           )
 
@@ -555,7 +555,7 @@ let private rondelSpecs =
 
           state (
               RondelState.create gameId (Set.ofList [ "Britain" ])
-              |> RondelState.withNationPosition "Britain" (Some Space.Import)
+              |> RondelState.withNationPosition "Britain" Space.Import
               |> RondelState.withPendingMove "Britain" Space.ProductionTwo paymentThenFailureBillingId
           )
 

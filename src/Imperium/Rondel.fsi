@@ -230,11 +230,11 @@ module Rondel =
 
         /// Update the current position for an existing nation.
         /// Raises if the nation is not present in the state.
-        val withNationPosition: string -> Space option -> RondelState -> RondelState
+        val withNationPosition: string -> Space -> RondelState -> RondelState
 
         /// Update current positions for existing nations.
         /// Raises if any nation is not present in the state.
-        val withNationPositions: seq<string * Space option> -> RondelState -> RondelState
+        val withNationPositions: seq<string * Space> -> RondelState -> RondelState
 
         /// Add or replace a pending move for an existing nation.
         /// Raises if the nation is not present in the state.
