@@ -320,27 +320,44 @@ module Rondel =
 
     /// Mechanical rondel state construction/update helpers plus contract transformations.
     module RondelState =
-        let private failIfNoNations nations =
+        let private createResult gameId nations : Result<RondelState, string> =
             if Set.isEmpty nations then
-                failwith "Cannot create rondel state with zero nations."
-
-        let private failIfNationNotInState nation (state: RondelState) =
-            if state.NationPositions |> Map.containsKey nation then
-                state
+                Error "Cannot create rondel state with zero nations."
             else
-                failwith $"Nation '{nation}' is not part of this rondel state."
+                Ok
+                    { GameId = gameId
+                      NationPositions = nations |> Seq.map (fun nation -> nation, None) |> Map.ofSeq
+                      PendingMovements = Map.empty }
+
+        let private requireNationInState nation (state: RondelState) : Result<RondelState, string> =
+            if state.NationPositions |> Map.containsKey nation then
+                Ok state
+            else
+                Error $"Nation '{nation}' is not part of this rondel state."
+
+        let private withPendingMoveResult
+            nation
+            targetSpace
+            billingId
+            (state: RondelState)
+            : Result<RondelState, string> =
+            requireNationInState nation state
+            |> Result.map (fun currentState ->
+                { currentState with
+                    PendingMovements =
+                        currentState.PendingMovements
+                        |> Map.add nation (PendingMovement.create nation targetSpace billingId) })
 
         let create gameId nations : RondelState =
-            failIfNoNations nations
-
-            { GameId = gameId
-              NationPositions = nations |> Seq.map (fun nation -> nation, None) |> Map.ofSeq
-              PendingMovements = Map.empty }
+            match createResult gameId nations with
+            | Ok state -> state
+            | Error error -> failwith error
 
         let withNationPosition nation position (state: RondelState) : RondelState =
-            failIfNationNotInState nation state
-            |> fun currentState ->
+            match requireNationInState nation state with
+            | Ok currentState ->
                 { currentState with NationPositions = currentState.NationPositions |> Map.add nation (Some position) }
+            | Error error -> failwith error
 
         let withNationPositions positions (state: RondelState) : RondelState =
             positions
@@ -349,17 +366,15 @@ module Rondel =
                 state
 
         let withPendingMove nation targetSpace billingId (state: RondelState) : RondelState =
-            failIfNationNotInState nation state
-            |> fun currentState ->
-                { currentState with
-                    PendingMovements =
-                        currentState.PendingMovements
-                        |> Map.add nation (PendingMovement.create nation targetSpace billingId) }
+            match withPendingMoveResult nation targetSpace billingId state with
+            | Ok currentState -> currentState
+            | Error error -> failwith error
 
         let withoutPendingMove nation (state: RondelState) : RondelState =
-            failIfNationNotInState nation state
-            |> fun currentState ->
+            match requireNationInState nation state with
+            | Ok currentState ->
                 { currentState with PendingMovements = currentState.PendingMovements |> Map.remove nation }
+            | Error error -> failwith error
 
         /// Convert domain state to serializable contract representation.
         let toContract (state: RondelState) : Contract.Rondel.RondelState =
@@ -406,7 +421,7 @@ module Rondel =
                 let! positions = nationPositions
                 let! pending = pendingMovements
 
-                let initialState = create gameId (positions |> Map.keys |> Set.ofSeq)
+                let! initialState = createResult gameId (positions |> Map.keys |> Set.ofSeq)
 
                 let stateWithPositions =
                     positions
@@ -418,14 +433,14 @@ module Rondel =
                             | Some space -> currentState |> withNationPosition nation space)
                         initialState
 
-                return
+                return!
                     pending
                     |> Map.toSeq
                     |> Seq.fold
-                        (fun currentState (nation, pendingMove) ->
-                            currentState
-                            |> withPendingMove nation pendingMove.TargetSpace pendingMove.BillingId)
-                        stateWithPositions
+                        (fun currentResult (nation, pendingMove) ->
+                            currentResult
+                            |> Result.bind (withPendingMoveResult nation pendingMove.TargetSpace pendingMove.BillingId))
+                        (Ok stateWithPositions)
             }
 
     /// Transforms Contract RondelInvoicePaid to Domain InvoicePaidInboundEvent.
