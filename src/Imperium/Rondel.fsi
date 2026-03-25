@@ -222,8 +222,28 @@ module Rondel =
         /// Convert domain void command to Accounting contract for dispatch.
         val toContract: VoidChargeOutboundCommand -> Contract.Accounting.VoidRondelChargeCommand
 
-    /// Transforms Domain RondelState to/from a Contract type for persistence.
+    /// Mechanical rondel state construction/update helpers plus contract transformations.
     module RondelState =
+        /// Create initial rondel state for a game with the participating nations at their starting positions.
+        /// Raises if the nation set is empty.
+        val create: Id -> Set<string> -> RondelState
+
+        /// Update the current position for an existing nation.
+        /// Raises if the nation is not present in the state.
+        val withNationPosition: string -> Space -> RondelState -> RondelState
+
+        /// Update current positions for existing nations.
+        /// Raises if any nation is not present in the state.
+        val withNationPositions: seq<string * Space> -> RondelState -> RondelState
+
+        /// Add or replace a pending move for an existing nation.
+        /// Raises if the nation is not present in the state.
+        val withPendingMove: string -> Space -> RondelBillingId -> RondelState -> RondelState
+
+        /// Remove a pending move for an existing nation.
+        /// Raises if the nation is not present in the state.
+        val withoutPendingMove: string -> RondelState -> RondelState
+
         /// Convert domain state to serializable contract representation.
         val toContract: RondelState -> Contract.Rondel.RondelState
         /// Reconstruct domain state from contract representation.
