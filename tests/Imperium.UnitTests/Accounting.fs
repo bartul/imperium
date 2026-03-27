@@ -53,8 +53,8 @@ let private hasExactPaymentConfirmed gameId billingId =
 // ────────────────────────────────────────────────────────────────────────────────
 
 let private accountingSpecs =
-    let gameId = Guid.NewGuid() |> Id
-    let billingId = Guid.NewGuid() |> Id
+    let gameId = Id.newId ()
+    let billingId = Id.newId ()
 
     [ spec "charging a nation for paid movement confirms payment" {
           on createContext
@@ -72,9 +72,7 @@ let private accountingSpecs =
       spec "voiding a charge records no accounting outcome" {
           on createContext
 
-          when_
-              [ VoidRondelCharge { GameId = Guid.NewGuid() |> Id; BillingId = Guid.NewGuid() |> Id }
-                |> Execute ]
+          when_ [ VoidRondelCharge { GameId = Id.newId (); BillingId = Id.newId () } |> Execute ]
 
           expect "no accounting outcomes are published" (hasEventCount 0)
           expect "payment is not marked as failed" (hasPaymentFailed >> not)
