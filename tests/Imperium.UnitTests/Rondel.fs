@@ -125,8 +125,7 @@ let private hasExactEventCount event_ expectedCount = events.HasCount event_ exp
 
 let private getNationPositionsResult ctx = ctx.GetNationPositions()
 
-let private newBillingId () =
-    Id.newId () |> RondelBillingId.ofId
+let private newBillingId () = Id.newId () |> RondelBillingId.ofId
 
 let private hasNoNationPositions ctx =
     getNationPositionsResult ctx |> Option.isNone
@@ -192,7 +191,7 @@ let private rondelSpecs =
       spec "starting setup can be applied only once per game" {
           on (fun () -> createContext gameId)
 
-          state (RondelState.create gameId nations) 
+          state (RondelState.create gameId nations)
 
           when_ [ SetToStartingPositions { GameId = gameId; Nations = nations } |> Execute ]
 
