@@ -1,6 +1,5 @@
 module Imperium.UnitTests.Rondel
 
-open System
 open System.Collections.Generic
 open Expecto
 open Spec
@@ -125,6 +124,9 @@ let private countExactEvent event_ = events.Count event_
 let private hasExactEventCount event_ expectedCount = events.HasCount event_ expectedCount
 
 let private getNationPositionsResult ctx = ctx.GetNationPositions()
+
+let private newBillingId () =
+    Id.newId () |> RondelBillingId.ofId
 
 let private hasNoNationPositions ctx =
     getNationPositionsResult ctx |> Option.isNone
@@ -330,7 +332,7 @@ let private rondelSpecs =
           expect "no payment required" (hasChargeCommand >> not)
       }
 
-      let previousBillingId = Guid.NewGuid() |> Id |> RondelBillingId.ofId
+      let previousBillingId = newBillingId ()
 
       spec "moving a nation with a pending paid move to another paid move voids the old charge" {
           on (fun () -> createContext gameId)
@@ -360,7 +362,7 @@ let private rondelSpecs =
           expect "no action determined" (hasActionDetermined >> not)
       }
 
-      let previousBillingIdForFreeMove = Guid.NewGuid() |> Id |> RondelBillingId.ofId
+      let previousBillingIdForFreeMove = newBillingId ()
 
       spec "moving a nation with a pending paid move to a free move voids the old charge and completes immediately" {
           on (fun () -> createContext gameId)
@@ -385,7 +387,7 @@ let private rondelSpecs =
           expect "action is determined" hasActionDetermined
       }
 
-      let invoicePaidBillingId = Guid.NewGuid() |> Id |> RondelBillingId.ofId
+      let invoicePaidBillingId = newBillingId ()
 
       spec "paying a pending movement completes it and determines action" {
           on (fun () -> createContext gameId)
@@ -429,7 +431,7 @@ let private rondelSpecs =
                   ctx)
       }
 
-      let voidedBillingId = Guid.NewGuid() |> Id |> RondelBillingId.ofId
+      let voidedBillingId = newBillingId ()
 
       spec "payment for a voided pending movement is ignored" {
           on (fun () -> createContext gameId)
@@ -458,7 +460,7 @@ let private rondelSpecs =
                >> not)
       }
 
-      let invoicePaymentFailedBillingId = Guid.NewGuid() |> Id |> RondelBillingId.ofId
+      let invoicePaymentFailedBillingId = newBillingId ()
 
       spec "payment failure rejects pending movement and keeps original position" {
           on (fun () -> createContext gameId)
@@ -488,8 +490,7 @@ let private rondelSpecs =
               (hasExactEvent (ActionDetermined { GameId = gameId; Nation = "Austria"; Action = Action.Factory }))
       }
 
-      let invoicePaymentFailedTwiceBillingId =
-          Id.newId () |> RondelBillingId.ofId
+      let invoicePaymentFailedTwiceBillingId = newBillingId ()
 
       spec "processing the same payment failure twice rejects pending movement only once" {
           on (fun () -> createContext gameId)
@@ -518,7 +519,7 @@ let private rondelSpecs =
               (hasExactEvent (ActionDetermined { GameId = gameId; Nation = "Austria"; Action = Action.Factory }))
       }
 
-      let voidedChargeFailureBillingId = Guid.NewGuid() |> Id |> RondelBillingId.ofId
+      let voidedChargeFailureBillingId = newBillingId ()
 
       spec "payment failure for a voided charge is ignored" {
           on (fun () -> createContext gameId)
@@ -548,7 +549,7 @@ let private rondelSpecs =
               (hasExactEvent (ActionDetermined { GameId = gameId; Nation = "France"; Action = Action.Factory }))
       }
 
-      let paymentThenFailureBillingId = Guid.NewGuid() |> Id |> RondelBillingId.ofId
+      let paymentThenFailureBillingId = newBillingId ()
 
       spec "payment failure after successful payment is ignored" {
           on (fun () -> createContext gameId)
