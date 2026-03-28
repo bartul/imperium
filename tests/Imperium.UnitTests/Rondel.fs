@@ -1,6 +1,5 @@
 module Imperium.UnitTests.Rondel
 
-open System
 open System.Collections.Generic
 open Expecto
 open Spec
@@ -124,9 +123,9 @@ let private countExactEvent event_ = events.Count event_
 
 let private hasExactEventCount event_ expectedCount = events.HasCount event_ expectedCount
 
-let private newBillingId () = Id.newId () |> RondelBillingId.ofId
-
 let private getNationPositionsResult ctx = ctx.GetNationPositions()
+
+let private newBillingId () = Id.newId () |> RondelBillingId.ofId
 
 let private hasNoNationPositions ctx =
     getNationPositionsResult ctx |> Option.isNone
@@ -178,7 +177,7 @@ let private chargeCount ctx =
 // ────────────────────────────────────────────────────────────────────────────────
 
 let private rondelSpecs =
-    let gameId = Guid.NewGuid() |> Id
+    let gameId = Id.newId ()
     let nations = Set.ofList [ "France"; "Austria" ]
 
     [ spec "starting setup places nations at their opening positions" {
@@ -234,7 +233,7 @@ let private rondelSpecs =
 
           state (
               RondelState.create gameId nations
-              |> RondelState.withNationPositions [ "France", Space.Factory; "Austria", Space.Investor ]
+              |> RondelState.withNationPositions [ ("France", Space.Factory); ("Austria", Space.Investor) ]
           )
 
           when_

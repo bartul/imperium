@@ -33,7 +33,7 @@ type Specification<'ctx, 'seed, 'cmd, 'evt> =
     {
         Name: string
         On: unit -> 'ctx
-        State: 'seed option
+        GivenState: 'seed option
         /// Setup actions that run in the on-step before when_.
         GivenActions: Action<'cmd, 'evt> list
         /// Keep events/commands produced by setup actions.
@@ -50,7 +50,7 @@ type SpecificationBuilder<'ctx, 'seed, 'cmd, 'evt>(name) =
     member _.Yield _ =
         { Name = name
           On = (fun () -> Unchecked.defaultof<_>)
-          State = None
+          GivenState = None
           GivenActions = []
           Preserve = false
           Actions = []
@@ -60,13 +60,13 @@ type SpecificationBuilder<'ctx, 'seed, 'cmd, 'evt>(name) =
     member _.On(spec, setup) = { spec with On = setup }
 
     [<CustomOperation("state")>]
-    member _.State(spec, state) = { spec with State = Some state }
+    member _.State(spec, state) = { spec with GivenState = Some state }
 
     [<CustomOperation("actions")>]
     member _.Actions(spec, actions) = { spec with GivenActions = actions }
 
     [<CustomOperation("preserve")>]
-    member _.Preserve(spec) = { spec with Preserve = true }
+    member _.Preserve spec = { spec with Preserve = true }
 
     [<CustomOperation("when_")>]
     member _.When(spec, actions) = { spec with Actions = actions }
@@ -76,15 +76,15 @@ type SpecificationBuilder<'ctx, 'seed, 'cmd, 'evt>(name) =
         { spec with Expectations = spec.Expectations @ [ { Description = description; Predicate = predicate } ] }
 
 let spec<'ctx, 'seed, 'cmd, 'evt> name =
-    SpecificationBuilder<'ctx, 'seed, 'cmd, 'evt>(name)
+    SpecificationBuilder<'ctx, 'seed, 'cmd, 'evt> name
 
 module Specification =
     /// Add state seed outside CE definition.
-    let withState
+    let withGivenState
         (state: 'seed)
         (specification: Specification<'ctx, 'seed, 'cmd, 'evt>)
         : Specification<'ctx, 'seed, 'cmd, 'evt> =
-        { specification with State = Some state }
+        { specification with GivenState = Some state }
 
     /// Add setup actions outside CE definition.
     let withActions
@@ -155,7 +155,7 @@ let prepareContext
     (specification: Specification<'ctx, 'seed, 'cmd, 'evt>)
     =
     let context = specification.On()
-    specification.State |> Option.iter (runner.SeedState context)
+    specification.GivenState |> Option.iter (runner.SeedState context)
     runActions runner context specification.GivenActions
 
     if not specification.Preserve then
