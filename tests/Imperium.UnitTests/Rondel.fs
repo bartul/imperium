@@ -183,7 +183,7 @@ let private rondelSpecs =
     [ spec "starting setup places nations at their opening positions" {
           on (fun () -> createContext gameId)
 
-          when_ [ SetToStartingPositions { GameId = gameId; Nations = nations } |> Execute ]
+          when_command (SetToStartingPositions { GameId = gameId; Nations = nations })
 
           expect "opening positions are set" (hasStartingPositionsSet gameId)
       }
@@ -193,7 +193,7 @@ let private rondelSpecs =
 
           state (RondelState.create gameId nations)
 
-          when_ [ SetToStartingPositions { GameId = gameId; Nations = nations } |> Execute ]
+          when_command (SetToStartingPositions { GameId = gameId; Nations = nations })
 
           expect "second setup attempt is ignored" (hasStartingPositionsSet gameId >> not)
       }
@@ -201,9 +201,8 @@ let private rondelSpecs =
       spec "any attempted move is rejected until nations are set to starting positions" {
           on (fun () -> createContext gameId)
 
-          when_
-              [ Move { GameId = gameId; Nation = "France"; Space = Space.Factory } |> Execute
-                Move { GameId = gameId; Nation = "Austria"; Space = Space.Investor } |> Execute ]
+          when_command (Move { GameId = gameId; Nation = "France"; Space = Space.Factory })
+          when_command (Move { GameId = gameId; Nation = "Austria"; Space = Space.Investor })
 
           expect
               "reject the move"
@@ -216,10 +215,9 @@ let private rondelSpecs =
       spec "moving a nation for the first time does not require payment regardless of destination" {
           on (fun () -> createContext gameId)
 
-          when_
-              [ SetToStartingPositions { GameId = gameId; Nations = nations } |> Execute
-                Move { GameId = gameId; Nation = "France"; Space = Space.Factory } |> Execute
-                Move { GameId = gameId; Nation = "Austria"; Space = Space.Investor } |> Execute ]
+          when_command (SetToStartingPositions { GameId = gameId; Nations = nations })
+          when_command (Move { GameId = gameId; Nation = "France"; Space = Space.Factory })
+          when_command (Move { GameId = gameId; Nation = "Austria"; Space = Space.Investor })
 
           expect
               "action is determined"
@@ -236,9 +234,8 @@ let private rondelSpecs =
               |> RondelState.withNationPositions [ ("France", Space.Factory); ("Austria", Space.Investor) ]
           )
 
-          when_
-              [ Move { GameId = gameId; Nation = "France"; Space = Space.Factory } |> Execute
-                Move { GameId = gameId; Nation = "Austria"; Space = Space.Investor } |> Execute ]
+          when_command (Move { GameId = gameId; Nation = "France"; Space = Space.Factory })
+          when_command (Move { GameId = gameId; Nation = "Austria"; Space = Space.Investor })
 
           expect
               "rejects the move"
@@ -256,9 +253,7 @@ let private rondelSpecs =
               |> RondelState.withNationPosition "France" Space.Investor
           )
 
-          when_
-              [ Move { GameId = gameId; Nation = "France"; Space = Space.ProductionOne }
-                |> Execute ]
+          when_command (Move { GameId = gameId; Nation = "France"; Space = Space.ProductionOne })
 
           expect "action is determined" hasActionDetermined
           expect "no payment required" (hasChargeCommand >> not)
@@ -272,9 +267,7 @@ let private rondelSpecs =
               |> RondelState.withNationPosition "France" Space.ProductionOne
           )
 
-          when_
-              [ Move { GameId = gameId; Nation = "France"; Space = Space.ProductionTwo }
-                |> Execute ]
+          when_command (Move { GameId = gameId; Nation = "France"; Space = Space.ProductionTwo })
 
           expect "no action determined" (hasActionDetermined >> not)
           expect "payment is required" hasChargeCommand
@@ -289,7 +282,7 @@ let private rondelSpecs =
               |> RondelState.withNationPosition "France" Space.ManeuverOne
           )
 
-          when_ [ Move { GameId = gameId; Nation = "France"; Space = Space.Investor } |> Execute ]
+          when_command (Move { GameId = gameId; Nation = "France"; Space = Space.Investor })
 
           expect "no action determined" (hasActionDetermined >> not)
           expect "payment is required" hasChargeCommand
@@ -304,9 +297,7 @@ let private rondelSpecs =
               |> RondelState.withNationPosition "France" Space.Investor
           )
 
-          when_
-              [ Move { GameId = gameId; Nation = "France"; Space = Space.ProductionTwo }
-                |> Execute ]
+          when_command (Move { GameId = gameId; Nation = "France"; Space = Space.ProductionTwo })
 
           expect "no action determined" (hasActionDetermined >> not)
           expect "payment is required" hasChargeCommand
@@ -321,7 +312,7 @@ let private rondelSpecs =
               |> RondelState.withNationPosition "France" Space.ProductionOne
           )
 
-          when_ [ Move { GameId = gameId; Nation = "France"; Space = Space.Import } |> Execute ]
+          when_command (Move { GameId = gameId; Nation = "France"; Space = Space.Import })
 
           expect
               "rejects the move"
@@ -342,9 +333,7 @@ let private rondelSpecs =
               |> RondelState.withPendingMove "France" Space.ProductionTwo previousBillingId
           )
 
-          when_
-              [ Move { GameId = gameId; Nation = "France"; Space = Space.ManeuverTwo }
-                |> Execute ]
+          when_command (Move { GameId = gameId; Nation = "France"; Space = Space.ManeuverTwo })
 
           expect
               "pending move is rejected"
@@ -372,7 +361,7 @@ let private rondelSpecs =
               |> RondelState.withPendingMove "France" Space.Investor previousBillingIdForFreeMove
           )
 
-          when_ [ Move { GameId = gameId; Nation = "France"; Space = Space.Factory } |> Execute ]
+          when_command (Move { GameId = gameId; Nation = "France"; Space = Space.Factory })
 
           expect
               "pending move is rejected"
@@ -397,9 +386,8 @@ let private rondelSpecs =
               |> RondelState.withPendingMove "Austria" Space.Investor invoicePaidBillingId
           )
 
-          when_
-              [ InvoicePaid { GameId = gameId; BillingId = invoicePaidBillingId } |> Handle
-                Move { GameId = gameId; Nation = "Austria"; Space = Space.Import } |> Execute ]
+          when_event (InvoicePaid { GameId = gameId; BillingId = invoicePaidBillingId })
+          when_command (Move { GameId = gameId; Nation = "Austria"; Space = Space.Import })
 
           expect
               "action is determined from pending movement"
@@ -419,9 +407,8 @@ let private rondelSpecs =
               |> RondelState.withPendingMove "Austria" Space.Investor invoicePaidBillingId
           )
 
-          when_
-              [ InvoicePaid { GameId = gameId; BillingId = invoicePaidBillingId } |> Handle
-                InvoicePaid { GameId = gameId; BillingId = invoicePaidBillingId } |> Handle ]
+          when_event (InvoicePaid { GameId = gameId; BillingId = invoicePaidBillingId })
+          when_event (InvoicePaid { GameId = gameId; BillingId = invoicePaidBillingId })
 
           expect "action is determined from pending movement, only once" (fun ctx ->
               hasExactEventCount
@@ -440,14 +427,11 @@ let private rondelSpecs =
               |> RondelState.withNationPosition "France" Space.Taxation
           )
 
-          actions
-              [ Move { Nation = "France"; Space = Space.Investor; GameId = gameId } |> Execute
-                InvoicePaymentFailed { BillingId = invoicePaidBillingId; GameId = gameId }
-                |> Handle ]
+          given_command (Move { Nation = "France"; Space = Space.Investor; GameId = gameId })
+          given_event (InvoicePaymentFailed { BillingId = invoicePaidBillingId; GameId = gameId })
 
-          when_
-              [ InvoicePaid { GameId = gameId; BillingId = voidedBillingId } |> Handle
-                Move { GameId = gameId; Nation = "France"; Space = Space.Factory } |> Execute ]
+          when_event (InvoicePaid { GameId = gameId; BillingId = voidedBillingId })
+          when_command (Move { GameId = gameId; Nation = "France"; Space = Space.Factory })
 
           expect
               "late payment preserves the already completed movement"
@@ -470,10 +454,8 @@ let private rondelSpecs =
               |> RondelState.withPendingMove "Austria" Space.Investor invoicePaymentFailedBillingId
           )
 
-          when_
-              [ InvoicePaymentFailed { GameId = gameId; BillingId = invoicePaymentFailedBillingId }
-                |> Handle
-                Move { GameId = gameId; Nation = "Austria"; Space = Space.Factory } |> Execute ]
+          when_event (InvoicePaymentFailed { GameId = gameId; BillingId = invoicePaymentFailedBillingId })
+          when_command (Move { GameId = gameId; Nation = "Austria"; Space = Space.Factory })
 
           expect
               "pending movement is rejected"
@@ -500,12 +482,9 @@ let private rondelSpecs =
               |> RondelState.withPendingMove "Austria" Space.ManeuverTwo invoicePaymentFailedTwiceBillingId
           )
 
-          when_
-              [ InvoicePaymentFailed { GameId = gameId; BillingId = invoicePaymentFailedTwiceBillingId }
-                |> Handle
-                InvoicePaymentFailed { GameId = gameId; BillingId = invoicePaymentFailedTwiceBillingId }
-                |> Handle
-                Move { GameId = gameId; Nation = "Austria"; Space = Space.Factory } |> Execute ]
+          when_event (InvoicePaymentFailed { GameId = gameId; BillingId = invoicePaymentFailedTwiceBillingId })
+          when_event (InvoicePaymentFailed { GameId = gameId; BillingId = invoicePaymentFailedTwiceBillingId })
+          when_command (Move { GameId = gameId; Nation = "Austria"; Space = Space.Factory })
 
           expect
               "pending movement is rejected only once"
@@ -529,13 +508,11 @@ let private rondelSpecs =
               |> RondelState.withPendingMove "France" Space.ProductionTwo voidedChargeFailureBillingId
           )
 
-          actions [ Move { GameId = gameId; Nation = "France"; Space = Space.Taxation } |> Execute ]
+          given_command (Move { GameId = gameId; Nation = "France"; Space = Space.Taxation })
           preserve
 
-          when_
-              [ InvoicePaymentFailed { GameId = gameId; BillingId = voidedChargeFailureBillingId }
-                |> Handle
-                Move { GameId = gameId; Nation = "France"; Space = Space.Factory } |> Execute ]
+          when_event (InvoicePaymentFailed { GameId = gameId; BillingId = voidedChargeFailureBillingId })
+          when_command (Move { GameId = gameId; Nation = "France"; Space = Space.Factory })
 
           expect
               "voided pending movement is not rejected again"
@@ -559,15 +536,10 @@ let private rondelSpecs =
               |> RondelState.withPendingMove "Britain" Space.ProductionTwo paymentThenFailureBillingId
           )
 
-          actions
-              [ InvoicePaid { GameId = gameId; BillingId = paymentThenFailureBillingId }
-                |> Handle ]
+          given_event (InvoicePaid { GameId = gameId; BillingId = paymentThenFailureBillingId })
 
-          when_
-              [ InvoicePaymentFailed { GameId = gameId; BillingId = paymentThenFailureBillingId }
-                |> Handle
-                Move { GameId = gameId; Nation = "Britain"; Space = Space.ManeuverTwo }
-                |> Execute ]
+          when_event (InvoicePaymentFailed { GameId = gameId; BillingId = paymentThenFailureBillingId })
+          when_command (Move { GameId = gameId; Nation = "Britain"; Space = Space.ManeuverTwo })
 
           expect
               "late failure does not reject already completed movement"
@@ -583,15 +555,13 @@ let private rondelSpecs =
       spec "query nation positions returns none for unknown game" {
           on (fun () -> createContext gameId)
 
-          when_ []
-
           expect "no positions are returned" hasNoNationPositions
       }
 
       spec "query nation positions returns initialized nations before any move" {
           on (fun () -> createContext gameId)
 
-          when_ [ SetToStartingPositions { GameId = gameId; Nations = nations } |> Execute ]
+          when_command (SetToStartingPositions { GameId = gameId; Nations = nations })
 
           expect "positions are returned" hasNationPositions
           expect "query result belongs to current game" (hasNationPositionsForGameId gameId)
@@ -602,9 +572,8 @@ let private rondelSpecs =
       spec "query nation positions returns current space after a free move" {
           on (fun () -> createContext gameId)
 
-          when_
-              [ SetToStartingPositions { GameId = gameId; Nations = nations } |> Execute
-                Move { GameId = gameId; Nation = "France"; Space = Space.Factory } |> Execute ]
+          when_command (SetToStartingPositions { GameId = gameId; Nations = nations })
+          when_command (Move { GameId = gameId; Nation = "France"; Space = Space.Factory })
 
           expect "positions are returned" hasNationPositions
           expect "nation's current space is updated" (hasNationPosition "France" (Some Space.Factory) None)
@@ -613,11 +582,9 @@ let private rondelSpecs =
       spec "query nation positions returns pending space for an unpaid move" {
           on (fun () -> createContext gameId)
 
-          when_
-              [ SetToStartingPositions { GameId = gameId; Nations = Set.ofList [ "Austria" ] }
-                |> Execute
-                Move { GameId = gameId; Nation = "Austria"; Space = Space.Investor } |> Execute
-                Move { GameId = gameId; Nation = "Austria"; Space = Space.Factory } |> Execute ]
+          when_command (SetToStartingPositions { GameId = gameId; Nations = Set.ofList [ "Austria" ] })
+          when_command (Move { GameId = gameId; Nation = "Austria"; Space = Space.Investor })
+          when_command (Move { GameId = gameId; Nation = "Austria"; Space = Space.Factory })
 
           expect "positions are returned" hasNationPositions
 
@@ -629,17 +596,15 @@ let private rondelSpecs =
       spec "query rondel overview returns none for unknown game" {
           on (fun () -> createContext gameId)
 
-          when_ []
-
           expect "no overview is returned" hasNoRondelOverview
       }
 
       spec "query rondel overview returns initialized nation names" {
           on (fun () -> createContext gameId)
 
-          when_
-              [ SetToStartingPositions { GameId = gameId; Nations = Set.ofList [ "France"; "Germany"; "Austria" ] }
-                |> Execute ]
+          when_command (
+              SetToStartingPositions { GameId = gameId; Nations = Set.ofList [ "France"; "Germany"; "Austria" ] }
+          )
 
           expect "overview is returned" hasRondelOverview
           expect "query result belongs to current game" (hasRondelOverviewForGameId gameId)
