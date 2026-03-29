@@ -59,10 +59,10 @@ let private accountingSpecs =
     [ spec "charging a nation for paid movement confirms payment" {
           on createContext
 
-          when_
-              [ ChargeNationForRondelMovement
-                    { GameId = gameId; Nation = "France"; Amount = Amount.unsafe 4; BillingId = billingId }
-                |> Execute ]
+          when_command (
+              ChargeNationForRondelMovement
+                  { GameId = gameId; Nation = "France"; Amount = Amount.unsafe 4; BillingId = billingId }
+          )
 
           expect "payment is confirmed" hasPaymentConfirmed
           expect "payment confirmation matches requested invoice" (hasExactPaymentConfirmed gameId billingId)
@@ -72,7 +72,7 @@ let private accountingSpecs =
       spec "voiding a charge records no accounting outcome" {
           on createContext
 
-          when_ [ VoidRondelCharge { GameId = Id.newId (); BillingId = Id.newId () } |> Execute ]
+          when_command (VoidRondelCharge { GameId = Id.newId (); BillingId = Id.newId () })
 
           expect "no accounting outcomes are published" (hasEventCount 0)
           expect "payment is not marked as failed" (hasPaymentFailed >> not)

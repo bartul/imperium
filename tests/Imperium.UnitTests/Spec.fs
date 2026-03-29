@@ -62,14 +62,24 @@ type SpecificationBuilder<'ctx, 'seed, 'cmd, 'evt>(name) =
     [<CustomOperation("state")>]
     member _.State(spec, state) = { spec with GivenState = Some state }
 
-    [<CustomOperation("actions")>]
-    member _.Actions(spec, actions) = { spec with GivenActions = actions }
+    [<CustomOperation("given_command")>]
+    member _.GivenCommand(spec, cmd: 'cmd) =
+        { spec with GivenActions = spec.GivenActions @ [ Execute cmd ] }
+
+    [<CustomOperation("given_event")>]
+    member _.GivenEvent(spec, evt: 'evt) =
+        { spec with GivenActions = spec.GivenActions @ [ Handle evt ] }
 
     [<CustomOperation("preserve")>]
     member _.Preserve spec = { spec with Preserve = true }
 
-    [<CustomOperation("when_")>]
-    member _.When(spec, actions) = { spec with Actions = actions }
+    [<CustomOperation("when_command")>]
+    member _.WhenCommand(spec, cmd: 'cmd) =
+        { spec with Actions = spec.Actions @ [ Execute cmd ] }
+
+    [<CustomOperation("when_event")>]
+    member _.WhenEvent(spec, evt: 'evt) =
+        { spec with Actions = spec.Actions @ [ Handle evt ] }
 
     [<CustomOperation("expect")>]
     member _.Expect(spec, description, predicate) =
