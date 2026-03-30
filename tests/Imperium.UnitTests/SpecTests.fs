@@ -28,6 +28,17 @@ let tests =
               let context = prepareContext runner specification
               Expect.equal context 2 "on should override the specOn default")
 
+          testCase "last on wins when multiple on operations are present" (fun _ ->
+              let specification =
+                  specOn<int, NoState, unit, unit> (fun () -> 1) "uses last on context" {
+                      on (fun () -> 2)
+                      on (fun () -> 3)
+                      expect "last override context is available" (fun _ -> true)
+                  }
+
+              let context = prepareContext runner specification
+              Expect.equal context 3 "the last on should win")
+
           testCase "plain spec remains compatible with explicit on" (fun _ ->
               let specification =
                   spec<int, NoState, unit, unit> "legacy spec" {
