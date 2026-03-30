@@ -55,10 +55,9 @@ let private hasExactPaymentConfirmed gameId billingId =
 let private accountingSpecs =
     let gameId = Id.newId ()
     let billingId = Id.newId ()
+    let spec = specOn createContext
 
     [ spec "charging a nation for paid movement confirms payment" {
-          on createContext
-
           when_command (
               ChargeNationForRondelMovement
                   { GameId = gameId; Nation = "France"; Amount = Amount.unsafe 4; BillingId = billingId }
@@ -70,8 +69,6 @@ let private accountingSpecs =
       }
 
       spec "voiding a charge records no accounting outcome" {
-          on createContext
-
           when_command (VoidRondelCharge { GameId = Id.newId (); BillingId = Id.newId () })
 
           expect "no accounting outcomes are published" (hasEventCount 0)

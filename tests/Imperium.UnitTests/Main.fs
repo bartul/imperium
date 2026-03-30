@@ -29,7 +29,8 @@ let main args =
         let allTests =
             testList
                 "Imperium"
-                [ Gameplay.tests
+                [ SpecTests.tests
+                  Gameplay.tests
                   Rondel.tests
                   RondelHostTests.tests
                   TerminalBusTests.tests
