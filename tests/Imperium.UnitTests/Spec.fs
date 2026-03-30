@@ -46,10 +46,10 @@ type Specification<'ctx, 'seed, 'cmd, 'evt> =
 // CE Builder
 // ────────────────────────────────────────────────────────────────────────────────
 
-type SpecificationBuilder<'ctx, 'seed, 'cmd, 'evt>(name) =
+type SpecificationBuilder<'ctx, 'seed, 'cmd, 'evt>(name, defaultOn: (unit -> 'ctx) option) =
     member _.Yield _ =
         { Name = name
-          On = (fun () -> Unchecked.defaultof<_>)
+          On = defaultOn |> Option.defaultValue (fun () -> Unchecked.defaultof<_>)
           GivenState = None
           GivenActions = []
           Preserve = false
@@ -86,7 +86,10 @@ type SpecificationBuilder<'ctx, 'seed, 'cmd, 'evt>(name) =
         { spec with Expectations = spec.Expectations @ [ { Description = description; Predicate = predicate } ] }
 
 let spec<'ctx, 'seed, 'cmd, 'evt> name =
-    SpecificationBuilder<'ctx, 'seed, 'cmd, 'evt> name
+    SpecificationBuilder<'ctx, 'seed, 'cmd, 'evt>(name, None)
+
+let specOn<'ctx, 'seed, 'cmd, 'evt> (contextFactory: unit -> 'ctx) name =
+    SpecificationBuilder<'ctx, 'seed, 'cmd, 'evt>(name, Some contextFactory)
 
 module Specification =
     /// Add state seed outside CE definition.

@@ -265,12 +265,19 @@ The `Spec.fs` module provides a computation expression-based testing approach in
 **Usage pattern:**
 ```fsharp
 let private specs =
+    let spec = specOn createContext
+
     [ spec "chargeNationForRondelMovement auto-approves" {
-          on createContext
-          when_ [ ChargeNationForRondelMovement cmd |> Execute ]
+          when_command (ChargeNationForRondelMovement cmd)
           expect "publishes exactly one event" (fun ctx -> ctx.Events.Count = 1)
           expect "event is RondelInvoicePaid" (fun ctx ->
               match ctx.Events.[0] with RondelInvoicePaid _ -> true | _ -> false)
+      }
+
+      spec "one-off context override stays available" {
+          on createSpecialContext
+          when_command (ChargeNationForRondelMovement specialCmd)
+          expect "special context is used" (fun ctx -> ctx.Events.Count = 1)
       } ]
 
 [<Tests>]

@@ -179,18 +179,15 @@ let private chargeCount ctx =
 let private rondelSpecs =
     let gameId = Id.newId ()
     let nations = Set.ofList [ "France"; "Austria" ]
+    let spec = specOn (fun () -> createContext gameId)
 
     [ spec "starting setup places nations at their opening positions" {
-          on (fun () -> createContext gameId)
-
           when_command (SetToStartingPositions { GameId = gameId; Nations = nations })
 
           expect "opening positions are set" (hasStartingPositionsSet gameId)
       }
 
       spec "starting setup can be applied only once per game" {
-          on (fun () -> createContext gameId)
-
           state (RondelState.create gameId nations)
 
           when_command (SetToStartingPositions { GameId = gameId; Nations = nations })
@@ -199,8 +196,6 @@ let private rondelSpecs =
       }
 
       spec "any attempted move is rejected until nations are set to starting positions" {
-          on (fun () -> createContext gameId)
-
           when_command (Move { GameId = gameId; Nation = "France"; Space = Space.Factory })
           when_command (Move { GameId = gameId; Nation = "Austria"; Space = Space.Investor })
 
@@ -213,8 +208,6 @@ let private rondelSpecs =
       }
 
       spec "moving a nation for the first time does not require payment regardless of destination" {
-          on (fun () -> createContext gameId)
-
           when_command (SetToStartingPositions { GameId = gameId; Nations = nations })
           when_command (Move { GameId = gameId; Nation = "France"; Space = Space.Factory })
           when_command (Move { GameId = gameId; Nation = "Austria"; Space = Space.Investor })
@@ -227,8 +220,6 @@ let private rondelSpecs =
       }
 
       spec "moving a nation to its current position is rejected (stay put)" {
-          on (fun () -> createContext gameId)
-
           state (
               RondelState.create gameId nations
               |> RondelState.withNationPositions [ ("France", Space.Factory); ("Austria", Space.Investor) ]
@@ -246,8 +237,6 @@ let private rondelSpecs =
       }
 
       spec "moving a nation 1-3 spaces is free" {
-          on (fun () -> createContext gameId)
-
           state (
               RondelState.create gameId nations
               |> RondelState.withNationPosition "France" Space.Investor
@@ -260,8 +249,6 @@ let private rondelSpecs =
       }
 
       spec "moving a nation 4 spaces requires payment of 2M" {
-          on (fun () -> createContext gameId)
-
           state (
               RondelState.create gameId nations
               |> RondelState.withNationPosition "France" Space.ProductionOne
@@ -275,8 +262,6 @@ let private rondelSpecs =
       }
 
       spec "moving a nation 5 spaces requires payment of 4M" {
-          on (fun () -> createContext gameId)
-
           state (
               RondelState.create gameId nations
               |> RondelState.withNationPosition "France" Space.ManeuverOne
@@ -290,8 +275,6 @@ let private rondelSpecs =
       }
 
       spec "moving a nation 6 spaces requires payment of 6M" {
-          on (fun () -> createContext gameId)
-
           state (
               RondelState.create gameId nations
               |> RondelState.withNationPosition "France" Space.Investor
@@ -305,8 +288,6 @@ let private rondelSpecs =
       }
 
       spec "moving a nation 7 spaces is rejected as exceeding maximum distance" {
-          on (fun () -> createContext gameId)
-
           state (
               RondelState.create gameId nations
               |> RondelState.withNationPosition "France" Space.ProductionOne
@@ -325,8 +306,6 @@ let private rondelSpecs =
       let previousBillingId = newBillingId ()
 
       spec "moving a nation with a pending paid move to another paid move voids the old charge" {
-          on (fun () -> createContext gameId)
-
           state (
               RondelState.create gameId nations
               |> RondelState.withNationPosition "France" Space.ProductionOne
@@ -353,8 +332,6 @@ let private rondelSpecs =
       let previousBillingIdForFreeMove = newBillingId ()
 
       spec "moving a nation with a pending paid move to a free move voids the old charge and completes immediately" {
-          on (fun () -> createContext gameId)
-
           state (
               RondelState.create gameId nations
               |> RondelState.withNationPosition "France" Space.ManeuverOne
@@ -378,8 +355,6 @@ let private rondelSpecs =
       let invoicePaidBillingId = newBillingId ()
 
       spec "paying a pending movement completes it and determines action" {
-          on (fun () -> createContext gameId)
-
           state (
               RondelState.create gameId (Set.ofList [ "Austria" ])
               |> RondelState.withNationPosition "Austria" Space.ManeuverOne
@@ -399,8 +374,6 @@ let private rondelSpecs =
       }
 
       spec "paying the same pending movement twice completes it only once" {
-          on (fun () -> createContext gameId)
-
           state (
               RondelState.create gameId (Set.ofList [ "Austria" ])
               |> RondelState.withNationPosition "Austria" Space.ManeuverOne
@@ -420,8 +393,6 @@ let private rondelSpecs =
       let voidedBillingId = newBillingId ()
 
       spec "payment for a voided pending movement is ignored" {
-          on (fun () -> createContext gameId)
-
           state (
               RondelState.create gameId nations
               |> RondelState.withNationPosition "France" Space.Taxation
@@ -446,8 +417,6 @@ let private rondelSpecs =
       let invoicePaymentFailedBillingId = newBillingId ()
 
       spec "payment failure rejects pending movement and keeps original position" {
-          on (fun () -> createContext gameId)
-
           state (
               RondelState.create gameId (Set.ofList [ "Austria" ])
               |> RondelState.withNationPosition "Austria" Space.ManeuverOne
@@ -474,8 +443,6 @@ let private rondelSpecs =
       let invoicePaymentFailedTwiceBillingId = newBillingId ()
 
       spec "processing the same payment failure twice rejects pending movement only once" {
-          on (fun () -> createContext gameId)
-
           state (
               RondelState.create gameId (Set.ofList [ "Austria" ])
               |> RondelState.withNationPosition "Austria" Space.ManeuverOne
@@ -500,8 +467,6 @@ let private rondelSpecs =
       let voidedChargeFailureBillingId = newBillingId ()
 
       spec "payment failure for a voided charge is ignored" {
-          on (fun () -> createContext gameId)
-
           state (
               RondelState.create gameId nations
               |> RondelState.withNationPosition "France" Space.ProductionOne
@@ -528,8 +493,6 @@ let private rondelSpecs =
       let paymentThenFailureBillingId = newBillingId ()
 
       spec "payment failure after successful payment is ignored" {
-          on (fun () -> createContext gameId)
-
           state (
               RondelState.create gameId (Set.ofList [ "Britain" ])
               |> RondelState.withNationPosition "Britain" Space.Import
@@ -553,14 +516,10 @@ let private rondelSpecs =
       }
 
       spec "query nation positions returns none for unknown game" {
-          on (fun () -> createContext gameId)
-
           expect "no positions are returned" hasNoNationPositions
       }
 
       spec "query nation positions returns initialized nations before any move" {
-          on (fun () -> createContext gameId)
-
           when_command (SetToStartingPositions { GameId = gameId; Nations = nations })
 
           expect "positions are returned" hasNationPositions
@@ -570,8 +529,6 @@ let private rondelSpecs =
       }
 
       spec "query nation positions returns current space after a free move" {
-          on (fun () -> createContext gameId)
-
           when_command (SetToStartingPositions { GameId = gameId; Nations = nations })
           when_command (Move { GameId = gameId; Nation = "France"; Space = Space.Factory })
 
@@ -580,8 +537,6 @@ let private rondelSpecs =
       }
 
       spec "query nation positions returns pending space for an unpaid move" {
-          on (fun () -> createContext gameId)
-
           when_command (SetToStartingPositions { GameId = gameId; Nations = Set.ofList [ "Austria" ] })
           when_command (Move { GameId = gameId; Nation = "Austria"; Space = Space.Investor })
           when_command (Move { GameId = gameId; Nation = "Austria"; Space = Space.Factory })
@@ -594,14 +549,10 @@ let private rondelSpecs =
       }
 
       spec "query rondel overview returns none for unknown game" {
-          on (fun () -> createContext gameId)
-
           expect "no overview is returned" hasNoRondelOverview
       }
 
       spec "query rondel overview returns initialized nation names" {
-          on (fun () -> createContext gameId)
-
           when_command (
               SetToStartingPositions { GameId = gameId; Nations = Set.ofList [ "France"; "Germany"; "Austria" ] }
           )
