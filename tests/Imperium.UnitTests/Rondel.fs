@@ -96,7 +96,7 @@ module private RondelStateFormatting =
         | SpaceCell Space.ManeuverTwo -> "Maneuver"
         | SpaceCell Space.Taxation -> "Taxation"
         | SpaceCell Space.Factory -> "Factory"
-        | StartCell -> "Start (o)"
+        | StartCell -> "↻"
 
     let private boardCellForPosition =
         function
