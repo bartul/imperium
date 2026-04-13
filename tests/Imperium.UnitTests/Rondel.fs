@@ -179,11 +179,7 @@ module private RondelStateFormatting =
                 boardRows
                 |> List.collect (fun row -> border :: renderBoardRow cellWidth row tokensByCell)
 
-            String.concat
-                "\n"
-                (boardLines
-                 @ [ border
-                     "Legend: FR = current position, FR-> = pending move origin, ->FR = pending move target" ])
+            String.concat "\n" (boardLines @ [ border ])
 
 let private runner =
     { SpecRunner.empty with

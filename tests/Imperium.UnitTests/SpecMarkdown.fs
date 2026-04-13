@@ -171,7 +171,7 @@ let toMarkdown
            "```"
            ""
            "| Step | Details |"
-           "| --- | --- |" ]
+           "| --- | --- |" ] 
          @ givenActionRows
          @ captionRows "When" whenItems
          @ captionRows "Then" thenItems
