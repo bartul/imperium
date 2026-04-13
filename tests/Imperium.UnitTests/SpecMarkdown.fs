@@ -107,6 +107,11 @@ let rec private formatValue (value: obj) (valueType: Type) =
 
 let private formatState (state: 'state) = formatValue (box state) typeof<'state>
 
+let private renderState (runner: SpecRunner<'ctx, 'seed, 'state, 'cmd, 'evt>) (state: 'state) =
+    match runner.FormatState with
+    | Some formatter -> formatter state
+    | None -> formatState state
+
 let private formatAction action =
     match action with
     | Execute command -> Some(sprintf "Command `%A`" command)
@@ -128,14 +133,14 @@ let toMarkdown
 
     let initialStateText =
         runner.CaptureState
-        |> Option.map (fun capture -> capture context |> formatState)
+        |> Option.map (fun capture -> capture context |> renderState runner)
         |> Option.defaultValue "_no state capture_"
 
     runActions runner context spec.Actions
 
     let finalStateText =
         runner.CaptureState
-        |> Option.map (fun capture -> capture context |> formatState)
+        |> Option.map (fun capture -> capture context |> renderState runner)
         |> Option.defaultValue "_no state capture_"
 
     let givenActionItems =
@@ -144,17 +149,15 @@ let toMarkdown
     let givenActionRows =
         match givenActionItems with
         | [] -> []
-        | _ -> captionRows "" givenActionItems
+        | _ -> captionRows "Given" givenActionItems
 
     let whenItems = spec.Actions |> List.choose formatAction |> List.map escapeCell
 
     let thenItems =
-        [ $"State `{finalStateText}`" |> escapeCell
-          yield!
-              spec.Expectations
-              |> List.map (fun expectation ->
-                  let result = if expectation.Predicate context then "✅" else "❌"
-                  $"%s{result} %s{expectation.Description}" |> escapeCell) ]
+        spec.Expectations
+        |> List.map (fun expectation ->
+            let result = if expectation.Predicate context then "✅" else "❌"
+            $"%s{result} %s{expectation.Description}" |> escapeCell)
 
     let specHeader = renderHeader (childHeader options.ParentHeader) $"📋 %s{spec.Name}"
 
@@ -162,13 +165,17 @@ let toMarkdown
         Environment.NewLine
         ([ specHeader
            ""
+           "**Initial state**"
+           "```text"
+           initialStateText
+           "```"
+           ""
            "| Step | Details |"
-           "| --- | --- |"
-           sprintf "| Given | State %s |" (escapeCell $"`{initialStateText}`") ]
+           "| --- | --- |" ]
          @ givenActionRows
          @ captionRows "When" whenItems
          @ captionRows "Then" thenItems
-         @ [ "" ])
+         @ [ ""; "**Final state**"; "```text"; finalStateText; "```"; "" ])
 
 let toMarkdownDocument options runner specifications =
     specifications
