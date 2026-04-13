@@ -112,17 +112,27 @@ let private renderState (runner: SpecRunner<'ctx, 'seed, 'state, 'cmd, 'evt>) (s
     | Some formatter -> formatter state
     | None -> formatState state
 
-let private formatAction action =
+let private formatActionRow action =
     match action with
-    | Execute command -> Some(sprintf "Command `%A`" command)
-    | Handle event -> Some(sprintf "Event `%A`" event)
+    | Execute command -> Some("Command", sprintf "`%A`" command)
+    | Handle event -> Some("Event", sprintf "`%A`" event)
 
-let private captionRows caption items =
-    match items with
-    | [] -> [ sprintf "| %s | %s |" caption (escapeCell "_none_") ]
-    | head :: tail ->
-        [ $"| %s{caption} | %s{head} |" ]
-        @ (tail |> List.map (fun item -> $"| | %s{item} |"))
+let private renderTableRows rows =
+    let bodyRows = rows |> List.map (fun (left, right) -> $"| {escapeCell left} | {escapeCell right} |")
+
+    [ "| | |"; "| --- | --- |" ] @ bodyRows
+
+let private renderSection title stateText rows =
+    [ $"##### %s{title}"
+      ""
+      "```text"
+      stateText
+      "```"
+      "" ]
+    @ if List.isEmpty rows then [] else renderTableRows rows
+
+let private renderActionSection title rows =
+    [ $"##### %s{title}"; "" ] @ if List.isEmpty rows then [] else renderTableRows rows
 
 let toMarkdown
     (options: MarkdownRenderOptions)
@@ -143,21 +153,15 @@ let toMarkdown
         |> Option.map (fun capture -> capture context |> renderState runner)
         |> Option.defaultValue "_no state capture_"
 
-    let givenActionItems =
-        spec.GivenActions |> List.choose formatAction |> List.map escapeCell
+    let givenRows = spec.GivenActions |> List.choose formatActionRow
 
-    let givenActionRows =
-        match givenActionItems with
-        | [] -> []
-        | _ -> captionRows "Given" givenActionItems
+    let whenRows = spec.Actions |> List.choose formatActionRow
 
-    let whenItems = spec.Actions |> List.choose formatAction |> List.map escapeCell
-
-    let thenItems =
+    let thenRows =
         spec.Expectations
         |> List.map (fun expectation ->
             let result = if expectation.Predicate context then "✅" else "❌"
-            $"%s{result} %s{expectation.Description}" |> escapeCell)
+            result, expectation.Description)
 
     let specHeader = renderHeader (childHeader options.ParentHeader) $"📋 %s{spec.Name}"
 
@@ -165,17 +169,13 @@ let toMarkdown
         Environment.NewLine
         ([ specHeader
            ""
-           "**Initial state**"
-           "```text"
-           initialStateText
-           "```"
-           ""
-           "| Step | Details |"
-           "| --- | --- |" ] 
-         @ givenActionRows
-         @ captionRows "When" whenItems
-         @ captionRows "Then" thenItems
-         @ [ ""; "**Final state**"; "```text"; finalStateText; "```"; "" ])
+           ]
+         @ renderSection "Given" initialStateText givenRows
+         @ [ "" ]
+         @ renderActionSection "When" whenRows
+         @ [ "" ]
+         @ renderSection "Then" finalStateText thenRows
+         @ [ "" ])
 
 let toMarkdownDocument options runner specifications =
     specifications
