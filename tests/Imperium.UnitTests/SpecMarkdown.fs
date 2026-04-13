@@ -107,17 +107,30 @@ let rec private formatValue (value: obj) (valueType: Type) =
 
 let private formatState (state: 'state) = formatValue (box state) typeof<'state>
 
-let private formatAction action =
-    match action with
-    | Execute command -> Some(sprintf "Command `%A`" command)
-    | Handle event -> Some(sprintf "Event `%A`" event)
+let private renderState (runner: SpecRunner<'ctx, 'seed, 'state, 'cmd, 'evt>) (state: 'state) =
+    match runner.FormatState with
+    | Some formatter -> formatter state
+    | None -> formatState state
 
-let private captionRows caption items =
-    match items with
-    | [] -> [ sprintf "| %s | %s |" caption (escapeCell "_none_") ]
-    | head :: tail ->
-        [ $"| %s{caption} | %s{head} |" ]
-        @ (tail |> List.map (fun item -> $"| | %s{item} |"))
+let private formatActionRow action =
+    match action with
+    | Execute command -> Some("👉", sprintf "`%A`" command)
+    | Handle event -> Some("🔔", sprintf "`%A`" event)
+
+let private renderTableRows rows =
+    let bodyRows =
+        rows
+        |> List.map (fun (left, right) -> $"| {escapeCell left} | {escapeCell right} |")
+
+    [ "| | |"; "| --- | --- |" ] @ bodyRows
+
+let private renderSection weight title stateText rows =
+    [ renderHeader weight title; ""; "```text"; stateText; "```"; "" ]
+    @ if List.isEmpty rows then [] else renderTableRows rows
+
+let private renderActionSection weight title rows =
+    [ renderHeader weight title; "" ]
+    @ if List.isEmpty rows then [] else renderTableRows rows
 
 let toMarkdown
     (options: MarkdownRenderOptions)
@@ -128,46 +141,38 @@ let toMarkdown
 
     let initialStateText =
         runner.CaptureState
-        |> Option.map (fun capture -> capture context |> formatState)
+        |> Option.map (fun capture -> capture context |> renderState runner)
         |> Option.defaultValue "_no state capture_"
 
     runActions runner context spec.Actions
 
     let finalStateText =
         runner.CaptureState
-        |> Option.map (fun capture -> capture context |> formatState)
+        |> Option.map (fun capture -> capture context |> renderState runner)
         |> Option.defaultValue "_no state capture_"
 
-    let givenActionItems =
-        spec.GivenActions |> List.choose formatAction |> List.map escapeCell
+    let givenRows = spec.GivenActions |> List.choose formatActionRow
 
-    let givenActionRows =
-        match givenActionItems with
-        | [] -> []
-        | _ -> captionRows "" givenActionItems
+    let whenRows = spec.Actions |> List.choose formatActionRow
 
-    let whenItems = spec.Actions |> List.choose formatAction |> List.map escapeCell
+    let thenRows =
+        spec.Expectations
+        |> List.map (fun expectation ->
+            let result = if expectation.Predicate context then "✅" else "❌"
+            result, expectation.Description)
 
-    let thenItems =
-        [ $"State `{finalStateText}`" |> escapeCell
-          yield!
-              spec.Expectations
-              |> List.map (fun expectation ->
-                  let result = if expectation.Predicate context then "✅" else "❌"
-                  $"%s{result} %s{expectation.Description}" |> escapeCell) ]
-
-    let specHeader = renderHeader (childHeader options.ParentHeader) $"📋 %s{spec.Name}"
+    let specHeaderWeight = childHeader options.ParentHeader
+    let sectionHeaderWeight = childHeader specHeaderWeight
+    let specHeader = renderHeader specHeaderWeight $"📋 %s{spec.Name}"
 
     String.concat
         Environment.NewLine
-        ([ specHeader
-           ""
-           "| Step | Details |"
-           "| --- | --- |"
-           sprintf "| Given | State %s |" (escapeCell $"`{initialStateText}`") ]
-         @ givenActionRows
-         @ captionRows "When" whenItems
-         @ captionRows "Then" thenItems
+        ([ specHeader; "" ]
+         @ renderSection sectionHeaderWeight "Given" initialStateText givenRows
+         @ [ "" ]
+         @ renderActionSection sectionHeaderWeight "When" whenRows
+         @ [ "" ]
+         @ renderSection sectionHeaderWeight "Then" finalStateText thenRows
          @ [ "" ])
 
 let toMarkdownDocument options runner specifications =

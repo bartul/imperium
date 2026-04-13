@@ -140,7 +140,8 @@ type SpecRunner<'ctx, 'seed, 'state, 'cmd, 'evt> =
       ClearEvents: 'ctx -> unit
       ClearCommands: 'ctx -> unit
       SeedState: 'ctx -> 'seed -> unit
-      CaptureState: ('ctx -> 'state) option }
+      CaptureState: ('ctx -> 'state) option
+      FormatState: ('state -> string) option }
 
 module SpecRunner =
     let empty<'ctx, 'seed, 'state, 'cmd, 'evt> : SpecRunner<'ctx, 'seed, 'state, 'cmd, 'evt> =
@@ -149,7 +150,8 @@ module SpecRunner =
           ClearEvents = fun _ -> ()
           ClearCommands = fun _ -> ()
           SeedState = fun _ _ -> ()
-          CaptureState = None }
+          CaptureState = None
+          FormatState = None }
 
 // ────────────────────────────────────────────────────────────────────────────────
 // Runner Helpers
