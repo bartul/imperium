@@ -114,25 +114,23 @@ let private renderState (runner: SpecRunner<'ctx, 'seed, 'state, 'cmd, 'evt>) (s
 
 let private formatActionRow action =
     match action with
-    | Execute command -> Some("Command", sprintf "`%A`" command)
-    | Handle event -> Some("Event", sprintf "`%A`" event)
+    | Execute command -> Some("👉", sprintf "`%A`" command)
+    | Handle event -> Some("🔔", sprintf "`%A`" event)
 
 let private renderTableRows rows =
-    let bodyRows = rows |> List.map (fun (left, right) -> $"| {escapeCell left} | {escapeCell right} |")
+    let bodyRows =
+        rows
+        |> List.map (fun (left, right) -> $"| {escapeCell left} | {escapeCell right} |")
 
     [ "| | |"; "| --- | --- |" ] @ bodyRows
 
 let private renderSection title stateText rows =
-    [ $"##### %s{title}"
-      ""
-      "```text"
-      stateText
-      "```"
-      "" ]
+    [ $"##### %s{title}"; ""; "```text"; stateText; "```"; "" ]
     @ if List.isEmpty rows then [] else renderTableRows rows
 
 let private renderActionSection title rows =
-    [ $"##### %s{title}"; "" ] @ if List.isEmpty rows then [] else renderTableRows rows
+    [ $"##### %s{title}"; "" ]
+    @ if List.isEmpty rows then [] else renderTableRows rows
 
 let toMarkdown
     (options: MarkdownRenderOptions)
@@ -167,9 +165,7 @@ let toMarkdown
 
     String.concat
         Environment.NewLine
-        ([ specHeader
-           ""
-           ]
+        ([ specHeader; "" ]
          @ renderSection "Given" initialStateText givenRows
          @ [ "" ]
          @ renderActionSection "When" whenRows
