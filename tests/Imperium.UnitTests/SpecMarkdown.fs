@@ -124,12 +124,12 @@ let private renderTableRows rows =
 
     [ "| | |"; "| --- | --- |" ] @ bodyRows
 
-let private renderSection title stateText rows =
-    [ $"##### %s{title}"; ""; "```text"; stateText; "```"; "" ]
+let private renderSection weight title stateText rows =
+    [ renderHeader weight title; ""; "```text"; stateText; "```"; "" ]
     @ if List.isEmpty rows then [] else renderTableRows rows
 
-let private renderActionSection title rows =
-    [ $"##### %s{title}"; "" ]
+let private renderActionSection weight title rows =
+    [ renderHeader weight title; "" ]
     @ if List.isEmpty rows then [] else renderTableRows rows
 
 let toMarkdown
@@ -161,16 +161,18 @@ let toMarkdown
             let result = if expectation.Predicate context then "✅" else "❌"
             result, expectation.Description)
 
-    let specHeader = renderHeader (childHeader options.ParentHeader) $"📋 %s{spec.Name}"
+    let specHeaderWeight = childHeader options.ParentHeader
+    let sectionHeaderWeight = childHeader specHeaderWeight
+    let specHeader = renderHeader specHeaderWeight $"📋 %s{spec.Name}"
 
     String.concat
         Environment.NewLine
         ([ specHeader; "" ]
-         @ renderSection "Given" initialStateText givenRows
+         @ renderSection sectionHeaderWeight "Given" initialStateText givenRows
          @ [ "" ]
-         @ renderActionSection "When" whenRows
+         @ renderActionSection sectionHeaderWeight "When" whenRows
          @ [ "" ]
-         @ renderSection "Then" finalStateText thenRows
+         @ renderSection sectionHeaderWeight "Then" finalStateText thenRows
          @ [ "" ])
 
 let toMarkdownDocument options runner specifications =
