@@ -14,12 +14,12 @@ An experimental project exploring **AI-assisted software development** technique
 This codebase serves as a showcase for several design patterns and development techniques:
 
 - **F# signature files (`.fsi`) as enforceable API contracts** — public surface is defined in signature files; implementations cannot widen it, giving compile-time boundary enforcement
-- **CQRS with command/event routers** — separate `execute` (commands) and `handle` (inbound events) routers as single entry points, with dedicated query handlers
+- **CQRS with command/event routers** — separate `execute` (commands) and `handle` (inbound events) routers as single entry points (Rondel), with dedicated query handlers
 - **Dependency injection via records of functions** — no IoC container; dependencies are plain `Async<_>` function values bundled in records, enabling implicit `CancellationToken` propagation
 - **Pure business logic separated from IO** — handler internals return `(state, events, commands)` tuples; a shared `materialize` function sequences all side effects
-- **Bounded context isolation through Contract DTOs** — cross-BC communication uses plain primitive types (`Guid`, `string`, `int`); transformation modules validate at each boundary
-- **`Decision<'State,'Outcome>` monad** — a custom computation expression for chaining validation steps in business rule pipelines
-- **CE-based declarative test specs** — [Simple.Testing](https://github.com/gregoryyoung/Simple.Testing)-inspired `on`/`when_`/`expect` syntax where each expectation becomes its own isolated test case
+- **Bounded context isolation through Contract DTOs** — cross-BC communication uses plain primitive types (`Guid`, `string`) and shared value types (`Amount`); transformation modules validate at each boundary
+- **`Decision<'State,'Outcome>` type** — a bind/resolve pipeline for chaining validation steps in business rule pipelines
+- **CE-based declarative test specs** — [Simple.Testing](https://github.com/gregoryyoung/Simple.Testing)-inspired `on`/`state`/`given_command`/`given_event`/`preserve`/`when_command`/`when_event`/`expect` syntax where each expectation becomes its own isolated test case
 - **Three-phase module development process** — define `.fsi` interface first, write failing tests against it, then implement until green
 - **`MailboxProcessor` for serialized writes** — terminal app uses F# agents to serialize state mutations per bounded context while allowing concurrent reads
 
@@ -29,11 +29,11 @@ See [docs/architecture.md](docs/architecture.md) for detailed design documentati
 
 ```
 src/
-  Imperium/              Core domain library (Rondel, Accounting, Contracts, Primitives)
+  Imperium/              Core domain library (Rondel, Accounting, Gameplay, Contracts, Primitives)
   Imperium.Terminal/     Terminal UI app using Terminal.Gui v2
   Imperium.Web/          ASP.NET Core web host (placeholder)
 tests/
-  Imperium.UnitTests/    90 tests (Expecto + CE-based specs)
+  Imperium.UnitTests/    99 tests (Expecto + CE-based specs)
 docs/                    Design documents and official game rules
 ```
 
@@ -62,21 +62,32 @@ dotnet run --project src/Imperium.Terminal
 
 ## CE-Based Specs
 
-Bounded-context behavior tests in this repository use computation expression-based specifications with a readable flow: `on` (context), `when_` (commands/events), `expect` (boolean predicates).  
+Bounded-context behavior tests in this repository use computation expression-based specifications with a readable flow: `on` (context), `when_command`/`when_event` (actions), `expect` (boolean predicates).  
 Each `expect` runs as an isolated test case that replays the full scenario setup.
 
 ```fsharp
-let private specs =
-    [ spec "charging a nation for paid movement confirms payment" {
-          on createContext
-          when_
-              [ ChargeNationForRondelMovement
-                    { GameId = gameId
-                      Nation = "France"
-                      Amount = Amount.unsafe 4
-                      BillingId = billingId }
-                |> Execute ]
-          expect "payment is confirmed" hasPaymentConfirmed
+let private rondelSpecs =
+    let gameId = Id.newId ()
+    let nations = Set.ofList [ "France"; "Austria" ]
+    let spec = specOn (fun () -> createContext gameId)
+
+    [ spec "paying a pending movement completes it and determines action" {
+          state (
+              RondelState.create gameId (Set.ofList [ "Austria" ])
+              |> RondelState.withNationPosition "Austria" Space.ManeuverOne
+              |> RondelState.withPendingMove "Austria" Space.Investor invoicePaidBillingId
+          )
+
+          when_event (InvoicePaid { GameId = gameId; BillingId = invoicePaidBillingId })
+          when_command (Move { GameId = gameId; Nation = "Austria"; Space = Space.Import })
+
+          expect
+              "action is determined from pending movement"
+              (hasExactEvent (ActionDetermined { GameId = gameId; Nation = "Austria"; Action = Action.Investor }))
+
+          expect
+              "subsequent move uses starts from updated position"
+              (hasExactEvent (ActionDetermined { GameId = gameId; Nation = "Austria"; Action = Action.Import }))
       } ]
 ```
 
@@ -86,7 +97,7 @@ let private specs =
 |---|---|
 | **Language** | F# on .NET 10 |
 | **Terminal UI** | Terminal.Gui v2 |
-| **Testing** | Expecto, FsCheck |
+| **Testing** | Expecto |
 | **Utilities** | FsToolkit.ErrorHandling |
 | **Formatting** | Fantomas |
 
