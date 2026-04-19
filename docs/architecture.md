@@ -88,9 +88,9 @@ Execution flow per expectation:
 
 1. Build context via `on`
 2. Seed state from inline `state` if provided
-3. Run setup `actions`
+3. Run setup `given_command`/`given_event` actions
 4. Clear setup side-effects unless `preserve` is enabled
-5. Run `when_` actions
+5. Run `when_command`/`when_event` actions
 6. Evaluate one `expect` predicate
 
 Each `expect` is materialized as its own test case and reruns the full flow above, providing deterministic isolation between expectations.
