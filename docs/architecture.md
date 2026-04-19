@@ -10,7 +10,7 @@ The domain is split into isolated bounded contexts that communicate only through
 - **Accounting** — Processes charges and publishes payment results. Currently a skeleton that auto-approves all charges.
 - **Gameplay** — Game orchestration, scoring, turn management. Not yet implemented.
 
-Cross-BC communication uses `Contract.*` DTOs with plain primitive types (`Guid`, `string`, `int`). Domain types never leak across boundaries.
+Cross-BC communication uses `Contract.*` DTOs with plain primitive types (`Guid`, `string`) and shared value types (`Amount`). Domain types never leak across boundaries.
 
 ## CQRS Pattern
 
@@ -43,12 +43,8 @@ This separates pure domain logic from IO, making business rules testable without
 Dependencies are records of `Async<_>` functions — no IoC container:
 
 ```fsharp
-type RondelDependencies = {
-    Load:     Id -> Async<RondelState option>
-    Save:     RondelState -> Async<Result<unit, string>>
-    Publish:  RondelEvent -> Async<unit>
-    Dispatch: RondelOutboundCommand -> Async<Result<unit, string>>
-}
+type RondelDependencies =
+    { Load: LoadRondelState; Save: SaveRondelState; Publish: PublishRondelEvent; Dispatch: DispatchOutboundCommand }
 ```
 
 `CancellationToken` flows implicitly through the `Async` context without explicit threading.
@@ -84,8 +80,8 @@ Conceptually, a spec contains:
 
 - **Context factory (`on`)** — builds fresh test context per expectation
 - **Optional seed (`state`)** — injects initial state when needed
-- **Optional setup actions (`actions`)** — preconditions executed before `when_`
-- **Main actions (`when_`)** — commands/events under test
+- **Optional setup actions (`given_command`/`given_event`)** — preconditions executed before the main actions
+- **Main actions (`when_command`/`when_event`)** — commands/events under test
 - **Expectations (`expect`)** — pure `'ctx -> bool` predicates
 
 Execution flow per expectation:
@@ -117,7 +113,7 @@ type IBus =
     abstract Subscribe<'T> : ('T -> Async<unit>) -> unit
 ```
 
-Internally uses `ConcurrentDictionary<Type, ResizeArray<'T -> Async<unit>>>` — typed handler lists avoid boxing at the API boundary. Events use domain types directly in-process (no Contract round-trip).
+Internally uses `ConcurrentDictionary<Type, obj>` with generic `HandlerStore<'T>` wrappers — per-type immutable handler snapshots make publish safe under concurrent subscription. Events use domain types directly in-process (no Contract round-trip).
 
 ### Breaking Circular Dependencies
 
@@ -125,9 +121,14 @@ F# prohibits circular module references. Cross-BC command dispatch uses thunk in
 
 ```fsharp
 let rec rondelHost: Lazy<RondelHost> =
-    lazy (RondelHost.create store bus (fun () cmd -> accountingHost.Value.Execute cmd))
-and accountingHost: Lazy<AccountingHost> =
-    lazy (AccountingHost.create bus)
+    lazy
+        (RondelHost.create store bus (fun () cmd ->
+            async {
+                do! accountingHost.Value.Execute cmd
+                return Ok()
+            }))
+
+and accountingHost: Lazy<AccountingHost> = lazy (AccountingHost.create bus)
 ```
 
 ### Events vs Commands
