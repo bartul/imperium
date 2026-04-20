@@ -137,18 +137,18 @@ let toMarkdown
     (runner: SpecRunner<'ctx, 'seed, 'state, 'cmd, 'evt>)
     (spec: Specification<'ctx, 'seed, 'cmd, 'evt>)
     =
-    let context = prepareContext runner spec
+    let results = spec.Expectations |> List.map (runExpectation runner spec)
 
     let initialStateText =
-        runner.CaptureState
-        |> Option.map (fun capture -> capture context |> renderState runner)
+        results
+        |> List.tryPick (fun r -> r.InitialState)
+        |> Option.map (renderState runner)
         |> Option.defaultValue "_no state capture_"
 
-    runActions runner context spec.Actions
-
     let finalStateText =
-        runner.CaptureState
-        |> Option.map (fun capture -> capture context |> renderState runner)
+        results
+        |> List.tryPick (fun r -> r.FinalState)
+        |> Option.map (renderState runner)
         |> Option.defaultValue "_no state capture_"
 
     let givenRows = spec.GivenActions |> List.choose formatActionRow
@@ -156,10 +156,11 @@ let toMarkdown
     let whenRows = spec.Actions |> List.choose formatActionRow
 
     let thenRows =
-        spec.Expectations
-        |> List.map (fun expectation ->
-            let result = if expectation.Predicate context then "✅" else "❌"
-            result, expectation.Description)
+        results
+        |> List.map (fun result ->
+            match result.Outcome with
+            | Passed -> "✅", result.Description
+            | Failed ex -> "❌", $"{result.Description} — {escapeCell ex.Message}")
 
     let specHeaderWeight = childHeader options.ParentHeader
     let sectionHeaderWeight = childHeader specHeaderWeight

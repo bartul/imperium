@@ -1,5 +1,6 @@
 module Imperium.UnitTests.Spec
 
+open System.Runtime.ExceptionServices
 open Expecto
 
 // ────────────────────────────────────────────────────────────────────────────────
@@ -22,8 +23,19 @@ type Action<'cmd, 'evt> =
 // Expectation
 // ────────────────────────────────────────────────────────────────────────────────
 
-/// Expectation - just context predicate (state is for runner reporting only)
-type Expectation<'ctx> = { Description: string; Predicate: 'ctx -> bool }
+/// Expectation - assertion function that throws on failure
+type Expectation<'ctx> = { Description: string; Assert: 'ctx -> unit }
+
+// ────────────────────────────────────────────────────────────────────────────────
+// Execution Result Types
+// ────────────────────────────────────────────────────────────────────────────────
+
+type ExpectationOutcome =
+    | Passed
+    | Failed of exn
+
+type ExpectationRunResult<'state> =
+    { Description: string; InitialState: 'state option; FinalState: 'state option; Outcome: ExpectationOutcome }
 
 // ────────────────────────────────────────────────────────────────────────────────
 // Specification
@@ -82,8 +94,8 @@ type SpecificationBuilder<'ctx, 'seed, 'cmd, 'evt>(name, defaultOn: (unit -> 'ct
         { spec with Actions = spec.Actions @ [ Handle evt ] }
 
     [<CustomOperation("expect")>]
-    member _.Expect(spec, description, predicate) =
-        { spec with Expectations = spec.Expectations @ [ { Description = description; Predicate = predicate } ] }
+    member _.Expect(spec, description, assertion: 'ctx -> unit) =
+        { spec with Expectations = spec.Expectations @ [ { Description = description; Assert = assertion } ] }
 
 let spec<'ctx, 'seed, 'cmd, 'evt> name =
     SpecificationBuilder<'ctx, 'seed, 'cmd, 'evt>(name, None)
@@ -111,23 +123,25 @@ module Specification =
         { specification with Preserve = true }
 
 // ────────────────────────────────────────────────────────────────────────────────
-// Collection Predicates
+// Collection Assertions
 // ────────────────────────────────────────────────────────────────────────────────
 
-module CollectionExpect =
+module CollectionAssert =
     type Accessor<'ctx, 'item> =
-        { Has: 'item -> 'ctx -> bool
-          HasAny: ('item -> bool) -> 'ctx -> bool
-          Count: 'item -> 'ctx -> int
-          HasCount: 'item -> int -> 'ctx -> bool
-          HasSize: int -> 'ctx -> bool }
+        { Has: 'item -> string -> 'ctx -> unit
+          HasAny: ('item -> bool) -> string -> 'ctx -> unit
+          HasNone: ('item -> bool) -> string -> 'ctx -> unit
+          Count: 'item -> int -> string -> 'ctx -> unit
+          HasSize: int -> string -> 'ctx -> unit }
 
     let forAccessor (accessor: 'ctx -> seq<'item>) : Accessor<'ctx, 'item> =
-        { Has = fun item ctx -> accessor ctx |> Seq.exists (fun x -> x = item)
-          HasAny = fun predicate ctx -> accessor ctx |> Seq.exists predicate
-          Count = fun item ctx -> accessor ctx |> Seq.filter (fun x -> x = item) |> Seq.length
-          HasCount = fun item n ctx -> accessor ctx |> Seq.filter (fun x -> x = item) |> Seq.length = n
-          HasSize = fun n ctx -> accessor ctx |> Seq.length = n }
+        { Has = fun item message ctx -> Expect.isTrue (accessor ctx |> Seq.exists (fun x -> x = item)) message
+          HasAny = fun predicate message ctx -> Expect.isTrue (accessor ctx |> Seq.exists predicate) message
+          HasNone = fun predicate message ctx -> Expect.isFalse (accessor ctx |> Seq.exists predicate) message
+          Count =
+            fun item n message ctx ->
+                Expect.equal (accessor ctx |> Seq.filter (fun x -> x = item) |> Seq.length) n message
+          HasSize = fun n message ctx -> Expect.equal (accessor ctx |> Seq.length) n message }
 
 // ────────────────────────────────────────────────────────────────────────────────
 // Runner Record
@@ -179,6 +193,30 @@ let prepareContext
 
     context
 
+/// Shared execution primitive: runs a single expectation through the full spec flow
+/// and captures the outcome without rethrowing.
+let runExpectation
+    (runner: SpecRunner<'ctx, 'seed, 'state, 'cmd, 'evt>)
+    (specification: Specification<'ctx, 'seed, 'cmd, 'evt>)
+    (expectation: Expectation<'ctx>)
+    : ExpectationRunResult<'state> =
+
+    let mutable initialState: 'state option = None
+    let mutable finalState: 'state option = None
+
+    let outcome =
+        try
+            let ctx = prepareContext runner specification
+            initialState <- runner.CaptureState |> Option.map (fun capture -> capture ctx)
+            runActions runner ctx specification.Actions
+            finalState <- runner.CaptureState |> Option.map (fun capture -> capture ctx)
+            expectation.Assert ctx
+            Passed
+        with ex ->
+            Failed ex
+
+    { Description = expectation.Description; InitialState = initialState; FinalState = finalState; Outcome = outcome }
+
 /// Convert Specification to Expecto testList where each expectation is its own testCase.
 /// Each testCase runs the full on/when_ sequence independently for isolation.
 let toExpecto
@@ -190,11 +228,10 @@ let toExpecto
         |> List.map (fun expectation ->
             testCase expectation.Description
             <| fun _ ->
-                let ctx = prepareContext runner specification
-                let _initialState = runner.CaptureState |> Option.map (fun capture -> capture ctx)
-                runActions runner ctx specification.Actions
-                let _finalState = runner.CaptureState |> Option.map (fun capture -> capture ctx)
-                let passed = expectation.Predicate ctx
-                Expect.isTrue passed expectation.Description)
+                let result = runExpectation runner specification expectation
+
+                match result.Outcome with
+                | Passed -> ()
+                | Failed ex -> ExceptionDispatchInfo.Capture(ex).Throw())
 
     testList specification.Name expectationTests
