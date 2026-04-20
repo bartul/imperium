@@ -31,22 +31,27 @@ let private runner: SpecRunner<AccountingContext, NoState, NoState, AccountingCo
 // ────────────────────────────────────────────────────────────────────────────────
 
 let private events =
-    CollectionExpect.forAccessor (fun (ctx: AccountingContext) -> ctx.Events :> seq<_>)
+    CollectionAssert.forAccessor (fun (ctx: AccountingContext) -> ctx.Events :> seq<_>)
 
-let private hasEventCount expected = events.HasSize expected
+let private hasEventCount expected =
+    events.HasSize expected "event count should match"
 
 let private hasPaymentConfirmed =
-    events.HasAny (function
+    events.HasAny
+        (function
         | RondelInvoicePaid _ -> true
         | _ -> false)
+        "payment confirmation should be published"
 
-let private hasPaymentFailed =
-    events.HasAny (function
+let private hasNoPaymentFailed =
+    events.HasNone
+        (function
         | RondelInvoicePaymentFailed _ -> true
         | _ -> false)
+        "no payment failure should be published"
 
 let private hasExactPaymentConfirmed gameId billingId =
-    events.Has(RondelInvoicePaid { GameId = gameId; BillingId = billingId })
+    events.Has (RondelInvoicePaid { GameId = gameId; BillingId = billingId }) "exact payment confirmation should match"
 
 // ────────────────────────────────────────────────────────────────────────────────
 // Specs
@@ -65,14 +70,14 @@ let private accountingSpecs =
 
           expect "payment is confirmed" hasPaymentConfirmed
           expect "payment confirmation matches requested invoice" (hasExactPaymentConfirmed gameId billingId)
-          expect "payment is not marked as failed" (hasPaymentFailed >> not)
+          expect "payment is not marked as failed" hasNoPaymentFailed
       }
 
       spec "voiding a charge records no accounting outcome" {
           when_command (VoidRondelCharge { GameId = Id.newId (); BillingId = Id.newId () })
 
           expect "no accounting outcomes are published" (hasEventCount 0)
-          expect "payment is not marked as failed" (hasPaymentFailed >> not)
+          expect "payment is not marked as failed" hasNoPaymentFailed
       } ]
 
 let renderSpecMarkdown options =

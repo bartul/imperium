@@ -19,7 +19,7 @@ This codebase serves as a showcase for several design patterns and development t
 - **Pure business logic separated from IO** — handler internals return `(state, events, commands)` tuples; a shared `materialize` function sequences all side effects
 - **Bounded context isolation through Contract DTOs** — cross-BC communication uses plain primitive types (`Guid`, `string`) and shared value types (`Amount`); transformation modules validate at each boundary
 - **`Decision<'State,'Outcome>` type** — a bind/resolve pipeline for chaining validation steps in business rule pipelines
-- **CE-based declarative test specs** — [Simple.Testing](https://github.com/gregoryyoung/Simple.Testing)-inspired `on`/`state`/`given_command`/`given_event`/`preserve`/`when_command`/`when_event`/`expect` syntax where each expectation becomes its own isolated test case
+- **CE-based declarative test specs** — [Simple.Testing](https://github.com/gregoryyoung/Simple.Testing)-inspired `on`/`state`/`given_command`/`given_event`/`preserve`/`when_command`/`when_event`/`expect` syntax with assertion-native expectations using the full Expecto assertion API; each expectation becomes its own isolated test case
 - **Three-phase module development process** — define `.fsi` interface first, write failing tests against it, then implement until green
 - **`MailboxProcessor` for serialized writes** — terminal app uses F# agents to serialize state mutations per bounded context while allowing concurrent reads
 
@@ -33,7 +33,7 @@ src/
   Imperium.Terminal/     Terminal UI app using Terminal.Gui v2
   Imperium.Web/          ASP.NET Core web host (placeholder)
 tests/
-  Imperium.UnitTests/    99 tests (Expecto + CE-based specs)
+  Imperium.UnitTests/    Expecto + CE-based specs
 docs/                    Design documents and official game rules
 ```
 
@@ -62,8 +62,8 @@ dotnet run --project src/Imperium.Terminal
 
 ## CE-Based Specs
 
-Bounded-context behavior tests in this repository use computation expression-based specifications with a readable flow: `on` (context), `when_command`/`when_event` (actions), `expect` (boolean predicates).  
-Each `expect` runs as an isolated test case that replays the full scenario setup.
+Bounded-context behavior tests use computation expression-based specifications with assertion-native expectations. The flow is: `on` (context), `when_command`/`when_event` (actions), `expect` (assertion functions using the full Expecto API).  
+Each `expect` runs as an isolated test case that replays the full scenario setup. Failures preserve rich Expecto diagnostics.
 
 ```fsharp
 let private rondelSpecs =
@@ -83,11 +83,15 @@ let private rondelSpecs =
 
           expect
               "action is determined from pending movement"
-              (hasExactEvent (ActionDetermined { GameId = gameId; Nation = "Austria"; Action = Action.Investor }))
+              (assertExactEvent
+                  (ActionDetermined { GameId = gameId; Nation = "Austria"; Action = Action.Investor })
+                  "investor action should be determined")
 
           expect
-              "subsequent move uses starts from updated position"
-              (hasExactEvent (ActionDetermined { GameId = gameId; Nation = "Austria"; Action = Action.Import }))
+              "subsequent move starts from updated position"
+              (assertExactEvent
+                  (ActionDetermined { GameId = gameId; Nation = "Austria"; Action = Action.Import })
+                  "import action should be determined")
       } ]
 ```
 
