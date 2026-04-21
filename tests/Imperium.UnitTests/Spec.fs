@@ -135,13 +135,13 @@ module CollectionAssert =
           HasSize: int -> string -> 'ctx -> unit }
 
     let forAccessor (accessor: 'ctx -> seq<'item>) : Accessor<'ctx, 'item> =
-        { Has = fun item message ctx -> Expect.isTrue (accessor ctx |> Seq.exists (fun x -> x = item)) message
-          HasAny = fun predicate message ctx -> Expect.isTrue (accessor ctx |> Seq.exists predicate) message
-          HasNone = fun predicate message ctx -> Expect.isFalse (accessor ctx |> Seq.exists predicate) message
+        { Has = fun item message ctx -> Expect.contains (accessor ctx) item message
+          HasAny = fun predicate message ctx -> Expect.exists (accessor ctx) predicate message
+          HasNone = fun predicate message ctx -> Expect.hasCountOf (accessor ctx) 0u predicate message
           Count =
             fun item n message ctx ->
-                Expect.equal (accessor ctx |> Seq.filter (fun x -> x = item) |> Seq.length) n message
-          HasSize = fun n message ctx -> Expect.equal (accessor ctx |> Seq.length) n message }
+                Expect.hasCountOf (accessor ctx) (uint32 n) (fun x -> x = item) message
+          HasSize = fun n message ctx -> Expect.hasLength (accessor ctx) n message }
 
 // ────────────────────────────────────────────────────────────────────────────────
 // Runner Record
