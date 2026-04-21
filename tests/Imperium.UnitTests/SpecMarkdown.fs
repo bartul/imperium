@@ -132,7 +132,7 @@ let private renderActionSection weight title rows =
     [ renderHeader weight title; "" ]
     @ if List.isEmpty rows then [] else renderTableRows rows
 
-let toMarkdown
+let private toMarkdown
     (options: MarkdownRenderOptions)
     (runner: SpecRunner<'ctx, 'seed, 'state, 'cmd, 'evt>)
     (spec: Specification<'ctx, 'seed, 'cmd, 'evt>)
