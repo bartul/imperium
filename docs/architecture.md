@@ -82,18 +82,32 @@ Conceptually, a spec contains:
 - **Optional seed (`state`)** — injects initial state when needed
 - **Optional setup actions (`given_command`/`given_event`)** — preconditions executed before the main actions
 - **Main actions (`when_command`/`when_event`)** — commands/events under test
-- **Expectations (`expect`)** — pure `'ctx -> bool` predicates
+- **Expectations (`expect`)** — assertion functions (`'ctx -> unit`) that use the full Expecto assertion API
 
-Execution flow per expectation:
+### Execution Model
+
+Specs use assertion-native expectations. Each expectation is an `Assert: 'ctx -> unit` function that calls Expecto assertions directly (e.g., `Expect.equal`, `Expect.isTrue`, `Expect.contains`). Failures are thrown exceptions, not boolean results.
+
+A shared `runExpectation` function executes one expectation through the full spec flow:
 
 1. Build context via `on`
 2. Seed state from inline `state` if provided
 3. Run setup `given_command`/`given_event` actions
 4. Clear setup side-effects unless `preserve` is enabled
-5. Run `when_command`/`when_event` actions
-6. Evaluate one `expect` predicate
+5. Capture initial state snapshot (if runner provides `CaptureState`)
+6. Run `when_command`/`when_event` actions
+7. Capture final state snapshot
+8. Execute the assertion function
+9. Return an `ExpectationRunResult` with captured state and outcome (`Passed` or `Failed of exn`)
 
 Each `expect` is materialized as its own test case and reruns the full flow above, providing deterministic isolation between expectations.
+
+### Renderers
+
+Both `toExpecto` and markdown rendering share the `runExpectation` execution path:
+
+- **`toExpecto`** — creates Expecto `testCase` values that call `runExpectation` inside each test thunk. Failed outcomes are rethrown via `ExceptionDispatchInfo.Capture(ex).Throw()` to preserve stack traces and exception types.
+- **`toMarkdown`** — calls `runExpectation` for every expectation and renders all results. Failures do not abort rendering; each expectation result is shown with pass/fail status and failure messages.
 
 ## Terminal App Architecture
 
