@@ -1,6 +1,5 @@
 module Imperium.UnitTests.Accounting
 
-open System
 open Expecto
 open Spec
 open Imperium.Accounting
@@ -42,6 +41,13 @@ let private assertPaymentConfirmed =
         | RondelInvoicePaid _ -> true
         | _ -> false)
         "payment confirmation should be published"
+
+let private assertNoPaymentConfirmed =
+    events.HasNone
+        (function
+        | RondelInvoicePaid _ -> true
+        | _ -> false)
+        "no payment confirmation should be published"
 
 let private assertNoPaymentFailed =
     events.HasNone
