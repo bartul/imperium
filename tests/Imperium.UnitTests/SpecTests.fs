@@ -197,7 +197,18 @@ let private specFilterTests =
 
               Expect.hasLength returnedSpec.Expectations 2 "both expectations should survive"
               Expect.equal returnedSpec.Expectations[0].Description "first" "first expectation preserved"
-              Expect.equal returnedSpec.Expectations[1].Description "second" "second expectation preserved") ]
+              Expect.equal returnedSpec.Expectations[1].Description "second" "second expectation preserved")
+
+          testCase "fromArgs --filter prefix-matches the joined path with default dot separator" (fun _ ->
+              let filter = SpecFilter.fromArgs [| "--filter"; "Imperium.Rondel" |]
+
+              Expect.isTrue
+                  (filter.MatchExpectation [ "Imperium"; "Rondel"; "spec"; "exp" ])
+                  "path under Imperium.Rondel should match the prefix"
+
+              Expect.isFalse
+                  (filter.MatchExpectation [ "Imperium"; "Accounting"; "spec"; "exp" ])
+                  "path under a different BC should not match") ]
 
 [<Tests>]
 let tests = TestList([ specTests; specFilterTests ], Normal)

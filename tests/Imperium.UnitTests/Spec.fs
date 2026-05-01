@@ -174,7 +174,16 @@ module SpecFilter =
 
     let none: T = { MatchExpectation = fun _ -> true }
 
-    let fromArgs (_: string array) : T = none
+    let private valueAfter flag (args: string array) =
+        args
+        |> Array.tryFindIndex ((=) flag)
+        |> Option.bind (fun i -> Array.tryItem (i + 1) args)
+
+    let fromArgs (args: string array) : T =
+        match valueAfter "--filter" args with
+        | Some hierarchy ->
+            { MatchExpectation = fun path -> (String.concat "." path).StartsWith hierarchy }
+        | None -> none
 
     let apply
         (_: T)
