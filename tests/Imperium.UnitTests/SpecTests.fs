@@ -5,8 +5,7 @@ open Spec
 
 let private runner: SpecRunner<int, NoState, NoState, unit, unit> = SpecRunner.empty
 
-[<Tests>]
-let tests =
+let private specTests =
     testList
         "Spec"
         [ testCase "specOn uses the provided context factory by default" (fun _ ->
@@ -174,3 +173,31 @@ let tests =
 
                   Expect.stringContains ex.Message "found: 2; 4" "message should include matching items"
                   Expect.stringContains ex.Message "Actual items: 1; 2; 3; 4" "message should include actual items") ]
+
+let private specFilterTests =
+    testList
+        "SpecFilter"
+        [ testCase "apply with none preserves all expectations" (fun _ ->
+              let specification =
+                  specOn<int, NoState, unit, unit> (fun () -> 0) "untouched spec" {
+                      expect "first" (fun _ -> ())
+                      expect "second" (fun _ -> ())
+                  }
+
+              let result = SpecFilter.apply SpecFilter.none [] [ specification ]
+
+              Expect.hasLength result 1 "one spec should survive"
+
+              let returnedSpec = result[0]
+              Expect.equal returnedSpec.Name "untouched spec" "spec name preserved"
+              Expect.equal returnedSpec.GivenState None "GivenState unchanged"
+              Expect.equal returnedSpec.GivenActions [] "GivenActions unchanged"
+              Expect.equal returnedSpec.Preserve false "Preserve flag unchanged"
+              Expect.equal returnedSpec.Actions [] "Actions unchanged"
+
+              Expect.hasLength returnedSpec.Expectations 2 "both expectations should survive"
+              Expect.equal returnedSpec.Expectations[0].Description "first" "first expectation preserved"
+              Expect.equal returnedSpec.Expectations[1].Description "second" "second expectation preserved") ]
+
+[<Tests>]
+let tests = TestList([ specTests; specFilterTests ], Normal)
