@@ -165,6 +165,25 @@ module CollectionAssert =
           HasSize = fun n message ctx -> Expect.hasLength (accessor ctx) n message }
 
 // ────────────────────────────────────────────────────────────────────────────────
+// Spec Filter
+// ────────────────────────────────────────────────────────────────────────────────
+
+[<RequireQualifiedAccess>]
+module SpecFilter =
+    type T = { MatchExpectation: string list -> bool }
+
+    let none: T = { MatchExpectation = fun _ -> true }
+
+    let fromArgs (_: string array) : T = none
+
+    let apply
+        (_: T)
+        (_: string list)
+        (specs: Specification<'ctx, 'seed, 'cmd, 'evt> list)
+        : Specification<'ctx, 'seed, 'cmd, 'evt> list =
+        specs
+
+// ────────────────────────────────────────────────────────────────────────────────
 // Runner Record
 // ────────────────────────────────────────────────────────────────────────────────
 

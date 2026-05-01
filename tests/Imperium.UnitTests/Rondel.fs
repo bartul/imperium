@@ -211,7 +211,7 @@ let private assertStartingPositionsSet gameId =
     assertExactEvent (PositionedAtStart { GameId = gameId }) "starting positions should be set"
 
 let private assertNoStartingPositionsSet gameId =
-    events.HasNone (fun e -> e = PositionedAtStart { GameId = gameId }) "starting positions should not be set again"
+    events.HasNone (fun e -> e = PositionedAtStart { GameId = gameId }) "starting positions should not be set"
 
 let private assertActionDetermined =
     events.HasAny
