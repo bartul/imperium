@@ -194,18 +194,29 @@ module SpecFilter =
             | Some "/" -> "/"
             | _ -> "."
 
-        match
-            valueAfter "--filter" args,
-            valueAfter "--filter-test-list" args,
-            valueAfter "--filter-test-case" args
-        with
-        | Some hierarchy, _, _ ->
-            { MatchExpectation = fun path -> (String.concat joinWith path).StartsWith hierarchy }
-        | None, Some name, _ ->
-            { MatchExpectation = fun path -> getNonLeaf path |> List.exists (fun s -> s.Contains name) }
-        | None, None, Some name ->
-            { MatchExpectation = fun path -> (getLeaf path).Contains name }
-        | None, None, None -> none
+        let lastPredicate =
+            args
+            |> Array.indexed
+            |> Array.choose (fun (i, arg) ->
+                let value () = Array.tryItem (i + 1) args
+
+                match arg with
+                | "--filter" ->
+                    value ()
+                    |> Option.map (fun hierarchy path ->
+                        (String.concat joinWith path).StartsWith hierarchy)
+                | "--filter-test-list" ->
+                    value ()
+                    |> Option.map (fun name path ->
+                        getNonLeaf path |> List.exists (fun s -> s.Contains name))
+                | "--filter-test-case" ->
+                    value () |> Option.map (fun name path -> (getLeaf path).Contains name)
+                | _ -> None)
+            |> Array.tryLast
+
+        match lastPredicate with
+        | Some predicate -> { MatchExpectation = predicate }
+        | None -> none
 
     let apply
         (_: T)

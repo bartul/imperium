@@ -246,7 +246,27 @@ let private specFilterTests =
               Expect.isFalse
                   (filter.MatchExpectation
                       [ "Imperium"; "Rondel"; "payment spec"; "irrelevant" ])
-                  "non-leaf match should not count for --filter-test-case") ]
+                  "non-leaf match should not count for --filter-test-case")
+
+          testCase "fromArgs uses the last filter flag when multiple are present" (fun _ ->
+              // --filter A then --filter-test-case B → only --filter-test-case is in effect.
+              // The earlier --filter "Imperium.Rondel" is discarded.
+              let filter =
+                  SpecFilter.fromArgs
+                      [| "--filter"
+                         "Imperium.Rondel"
+                         "--filter-test-case"
+                         "payment" |]
+
+              Expect.isTrue
+                  (filter.MatchExpectation
+                      [ "Imperium"; "Accounting"; "spec"; "payment is required" ])
+                  "later --filter-test-case 'payment' wins; --filter 'Imperium.Rondel' is discarded so a path under Accounting still matches on the leaf"
+
+              Expect.isFalse
+                  (filter.MatchExpectation
+                      [ "Imperium"; "Rondel"; "spec"; "no leaf match" ])
+                  "the earlier --filter prefix is discarded; only the leaf 'payment' check runs, and this leaf does not contain 'payment'") ]
 
 [<Tests>]
 let tests = TestList([ specTests; specFilterTests ], Normal)
