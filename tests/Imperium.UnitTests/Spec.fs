@@ -180,9 +180,14 @@ module SpecFilter =
         |> Option.bind (fun i -> Array.tryItem (i + 1) args)
 
     let fromArgs (args: string array) : T =
+        let joinWith =
+            match valueAfter "--join-with" args with
+            | Some "/" -> "/"
+            | _ -> "."
+
         match valueAfter "--filter" args with
         | Some hierarchy ->
-            { MatchExpectation = fun path -> (String.concat "." path).StartsWith hierarchy }
+            { MatchExpectation = fun path -> (String.concat joinWith path).StartsWith hierarchy }
         | None -> none
 
     let apply

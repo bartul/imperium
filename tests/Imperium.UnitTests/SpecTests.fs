@@ -208,7 +208,19 @@ let private specFilterTests =
 
               Expect.isFalse
                   (filter.MatchExpectation [ "Imperium"; "Accounting"; "spec"; "exp" ])
-                  "path under a different BC should not match") ]
+                  "path under a different BC should not match")
+
+          testCase "fromArgs --join-with / changes the separator used by --filter" (fun _ ->
+              let filter =
+                  SpecFilter.fromArgs [| "--join-with"; "/"; "--filter"; "Imperium/Rondel" |]
+
+              Expect.isTrue
+                  (filter.MatchExpectation [ "Imperium"; "Rondel"; "spec"; "exp" ])
+                  "with --join-with /, slash-separated prefix should match"
+
+              Expect.isFalse
+                  (filter.MatchExpectation [ "Imperium"; "Accounting"; "spec"; "exp" ])
+                  "non-matching path should still be rejected") ]
 
 [<Tests>]
 let tests = TestList([ specTests; specFilterTests ], Normal)
