@@ -179,16 +179,24 @@ module SpecFilter =
         |> Array.tryFindIndex ((=) flag)
         |> Option.bind (fun i -> Array.tryItem (i + 1) args)
 
+    let private getNonLeaf (path: string list) =
+        match path with
+        | []
+        | [ _ ] -> []
+        | xs -> xs[.. xs.Length - 2]
+
     let fromArgs (args: string array) : T =
         let joinWith =
             match valueAfter "--join-with" args with
             | Some "/" -> "/"
             | _ -> "."
 
-        match valueAfter "--filter" args with
-        | Some hierarchy ->
+        match valueAfter "--filter" args, valueAfter "--filter-test-list" args with
+        | Some hierarchy, _ ->
             { MatchExpectation = fun path -> (String.concat joinWith path).StartsWith hierarchy }
-        | None -> none
+        | None, Some name ->
+            { MatchExpectation = fun path -> getNonLeaf path |> List.exists (fun s -> s.Contains name) }
+        | None, None -> none
 
     let apply
         (_: T)
