@@ -185,18 +185,27 @@ module SpecFilter =
         | [ _ ] -> []
         | xs -> xs[.. xs.Length - 2]
 
+    let private getLeaf (path: string list) =
+        path |> List.tryLast |> Option.defaultValue ""
+
     let fromArgs (args: string array) : T =
         let joinWith =
             match valueAfter "--join-with" args with
             | Some "/" -> "/"
             | _ -> "."
 
-        match valueAfter "--filter" args, valueAfter "--filter-test-list" args with
-        | Some hierarchy, _ ->
+        match
+            valueAfter "--filter" args,
+            valueAfter "--filter-test-list" args,
+            valueAfter "--filter-test-case" args
+        with
+        | Some hierarchy, _, _ ->
             { MatchExpectation = fun path -> (String.concat joinWith path).StartsWith hierarchy }
-        | None, Some name ->
+        | None, Some name, _ ->
             { MatchExpectation = fun path -> getNonLeaf path |> List.exists (fun s -> s.Contains name) }
-        | None, None -> none
+        | None, None, Some name ->
+            { MatchExpectation = fun path -> (getLeaf path).Contains name }
+        | None, None, None -> none
 
     let apply
         (_: T)
