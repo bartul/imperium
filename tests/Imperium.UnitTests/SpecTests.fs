@@ -220,7 +220,20 @@ let private specFilterTests =
 
               Expect.isFalse
                   (filter.MatchExpectation [ "Imperium"; "Accounting"; "spec"; "exp" ])
-                  "non-matching path should still be rejected") ]
+                  "non-matching path should still be rejected")
+
+          testCase "fromArgs --filter-test-list matches non-leaf segments only" (fun _ ->
+              let filter = SpecFilter.fromArgs [| "--filter-test-list"; "moving" |]
+
+              Expect.isTrue
+                  (filter.MatchExpectation
+                      [ "Imperium"; "Rondel"; "moving 4 spaces"; "payment is required" ])
+                  "spec name (non-leaf) containing the substring should match"
+
+              Expect.isFalse
+                  (filter.MatchExpectation
+                      [ "Imperium"; "Rondel"; "stay put"; "moving leaf only" ])
+                  "leaf-only match should not count for --filter-test-list") ]
 
 [<Tests>]
 let tests = TestList([ specTests; specFilterTests ], Normal)
