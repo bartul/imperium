@@ -1,6 +1,5 @@
 module Imperium.UnitTests.Accounting
 
-open System
 open Expecto
 open Spec
 open Imperium.Accounting
@@ -31,22 +30,34 @@ let private runner: SpecRunner<AccountingContext, NoState, NoState, AccountingCo
 // ────────────────────────────────────────────────────────────────────────────────
 
 let private events =
-    CollectionExpect.forAccessor (fun (ctx: AccountingContext) -> ctx.Events :> seq<_>)
+    CollectionAssert.forAccessor (fun (ctx: AccountingContext) -> ctx.Events :> seq<_>)
 
-let private hasEventCount expected = events.HasSize expected
+let private assertEventCount expected =
+    events.HasSize expected "event count should match"
 
-let private hasPaymentConfirmed =
-    events.HasAny (function
+let private assertPaymentConfirmed =
+    events.HasAny
+        (function
         | RondelInvoicePaid _ -> true
         | _ -> false)
+        "payment confirmation should be published"
 
-let private hasPaymentFailed =
-    events.HasAny (function
+let private assertNoPaymentConfirmed =
+    events.HasNone
+        (function
+        | RondelInvoicePaid _ -> true
+        | _ -> false)
+        "no payment confirmation should be published"
+
+let private assertNoPaymentFailed =
+    events.HasNone
+        (function
         | RondelInvoicePaymentFailed _ -> true
         | _ -> false)
+        "no payment failure should be published"
 
-let private hasExactPaymentConfirmed gameId billingId =
-    events.Has(RondelInvoicePaid { GameId = gameId; BillingId = billingId })
+let private assertExactPaymentConfirmed gameId billingId =
+    events.Has (RondelInvoicePaid { GameId = gameId; BillingId = billingId }) "exact payment confirmation should match"
 
 // ────────────────────────────────────────────────────────────────────────────────
 // Specs
@@ -63,20 +74,26 @@ let private accountingSpecs =
                   { GameId = gameId; Nation = "France"; Amount = Amount.unsafe 4; BillingId = billingId }
           )
 
-          expect "payment is confirmed" hasPaymentConfirmed
-          expect "payment confirmation matches requested invoice" (hasExactPaymentConfirmed gameId billingId)
-          expect "payment is not marked as failed" (hasPaymentFailed >> not)
+          expect "payment is confirmed" assertPaymentConfirmed
+          expect "payment confirmation matches requested invoice" (assertExactPaymentConfirmed gameId billingId)
+          expect "payment is not marked as failed" assertNoPaymentFailed
       }
 
       spec "voiding a charge records no accounting outcome" {
           when_command (VoidRondelCharge { GameId = Id.newId (); BillingId = Id.newId () })
 
-          expect "no accounting outcomes are published" (hasEventCount 0)
-          expect "payment is not marked as failed" (hasPaymentFailed >> not)
+          expect "no accounting outcomes are published" (assertEventCount 0)
+          expect "payment is not marked as failed" assertNoPaymentFailed
       } ]
 
-let renderSpecMarkdown options =
-    SpecMarkdown.toMarkdownDocument options runner accountingSpecs
+let renderSpecMarkdown
+    (options: SpecMarkdown.MarkdownRenderOptions)
+    (filter: SpecFilter.T)
+    (rootPath: string list)
+    : string option =
+    accountingSpecs
+    |> SpecFilter.apply filter (rootPath @ [ "Accounting" ])
+    |> SpecMarkdown.render options "Accounting" runner
 
 // ────────────────────────────────────────────────────────────────────────────────
 // Test Registration

@@ -200,93 +200,108 @@ let private runner =
 // ────────────────────────────────────────────────────────────────────────────────
 
 let private events =
-    CollectionExpect.forAccessor (fun (ctx: RondelContext) -> ctx.Events :> seq<_>)
+    CollectionAssert.forAccessor (fun (ctx: RondelContext) -> ctx.Events :> seq<_>)
 
 let private commands =
-    CollectionExpect.forAccessor (fun (ctx: RondelContext) -> ctx.Commands :> seq<_>)
+    CollectionAssert.forAccessor (fun (ctx: RondelContext) -> ctx.Commands :> seq<_>)
 
-let hasExactEvent event_ = events.Has event_
+let private assertExactEvent event_ message = events.Has event_ message
 
-let private hasStartingPositionsSet gameId =
-    hasExactEvent (PositionedAtStart { GameId = gameId })
+let private assertStartingPositionsSet gameId =
+    assertExactEvent (PositionedAtStart { GameId = gameId }) "starting positions should be set"
 
-let private hasActionDetermined =
-    events.HasAny (function
+let private assertNoStartingPositionsSet gameId =
+    events.HasNone (fun e -> e = PositionedAtStart { GameId = gameId }) "starting positions should not be set"
+
+let private assertActionDetermined =
+    events.HasAny
+        (function
         | ActionDetermined _ -> true
         | _ -> false)
+        "action should be determined"
 
-let private hasRejection =
-    events.HasAny (function
-        | MoveToActionSpaceRejected _ -> true
+let private assertNoActionDetermined =
+    events.HasNone
+        (function
+        | ActionDetermined _ -> true
         | _ -> false)
+        "no action should be determined"
 
-let private hasChargeCommand =
-    commands.HasAny (function
+let private assertChargeCommand =
+    commands.HasAny
+        (function
         | ChargeMovement _ -> true
         | _ -> false)
+        "charge command should be dispatched"
 
-let private hasChargeCommandOf (amount: Amount) =
-    commands.HasAny (function
+let private assertNoChargeCommand =
+    commands.HasNone
+        (function
+        | ChargeMovement _ -> true
+        | _ -> false)
+        "no charge command should be dispatched"
+
+let private assertChargeCommandOfM millions =
+    let amount = Amount.unsafe millions
+
+    commands.HasAny
+        (function
         | ChargeMovement cmd when cmd.Amount = amount -> true
         | _ -> false)
+        $"charge command of %d{millions}M should be dispatched"
 
-let private hasChargeCommandOfM millions =
-    hasChargeCommandOf (Amount.unsafe millions)
+let private assertExactCommand command message = commands.Has command message
 
-let private hasExactCommand command = commands.Has command
-
-let private countExactEvent event_ = events.Count event_
-
-let private hasExactEventCount event_ expectedCount = events.HasCount event_ expectedCount
+let private assertExactEventCount event_ expectedCount message =
+    events.Count event_ expectedCount message
 
 let private getNationPositionsResult ctx = ctx.GetNationPositions()
 
 let private newBillingId () = Id.newId () |> RondelBillingId.ofId
 
-let private hasNoNationPositions ctx =
-    getNationPositionsResult ctx |> Option.isNone
+let private assertNoNationPositions ctx =
+    Expect.isNone (getNationPositionsResult ctx) "no positions should be returned"
 
-let private hasNationPositions ctx =
-    getNationPositionsResult ctx |> Option.isSome
+let private assertNationPositions ctx =
+    Expect.isSome (getNationPositionsResult ctx) "positions should be returned"
 
-let private hasNationPositionsForGameId gameId ctx =
-    getNationPositionsResult ctx |> Option.exists (fun view -> view.GameId = gameId)
+let private assertNationPositionsForGameId gameId ctx =
+    let result = getNationPositionsResult ctx
+    Expect.isSome result "positions should be returned"
+    Expect.equal result.Value.GameId gameId "positions should belong to expected game"
 
-let private hasNationPositionsCount expectedCount ctx =
-    getNationPositionsResult ctx
-    |> Option.exists (fun view -> List.length view.Positions = expectedCount)
+let private assertNationPositionsCount expectedCount ctx =
+    let result = getNationPositionsResult ctx
+    Expect.isSome result "positions should be returned"
+    Expect.equal (List.length result.Value.Positions) expectedCount "nation position count should match"
 
-let private hasNationPosition nation currentSpace pendingSpace ctx =
-    getNationPositionsResult ctx
-    |> Option.bind (fun view -> view.Positions |> List.tryFind (fun p -> p.Nation = nation))
-    |> Option.exists (fun position -> position.CurrentSpace = currentSpace && position.PendingSpace = pendingSpace)
+let private assertNationPosition nation currentSpace pendingSpace ctx =
+    let result = getNationPositionsResult ctx
+    Expect.isSome result "positions should be returned"
+
+    let position = result.Value.Positions |> List.tryFind (fun p -> p.Nation = nation)
+
+    Expect.isSome position $"position for %s{nation} should exist"
+    Expect.equal position.Value.CurrentSpace currentSpace $"%s{nation} current space should match"
+    Expect.equal position.Value.PendingSpace pendingSpace $"%s{nation} pending space should match"
 
 let private getRondelOverviewResult ctx = ctx.GetRondelOverview()
 
-let private hasNoRondelOverview ctx =
-    getRondelOverviewResult ctx |> Option.isNone
+let private assertNoRondelOverview ctx =
+    Expect.isNone (getRondelOverviewResult ctx) "no overview should be returned"
 
-let private hasRondelOverview ctx =
-    getRondelOverviewResult ctx |> Option.isSome
+let private assertRondelOverview ctx =
+    Expect.isSome (getRondelOverviewResult ctx) "overview should be returned"
 
-let private hasRondelOverviewForGameId gameId ctx =
-    getRondelOverviewResult ctx |> Option.exists (fun view -> view.GameId = gameId)
+let private assertRondelOverviewForGameId gameId ctx =
+    let result = getRondelOverviewResult ctx
+    Expect.isSome result "overview should be returned"
+    Expect.equal result.Value.GameId gameId "overview should belong to expected game"
 
-let private hasRondelOverviewNationNames expectedNames ctx =
-    getRondelOverviewResult ctx
-    |> Option.exists (fun view -> (view.NationNames |> List.sort) = (expectedNames |> List.sort))
-
-let private hasVoidCommand =
-    commands.HasAny (function
-        | VoidCharge _ -> true
-        | _ -> false)
-
-let private chargeCount ctx =
-    ctx.Commands
-    |> Seq.filter (function
-        | ChargeMovement _ -> true
-        | _ -> false)
-    |> Seq.length
+let private assertRondelOverviewNationNames expectedNames ctx =
+    let result = getRondelOverviewResult ctx
+    Expect.isSome result "overview should be returned"
+    Expect.equal (result.Value.NationNames |> List.sort) (expectedNames |> List.sort) "nation names should match"
 
 // ────────────────────────────────────────────────────────────────────────────────
 // Specs: move
@@ -300,7 +315,7 @@ let private rondelSpecs =
     [ spec "starting setup places nations at their opening positions" {
           when_command (SetToStartingPositions { GameId = gameId; Nations = nations })
 
-          expect "opening positions are set" (hasStartingPositionsSet gameId)
+          expect "opening positions are set" (assertStartingPositionsSet gameId)
       }
 
       spec "starting setup can be applied only once per game" {
@@ -308,7 +323,7 @@ let private rondelSpecs =
 
           when_command (SetToStartingPositions { GameId = gameId; Nations = nations })
 
-          expect "second setup attempt is ignored" (hasStartingPositionsSet gameId >> not)
+          expect "second setup attempt is ignored" (assertNoStartingPositionsSet gameId)
       }
 
       spec "any attempted move is rejected until nations are set to starting positions" {
@@ -317,10 +332,12 @@ let private rondelSpecs =
 
           expect
               "reject the move"
-              (hasExactEvent (MoveToActionSpaceRejected { GameId = gameId; Nation = "France"; Space = Space.Factory }))
+              (assertExactEvent
+                  (MoveToActionSpaceRejected { GameId = gameId; Nation = "France"; Space = Space.Factory })
+                  "move should be rejected")
 
-          expect "no action determined" (hasActionDetermined >> not)
-          expect "no payment required" (hasChargeCommand >> not)
+          expect "no action determined" assertNoActionDetermined
+          expect "no payment required" assertNoChargeCommand
       }
 
       spec "moving a nation for the first time does not require payment regardless of destination" {
@@ -330,9 +347,11 @@ let private rondelSpecs =
 
           expect
               "action is determined"
-              (hasExactEvent (ActionDetermined { GameId = gameId; Nation = "France"; Action = Action.Factory }))
+              (assertExactEvent
+                  (ActionDetermined { GameId = gameId; Nation = "France"; Action = Action.Factory })
+                  "action should be determined")
 
-          expect "no payment required" (hasChargeCommand >> not)
+          expect "no payment required" assertNoChargeCommand
       }
 
       spec "moving a nation to its current position is rejected (stay put)" {
@@ -346,10 +365,12 @@ let private rondelSpecs =
 
           expect
               "rejects the move"
-              (hasExactEvent (MoveToActionSpaceRejected { GameId = gameId; Nation = "France"; Space = Space.Factory }))
+              (assertExactEvent
+                  (MoveToActionSpaceRejected { GameId = gameId; Nation = "France"; Space = Space.Factory })
+                  "move should be rejected")
 
-          expect "no action determined" (hasActionDetermined >> not)
-          expect "no payment required" (hasChargeCommand >> not)
+          expect "no action determined" assertNoActionDetermined
+          expect "no payment required" assertNoChargeCommand
       }
 
       spec "moving a nation 1-3 spaces is free" {
@@ -360,8 +381,8 @@ let private rondelSpecs =
 
           when_command (Move { GameId = gameId; Nation = "France"; Space = Space.ProductionOne })
 
-          expect "action is determined" hasActionDetermined
-          expect "no payment required" (hasChargeCommand >> not)
+          expect "action is determined" assertActionDetermined
+          expect "no payment required" assertNoChargeCommand
       }
 
       spec "moving a nation 4 spaces requires payment of 2M" {
@@ -372,9 +393,9 @@ let private rondelSpecs =
 
           when_command (Move { GameId = gameId; Nation = "France"; Space = Space.ProductionTwo })
 
-          expect "no action determined" (hasActionDetermined >> not)
-          expect "payment is required" hasChargeCommand
-          expect "payment amount is 2M" (hasChargeCommandOfM 2)
+          expect "no action determined" assertNoActionDetermined
+          expect "payment is required" assertChargeCommand
+          expect "payment amount is 2M" (assertChargeCommandOfM 2)
       }
 
       spec "moving a nation 5 spaces requires payment of 4M" {
@@ -385,9 +406,9 @@ let private rondelSpecs =
 
           when_command (Move { GameId = gameId; Nation = "France"; Space = Space.Investor })
 
-          expect "no action determined" (hasActionDetermined >> not)
-          expect "payment is required" hasChargeCommand
-          expect "payment amount is 4M" (hasChargeCommandOfM 4)
+          expect "no action determined" assertNoActionDetermined
+          expect "payment is required" assertChargeCommand
+          expect "payment amount is 4M" (assertChargeCommandOfM 4)
       }
 
       spec "moving a nation 6 spaces requires payment of 6M" {
@@ -398,9 +419,9 @@ let private rondelSpecs =
 
           when_command (Move { GameId = gameId; Nation = "France"; Space = Space.ProductionTwo })
 
-          expect "no action determined" (hasActionDetermined >> not)
-          expect "payment is required" hasChargeCommand
-          expect "payment amount is 6M" (hasChargeCommandOfM 6)
+          expect "no action determined" assertNoActionDetermined
+          expect "payment is required" assertChargeCommand
+          expect "payment amount is 6M" (assertChargeCommandOfM 6)
       }
 
       spec "moving a nation 7 spaces is rejected as exceeding maximum distance" {
@@ -413,10 +434,12 @@ let private rondelSpecs =
 
           expect
               "rejects the move"
-              (hasExactEvent (MoveToActionSpaceRejected { GameId = gameId; Nation = "France"; Space = Space.Import }))
+              (assertExactEvent
+                  (MoveToActionSpaceRejected { GameId = gameId; Nation = "France"; Space = Space.Import })
+                  "move should be rejected")
 
-          expect "no action determined" (hasActionDetermined >> not)
-          expect "no payment required" (hasChargeCommand >> not)
+          expect "no action determined" assertNoActionDetermined
+          expect "no payment required" assertNoChargeCommand
       }
 
       let previousBillingId = newBillingId ()
@@ -432,17 +455,19 @@ let private rondelSpecs =
 
           expect
               "pending move is rejected"
-              (hasExactEvent (
-                  MoveToActionSpaceRejected { GameId = gameId; Nation = "France"; Space = Space.ProductionTwo }
-              ))
+              (assertExactEvent
+                  (MoveToActionSpaceRejected { GameId = gameId; Nation = "France"; Space = Space.ProductionTwo })
+                  "pending move should be rejected")
 
           expect
               "previous charge is voided"
-              (hasExactCommand (VoidCharge { GameId = gameId; BillingId = previousBillingId }))
+              (assertExactCommand
+                  (VoidCharge { GameId = gameId; BillingId = previousBillingId })
+                  "void command should be dispatched")
 
-          expect "new payment is required" hasChargeCommand
-          expect "payment amount is 4M" (hasChargeCommandOfM 4)
-          expect "no action determined" (hasActionDetermined >> not)
+          expect "new payment is required" assertChargeCommand
+          expect "payment amount is 4M" (assertChargeCommandOfM 4)
+          expect "no action determined" assertNoActionDetermined
       }
 
       let previousBillingIdForFreeMove = newBillingId ()
@@ -458,14 +483,18 @@ let private rondelSpecs =
 
           expect
               "pending move is rejected"
-              (hasExactEvent (MoveToActionSpaceRejected { GameId = gameId; Nation = "France"; Space = Space.Investor }))
+              (assertExactEvent
+                  (MoveToActionSpaceRejected { GameId = gameId; Nation = "France"; Space = Space.Investor })
+                  "pending move should be rejected")
 
           expect
               "previous charge is voided"
-              (hasExactCommand (VoidCharge { GameId = gameId; BillingId = previousBillingIdForFreeMove }))
+              (assertExactCommand
+                  (VoidCharge { GameId = gameId; BillingId = previousBillingIdForFreeMove })
+                  "void command should be dispatched")
 
-          expect "no payment is required" (hasChargeCommand >> not)
-          expect "action is determined" hasActionDetermined
+          expect "no payment is required" assertNoChargeCommand
+          expect "action is determined" assertActionDetermined
       }
 
       let invoicePaidBillingId = newBillingId ()
@@ -482,11 +511,15 @@ let private rondelSpecs =
 
           expect
               "action is determined from pending movement"
-              (hasExactEvent (ActionDetermined { GameId = gameId; Nation = "Austria"; Action = Action.Investor }))
+              (assertExactEvent
+                  (ActionDetermined { GameId = gameId; Nation = "Austria"; Action = Action.Investor })
+                  "investor action should be determined")
 
           expect
               "subsequent move uses starts from updated position"
-              (hasExactEvent (ActionDetermined { GameId = gameId; Nation = "Austria"; Action = Action.Import }))
+              (assertExactEvent
+                  (ActionDetermined { GameId = gameId; Nation = "Austria"; Action = Action.Import })
+                  "import action should be determined")
       }
 
       spec "paying the same pending movement twice completes it only once" {
@@ -499,11 +532,12 @@ let private rondelSpecs =
           when_event (InvoicePaid { GameId = gameId; BillingId = invoicePaidBillingId })
           when_event (InvoicePaid { GameId = gameId; BillingId = invoicePaidBillingId })
 
-          expect "action is determined from pending movement, only once" (fun ctx ->
-              hasExactEventCount
+          expect
+              "action is determined from pending movement, only once"
+              (assertExactEventCount
                   (ActionDetermined { GameId = gameId; Nation = "Austria"; Action = Action.Investor })
                   1
-                  ctx)
+                  "action should be determined exactly once")
       }
 
       let voidedBillingId = newBillingId ()
@@ -522,12 +556,15 @@ let private rondelSpecs =
 
           expect
               "late payment preserves the already completed movement"
-              (hasExactEvent (ActionDetermined { GameId = gameId; Nation = "France"; Action = Action.Factory }))
+              (assertExactEvent
+                  (ActionDetermined { GameId = gameId; Nation = "France"; Action = Action.Factory })
+                  "factory action should be determined")
 
           expect
               "late payment does not determine the action"
-              (hasExactEvent (ActionDetermined { GameId = gameId; Nation = "France"; Action = Action.Investor })
-               >> not)
+              (events.HasNone
+                  (fun e -> e = ActionDetermined { GameId = gameId; Nation = "France"; Action = Action.Investor })
+                  "investor action should not be determined")
       }
 
       let invoicePaymentFailedBillingId = newBillingId ()
@@ -544,16 +581,21 @@ let private rondelSpecs =
 
           expect
               "pending movement is rejected"
-              (hasExactEvent (MoveToActionSpaceRejected { GameId = gameId; Nation = "Austria"; Space = Space.Investor }))
+              (assertExactEvent
+                  (MoveToActionSpaceRejected { GameId = gameId; Nation = "Austria"; Space = Space.Investor })
+                  "pending move should be rejected")
 
           expect
               "failed payment does not determine pending action"
-              (hasExactEvent (ActionDetermined { GameId = gameId; Nation = "Austria"; Action = Action.Investor })
-               >> not)
+              (events.HasNone
+                  (fun e -> e = ActionDetermined { GameId = gameId; Nation = "Austria"; Action = Action.Investor })
+                  "investor action should not be determined")
 
           expect
               "subsequent move starts from original position"
-              (hasExactEvent (ActionDetermined { GameId = gameId; Nation = "Austria"; Action = Action.Factory }))
+              (assertExactEvent
+                  (ActionDetermined { GameId = gameId; Nation = "Austria"; Action = Action.Factory })
+                  "factory action should be determined")
       }
 
       let invoicePaymentFailedTwiceBillingId = newBillingId ()
@@ -571,13 +613,16 @@ let private rondelSpecs =
 
           expect
               "pending movement is rejected only once"
-              (hasExactEventCount
+              (assertExactEventCount
                   (MoveToActionSpaceRejected { GameId = gameId; Nation = "Austria"; Space = Space.ManeuverTwo })
-                  1)
+                  1
+                  "rejection should occur exactly once")
 
           expect
               "subsequent move starts from original position"
-              (hasExactEvent (ActionDetermined { GameId = gameId; Nation = "Austria"; Action = Action.Factory }))
+              (assertExactEvent
+                  (ActionDetermined { GameId = gameId; Nation = "Austria"; Action = Action.Factory })
+                  "factory action should be determined")
       }
 
       let voidedChargeFailureBillingId = newBillingId ()
@@ -597,13 +642,16 @@ let private rondelSpecs =
 
           expect
               "voided pending movement is not rejected again"
-              (hasExactEventCount
+              (assertExactEventCount
                   (MoveToActionSpaceRejected { GameId = gameId; Nation = "France"; Space = Space.ProductionTwo })
-                  1)
+                  1
+                  "rejection should occur exactly once")
 
           expect
               "late failure preserves the already completed movement"
-              (hasExactEvent (ActionDetermined { GameId = gameId; Nation = "France"; Action = Action.Factory }))
+              (assertExactEvent
+                  (ActionDetermined { GameId = gameId; Nation = "France"; Action = Action.Factory })
+                  "factory action should be determined")
       }
 
       let paymentThenFailureBillingId = newBillingId ()
@@ -622,34 +670,37 @@ let private rondelSpecs =
 
           expect
               "late failure does not reject already completed movement"
-              (hasExactEventCount
+              (assertExactEventCount
                   (MoveToActionSpaceRejected { GameId = gameId; Nation = "Britain"; Space = Space.ProductionTwo })
-                  0)
+                  0
+                  "rejection count should be zero")
 
           expect
               "subsequent move starts from paid target space"
-              (hasExactEvent (ActionDetermined { GameId = gameId; Nation = "Britain"; Action = Action.Maneuver }))
+              (assertExactEvent
+                  (ActionDetermined { GameId = gameId; Nation = "Britain"; Action = Action.Maneuver })
+                  "maneuver action should be determined")
       }
 
       spec "query nation positions returns none for unknown game" {
-          expect "no positions are returned" hasNoNationPositions
+          expect "no positions are returned" assertNoNationPositions
       }
 
       spec "query nation positions returns initialized nations before any move" {
           when_command (SetToStartingPositions { GameId = gameId; Nations = nations })
 
-          expect "positions are returned" hasNationPositions
-          expect "query result belongs to current game" (hasNationPositionsForGameId gameId)
-          expect "all initialized nations are present" (hasNationPositionsCount 2)
-          expect "nation has no current or pending space" (hasNationPosition "France" None None)
+          expect "positions are returned" assertNationPositions
+          expect "query result belongs to current game" (assertNationPositionsForGameId gameId)
+          expect "all initialized nations are present" (assertNationPositionsCount 2)
+          expect "nation has no current or pending space" (assertNationPosition "France" None None)
       }
 
       spec "query nation positions returns current space after a free move" {
           when_command (SetToStartingPositions { GameId = gameId; Nations = nations })
           when_command (Move { GameId = gameId; Nation = "France"; Space = Space.Factory })
 
-          expect "positions are returned" hasNationPositions
-          expect "nation's current space is updated" (hasNationPosition "France" (Some Space.Factory) None)
+          expect "positions are returned" assertNationPositions
+          expect "nation's current space is updated" (assertNationPosition "France" (Some Space.Factory) None)
       }
 
       spec "query nation positions returns pending space for an unpaid move" {
@@ -657,15 +708,15 @@ let private rondelSpecs =
           when_command (Move { GameId = gameId; Nation = "Austria"; Space = Space.Investor })
           when_command (Move { GameId = gameId; Nation = "Austria"; Space = Space.Factory })
 
-          expect "positions are returned" hasNationPositions
+          expect "positions are returned" assertNationPositions
 
           expect
               "nation shows current and pending spaces"
-              (hasNationPosition "Austria" (Some Space.Investor) (Some Space.Factory))
+              (assertNationPosition "Austria" (Some Space.Investor) (Some Space.Factory))
       }
 
       spec "query rondel overview returns none for unknown game" {
-          expect "no overview is returned" hasNoRondelOverview
+          expect "no overview is returned" assertNoRondelOverview
       }
 
       spec "query rondel overview returns initialized nation names" {
@@ -673,16 +724,22 @@ let private rondelSpecs =
               SetToStartingPositions { GameId = gameId; Nations = Set.ofList [ "France"; "Germany"; "Austria" ] }
           )
 
-          expect "overview is returned" hasRondelOverview
-          expect "query result belongs to current game" (hasRondelOverviewForGameId gameId)
+          expect "overview is returned" assertRondelOverview
+          expect "query result belongs to current game" (assertRondelOverviewForGameId gameId)
 
           expect
               "overview contains initialized nations"
-              (hasRondelOverviewNationNames [ "Austria"; "France"; "Germany" ])
+              (assertRondelOverviewNationNames [ "Austria"; "France"; "Germany" ])
       } ]
 
-let renderSpecMarkdown options =
-    SpecMarkdown.toMarkdownDocument options runner rondelSpecs
+let renderSpecMarkdown
+    (options: SpecMarkdown.MarkdownRenderOptions)
+    (filter: SpecFilter.T)
+    (rootPath: string list)
+    : string option =
+    rondelSpecs
+    |> SpecFilter.apply filter (rootPath @ [ "Rondel" ])
+    |> SpecMarkdown.render options "Rondel" runner
 
 // ────────────────────────────────────────────────────────────────────────────────
 // Test Registration

@@ -248,18 +248,22 @@ Domain modules (`.fsi` and `.fs` pairs) follow a consistent sectioned structure.
 - Use `[<Tests>]` attribute on test values for discovery by YoloDev.Expecto.TestSdk (enables VS Code Test Explorer integration).
 - Execute `dotnet test` (via TestSdk) or `dotnet run --project tests/Imperium.UnitTests/Imperium.UnitTests.fsproj` (native Expecto runner with colorized output).
 - Execute `dotnet run --no-build --project tests/Imperium.UnitTests/Imperium.UnitTests.fsproj -- --render-spec-markdown` to verify the spec-markdown rendering path and regenerate the specification document output when needed.
+- Both `dotnet test` and `--render-spec-markdown` accept Expecto's filter flags (`--filter`, `--filter-test-list`, `--filter-test-case`, `--join-with`). The markdown renderer omits BC sections whose specs all fail the filter and prints `_no specs match the filter_` when the entire document is empty. See `docs/architecture.md` for filter semantics.
 - Test organization: group related tests with `testList`, use descriptive test names in lowercase ("accepts valid GUID", not "AcceptsValidGuid").
 - Cover edge cases: null inputs, empty strings, invalid formats, boundary conditions.
 
 ### CE-Based Testing (Simple.Testing style)
 
-The `Spec.fs` module provides a computation expression-based testing approach inspired by Gregory Young's Simple.Testing pattern. Use declarative `on`/`when_`/`expect` syntax for readable, isolated test specifications.
+The `Spec.fs` module provides a computation expression-based testing approach inspired by Gregory Young's Simple.Testing pattern. Use declarative `on`/`when_`/`expect` syntax for readable, isolated test specifications with assertion-native expectations.
 
 **Core types:**
 - `Action<'cmd, 'evt>`: DU with `Execute`, `Handle` cases
+- `Expectation<'ctx>`: Record with `Description: string` and `Assert: 'ctx -> unit` (uses full Expecto assertion API)
+- `ExpectationOutcome`: DU with `Passed` and `Failed of exn` cases
+- `ExpectationRunResult<'state>`: Record capturing `Description`, `InitialState`, `FinalState`, and `Outcome`
 - `Specification<'ctx, 'seed, 'cmd, 'evt>`: Pure data describing a test scenario
 - `SpecRunner<'ctx, 'seed, 'state, 'cmd, 'evt>`: Record-of-functions for context-specific execution, with `SpecRunner.empty` providing no-op defaults
-- `CollectionExpect`: Accessor-bound helper for reusable predicates over context collections such as events and commands
+- `CollectionAssert`: Accessor-bound helper for reusable assertion functions over context collections such as events and commands
 - `NoState`: Marker type for stateless contexts (F# doesn't allow `unit` as generic return type)
 
 **Usage pattern:**
@@ -269,15 +273,19 @@ let private specs =
 
     [ spec "chargeNationForRondelMovement auto-approves" {
           when_command (ChargeNationForRondelMovement cmd)
-          expect "publishes exactly one event" (fun ctx -> ctx.Events.Count = 1)
+          expect "publishes exactly one event" (fun ctx ->
+              Expect.equal ctx.Events.Count 1 "should publish one event")
           expect "event is RondelInvoicePaid" (fun ctx ->
-              match ctx.Events.[0] with RondelInvoicePaid _ -> true | _ -> false)
+              Expect.isTrue
+                  (match ctx.Events.[0] with RondelInvoicePaid _ -> true | _ -> false)
+                  "first event should be RondelInvoicePaid")
       }
 
       spec "one-off context override stays available" {
           on createSpecialContext
           when_command (ChargeNationForRondelMovement specialCmd)
-          expect "special context is used" (fun ctx -> ctx.Events.Count = 1)
+          expect "special context is used" (fun ctx ->
+              Expect.equal ctx.Events.Count 1 "should publish one event")
       } ]
 
 [<Tests>]
@@ -285,27 +293,23 @@ let tests = testList "Accounting" (specs |> List.map (toExpecto runner))
 ```
 
 **Key design decisions:**
-- **Pure boolean predicates**: Expectations return `'ctx -> bool`, not assertions. Spec name + description provide context on failure.
-- **Each expectation is its own testCase**: `toExpecto` creates a `testList` where each expectation runs the full `on`/`when_` sequence independently for isolation.
+- **Assertion-native expectations**: Expectations are `'ctx -> unit` functions that call Expecto assertions directly (`Expect.equal`, `Expect.isTrue`, `Expect.contains`, etc.). Failures are thrown exceptions with rich diagnostic messages.
+- **Shared execution via `runExpectation`**: Both `toExpecto` and markdown rendering use the same execution primitive that captures outcomes as `ExpectationRunResult` records.
+- **Each expectation is its own testCase**: `toExpecto` creates a `testList` where each expectation runs the full `on`/`when_` sequence independently for isolation. Failed outcomes are rethrown via `ExceptionDispatchInfo.Capture(ex).Throw()` preserving stack traces.
 - **Actions as data**: `when_` collects actions declaratively; runner controls execution (enables logging, timing, etc.).
-- **State capture for reporting**: Runner's `CaptureState` provides initial/final state snapshots for failure output, not passed to expectations.
-- **Collection predicate reuse**: Prefer `CollectionExpect.forAccessor` to bind `events`, `commands`, or similar collections once per spec module, then compose predicates via `Has`, `HasAny`, `Count`, `HasCount`, and `HasSize` instead of repeating `Seq.exists`/`Seq.filter` helpers per domain.
+- **State capture for reporting**: Runner's `CaptureState` provides initial/final state snapshots in `ExpectationRunResult`, used for markdown state rendering.
+- **Collection assertion reuse**: Prefer `CollectionAssert.forAccessor` to bind `events`, `commands`, or similar collections once per spec module, then compose assertion helpers via `Has`, `HasAny`, `HasNone`, `Count`, and `HasSize` instead of repeating `Seq.exists`/`Seq.filter` helpers per domain.
+- **Markdown continuation**: Markdown rendering executes all expectations and renders all results (pass and fail) without aborting on the first failure.
 
-**Multi-step scenarios:**
-```fsharp
-actions [ SetToStartingPositions initCmd |> Execute ]
-when_ [ Move moveCmd |> Execute ]
-```
-
-**Reference implementation:** See `Accounting.fs` for complete example.
+**Reference implementation:** See `Accounting.fs` and `Rondel.fs` for complete examples.
 
 - **Testing approach:**
   - **Transformation validation tests** (in `*ContractTests.fs`): Test `fromContract` transformations with Contract types to verify input validation returns appropriate errors; use domain types directly in test setup
-  - **Behavior specs** (in `Rondel.fs` and `Accounting.fs`): Use CE-based `spec` definitions with `on`, optional `state`, optional setup `actions`, `when_`, and multiple `expect` predicates
+  - **Behavior specs** (in `Rondel.fs` and `Accounting.fs`): Use CE-based `spec` definitions with `on`, optional `state`, optional setup `actions`, `when_`, and multiple `expect` assertions using the full Expecto API
   - **Runner pattern**: Use `{ SpecRunner.empty with ... }` to define runners that execute commands/events, optionally seed state, and capture state snapshots for reporting
-  - **Predicate helper pattern**: For repeated collection checks, define accessors like `let private events = CollectionExpect.forAccessor (fun (ctx: MyContext) -> ctx.Events :> seq<_>)` and compose module-local helpers from that accessor
+  - **Assertion helper pattern**: For repeated collection checks, define accessors like `let private events = CollectionAssert.forAccessor (fun (ctx: MyContext) -> ctx.Events :> seq<_>)` and compose module-local assertion helpers from that accessor using `Has`, `HasAny`, `HasNone`, `Count`, `HasSize`
   - **Separation**: Keep transformation layer tests independent from behavior specs to reduce boilerplate and keep intent explicit
-- Current test coverage (95 tests total, all passing):
+- Current test coverage (105 tests total, all passing):
   - **AccountingContractTests.fs** (6 transformation validation tests):
     - ChargeNationForRondelMovementCommand.fromContract: requires valid GameId; requires valid BillingId; accepts valid command
     - VoidRondelChargeCommand.fromContract: requires valid GameId; requires valid BillingId; accepts valid command
@@ -344,6 +348,10 @@ when_ [ Move moveCmd |> Execute ]
     - wires command execution to domain
     - publishes events to bus
     - keeps processing commands after a handler failure
+  - **SpecTests.fs** (10 spec infrastructure tests):
+    - context factory behavior (specOn default, explicit on override, last-on-wins, plain spec compatibility)
+    - assertion expectations pass and fail correctly
+    - runExpectation captures action failures, state snapshots, preserve behavior, and exception types
   - **GameplayTests.fs** (placeholder module):
     - currently no executable test cases
 

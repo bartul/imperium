@@ -132,23 +132,23 @@ let private renderActionSection weight title rows =
     [ renderHeader weight title; "" ]
     @ if List.isEmpty rows then [] else renderTableRows rows
 
-let toMarkdown
+let private toMarkdown
     (options: MarkdownRenderOptions)
     (runner: SpecRunner<'ctx, 'seed, 'state, 'cmd, 'evt>)
     (spec: Specification<'ctx, 'seed, 'cmd, 'evt>)
     =
-    let context = prepareContext runner spec
+    let results = spec.Expectations |> List.map (runExpectation runner spec)
 
     let initialStateText =
-        runner.CaptureState
-        |> Option.map (fun capture -> capture context |> renderState runner)
+        results
+        |> List.tryPick (fun r -> r.InitialState)
+        |> Option.map (renderState runner)
         |> Option.defaultValue "_no state capture_"
 
-    runActions runner context spec.Actions
-
     let finalStateText =
-        runner.CaptureState
-        |> Option.map (fun capture -> capture context |> renderState runner)
+        results
+        |> List.tryPick (fun r -> r.FinalState)
+        |> Option.map (renderState runner)
         |> Option.defaultValue "_no state capture_"
 
     let givenRows = spec.GivenActions |> List.choose formatActionRow
@@ -156,10 +156,11 @@ let toMarkdown
     let whenRows = spec.Actions |> List.choose formatActionRow
 
     let thenRows =
-        spec.Expectations
-        |> List.map (fun expectation ->
-            let result = if expectation.Predicate context then "✅" else "❌"
-            result, expectation.Description)
+        results
+        |> List.map (fun result ->
+            match result.Outcome with
+            | Passed -> "✅", result.Description
+            | Failed ex -> "❌", $"{result.Description} — {escapeCell ex.Message}")
 
     let specHeaderWeight = childHeader options.ParentHeader
     let sectionHeaderWeight = childHeader specHeaderWeight
@@ -179,3 +180,18 @@ let toMarkdownDocument options runner specifications =
     specifications
     |> List.map (toMarkdown options runner)
     |> String.concat Environment.NewLine
+
+let render
+    (options: MarkdownRenderOptions)
+    (sectionName: string)
+    (runner: SpecRunner<'ctx, 'seed, 'state, 'cmd, 'evt>)
+    (specs: Specification<'ctx, 'seed, 'cmd, 'evt> list)
+    : string option =
+    if List.isEmpty specs then
+        None
+    else
+        let sectionHeaderWeight = childHeader options.ParentHeader
+        let header = renderHeader sectionHeaderWeight sectionName
+        let childOptions = { options with ParentHeader = sectionHeaderWeight }
+        let body = toMarkdownDocument childOptions runner specs
+        Some $"{header}{Environment.NewLine}{Environment.NewLine}{body}{Environment.NewLine}"
