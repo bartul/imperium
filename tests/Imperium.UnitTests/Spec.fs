@@ -219,11 +219,20 @@ module SpecFilter =
         | None -> none
 
     let apply
-        (_: T)
-        (_: string list)
+        (filter: T)
+        (pathPrefix: string list)
         (specs: Specification<'ctx, 'seed, 'cmd, 'evt> list)
         : Specification<'ctx, 'seed, 'cmd, 'evt> list =
         specs
+        |> List.choose (fun spec ->
+            let specPath = pathPrefix @ [ spec.Name ]
+
+            let matching =
+                spec.Expectations
+                |> List.filter (fun exp -> filter.MatchExpectation (specPath @ [ exp.Description ]))
+
+            if List.isEmpty matching then None
+            else Some { spec with Expectations = matching })
 
 // ────────────────────────────────────────────────────────────────────────────────
 // Runner Record
