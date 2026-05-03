@@ -180,3 +180,18 @@ let toMarkdownDocument options runner specifications =
     specifications
     |> List.map (toMarkdown options runner)
     |> String.concat Environment.NewLine
+
+let render
+    (options: MarkdownRenderOptions)
+    (sectionName: string)
+    (runner: SpecRunner<'ctx, 'seed, 'state, 'cmd, 'evt>)
+    (specs: Specification<'ctx, 'seed, 'cmd, 'evt> list)
+    : string option =
+    if List.isEmpty specs then
+        None
+    else
+        let sectionHeaderWeight = childHeader options.ParentHeader
+        let header = renderHeader sectionHeaderWeight sectionName
+        let childOptions = { options with ParentHeader = sectionHeaderWeight }
+        let body = toMarkdownDocument childOptions runner specs
+        Some $"{header}{Environment.NewLine}{body}{Environment.NewLine}"
