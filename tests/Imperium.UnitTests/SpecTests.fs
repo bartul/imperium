@@ -226,46 +226,36 @@ let private specFilterTests =
               let filter = SpecFilter.fromArgs [| "--filter-test-list"; "moving" |]
 
               Expect.isTrue
-                  (filter.MatchExpectation
-                      [ "Imperium"; "Rondel"; "moving 4 spaces"; "payment is required" ])
+                  (filter.MatchExpectation [ "Imperium"; "Rondel"; "moving 4 spaces"; "payment is required" ])
                   "spec name (non-leaf) containing the substring should match"
 
               Expect.isFalse
-                  (filter.MatchExpectation
-                      [ "Imperium"; "Rondel"; "stay put"; "moving leaf only" ])
+                  (filter.MatchExpectation [ "Imperium"; "Rondel"; "stay put"; "moving leaf only" ])
                   "leaf-only match should not count for --filter-test-list")
 
           testCase "fromArgs --filter-test-case matches only the leaf description" (fun _ ->
               let filter = SpecFilter.fromArgs [| "--filter-test-case"; "payment" |]
 
               Expect.isTrue
-                  (filter.MatchExpectation
-                      [ "Imperium"; "Rondel"; "moving 4 spaces"; "payment is required" ])
+                  (filter.MatchExpectation [ "Imperium"; "Rondel"; "moving 4 spaces"; "payment is required" ])
                   "leaf description containing the substring should match"
 
               Expect.isFalse
-                  (filter.MatchExpectation
-                      [ "Imperium"; "Rondel"; "payment spec"; "irrelevant" ])
+                  (filter.MatchExpectation [ "Imperium"; "Rondel"; "payment spec"; "irrelevant" ])
                   "non-leaf match should not count for --filter-test-case")
 
           testCase "fromArgs uses the last filter flag when multiple are present" (fun _ ->
               // --filter A then --filter-test-case B → only --filter-test-case is in effect.
               // The earlier --filter "Imperium.Rondel" is discarded.
               let filter =
-                  SpecFilter.fromArgs
-                      [| "--filter"
-                         "Imperium.Rondel"
-                         "--filter-test-case"
-                         "payment" |]
+                  SpecFilter.fromArgs [| "--filter"; "Imperium.Rondel"; "--filter-test-case"; "payment" |]
 
               Expect.isTrue
-                  (filter.MatchExpectation
-                      [ "Imperium"; "Accounting"; "spec"; "payment is required" ])
+                  (filter.MatchExpectation [ "Imperium"; "Accounting"; "spec"; "payment is required" ])
                   "later --filter-test-case 'payment' wins; --filter 'Imperium.Rondel' is discarded so a path under Accounting still matches on the leaf"
 
               Expect.isFalse
-                  (filter.MatchExpectation
-                      [ "Imperium"; "Rondel"; "spec"; "no leaf match" ])
+                  (filter.MatchExpectation [ "Imperium"; "Rondel"; "spec"; "no leaf match" ])
                   "the earlier --filter prefix is discarded; only the leaf 'payment' check runs, and this leaf does not contain 'payment'")
 
           testCase "apply keeps expectations matching the predicate and drops the rest" (fun _ ->
@@ -281,18 +271,12 @@ let private specFilterTests =
 
               let result = SpecFilter.apply filter [ "Imperium"; "BC" ] [ specification ]
 
-              Expect.hasLength
-                  result
-                  1
-                  "spec should survive because at least one expectation matches"
+              Expect.hasLength result 1 "spec should survive because at least one expectation matches"
 
               let returnedSpec = result[0]
               Expect.equal returnedSpec.Name "mixed spec" "spec name preserved"
 
-              Expect.hasLength
-                  returnedSpec.Expectations
-                  1
-                  "only the matching expectation should remain"
+              Expect.hasLength returnedSpec.Expectations 1 "only the matching expectation should remain"
 
               Expect.equal
                   returnedSpec.Expectations[0].Description
@@ -300,8 +284,7 @@ let private specFilterTests =
                   "the kept expectation is the one matching the predicate")
 
           testCase "apply prunes a spec whose expectations all fail the predicate" (fun _ ->
-              let filter: SpecFilter.T =
-                  { MatchExpectation = fun _ -> false }
+              let filter: SpecFilter.T = { MatchExpectation = fun _ -> false }
 
               let specA =
                   specOn<int, NoState, unit, unit> (fun () -> 0) "all-fail spec" {
@@ -310,9 +293,7 @@ let private specFilterTests =
                   }
 
               let specB =
-                  specOn<int, NoState, unit, unit> (fun () -> 0) "also all-fail spec" {
-                      expect "only" (fun _ -> ())
-                  }
+                  specOn<int, NoState, unit, unit> (fun () -> 0) "also all-fail spec" { expect "only" (fun _ -> ()) }
 
               let result = SpecFilter.apply filter [ "Imperium"; "BC" ] [ specA; specB ]
 
@@ -329,17 +310,15 @@ let private specMarkdownTests =
 
               Expect.isNone result "empty spec list should produce no markdown")
 
-          testCase "render returns Some markdown with the section header at one level beneath ParentHeader, plus the spec body"
+          testCase
+              "render returns Some markdown with the section header at one level beneath ParentHeader, plus the spec body"
               (fun _ ->
                   let runner: SpecRunner<int, NoState, NoState, unit, unit> = SpecRunner.empty
 
-                  let options: SpecMarkdown.MarkdownRenderOptions =
-                      { ParentHeader = SpecMarkdown.H3 }
+                  let options: SpecMarkdown.MarkdownRenderOptions = { ParentHeader = SpecMarkdown.H3 }
 
                   let specs =
-                      [ specOn<int, NoState, unit, unit> (fun () -> 0) "a spec" {
-                            expect "an exp" (fun _ -> ())
-                        } ]
+                      [ specOn<int, NoState, unit, unit> (fun () -> 0) "a spec" { expect "an exp" (fun _ -> ()) } ]
 
                   let result = SpecMarkdown.render options "Accounting" runner specs
 

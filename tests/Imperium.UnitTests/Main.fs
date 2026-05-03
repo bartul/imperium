@@ -7,8 +7,7 @@ open Spec
 let private renderSpecMarkdown (args: string array) =
     let filter = SpecFilter.fromArgs args
 
-    let opts: SpecMarkdown.MarkdownRenderOptions =
-        { ParentHeader = SpecMarkdown.H2 }
+    let opts: SpecMarkdown.MarkdownRenderOptions = { ParentHeader = SpecMarkdown.H2 }
 
     let rootPath = [ "Imperium" ]
 

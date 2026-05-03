@@ -248,6 +248,7 @@ Domain modules (`.fsi` and `.fs` pairs) follow a consistent sectioned structure.
 - Use `[<Tests>]` attribute on test values for discovery by YoloDev.Expecto.TestSdk (enables VS Code Test Explorer integration).
 - Execute `dotnet test` (via TestSdk) or `dotnet run --project tests/Imperium.UnitTests/Imperium.UnitTests.fsproj` (native Expecto runner with colorized output).
 - Execute `dotnet run --no-build --project tests/Imperium.UnitTests/Imperium.UnitTests.fsproj -- --render-spec-markdown` to verify the spec-markdown rendering path and regenerate the specification document output when needed.
+- Both `dotnet test` and `--render-spec-markdown` accept Expecto's filter flags (`--filter`, `--filter-test-list`, `--filter-test-case`, `--join-with`). The markdown renderer omits BC sections whose specs all fail the filter and prints `_no specs match the filter_` when the entire document is empty. See `docs/architecture.md` for filter semantics.
 - Test organization: group related tests with `testList`, use descriptive test names in lowercase ("accepts valid GUID", not "AcceptsValidGuid").
 - Cover edge cases: null inputs, empty strings, invalid formats, boundary conditions.
 

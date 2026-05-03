@@ -109,6 +109,21 @@ Both `toExpecto` and markdown rendering share the `runExpectation` execution pat
 - **`toExpecto`** — creates Expecto `testCase` values that call `runExpectation` inside each test thunk. Failed outcomes are rethrown via `ExceptionDispatchInfo.Capture(ex).Throw()` to preserve stack traces and exception types.
 - **`toMarkdown`** — calls `runExpectation` for every expectation and renders all results. Failures do not abort rendering; each expectation result is shown with pass/fail status and failure messages.
 
+### Filtering
+
+The unit test runner exposes Expecto's filter flags (`--filter`, `--filter-test-list`, `--filter-test-case`, `--join-with`) for selecting which specs run. The same flags also apply to `--render-spec-markdown` so the rendered document can be scoped to a subset of specs.
+
+The filter operates on the hierarchical path `[ "Imperium"; bcName; specName; expectationDescription ]`, matching Expecto's semantics:
+
+- `--filter HIERA` — case-sensitive `StartsWith` prefix match on the joined path (default separator `.`, configurable via `--join-with`).
+- `--filter-test-list NAME` — case-sensitive `Contains` substring match against any non-leaf segment (root, BC, spec name).
+- `--filter-test-case NAME` — case-sensitive `Contains` substring match against the leaf (expectation description) only.
+- Multiple filter flags compose via last-wins: each new filter flag overrides any prior one.
+
+In the markdown renderer, BC sections containing no surviving specs are omitted entirely. When every section is empty, the output reduces to the title plus `_no specs match the filter_`.
+
+The implementation lives in `SpecFilter` (parser + apply transform) and `SpecMarkdown.render` (renders a section or omits it). `Main.fs` orchestrates: parses args via `SpecFilter.fromArgs`, calls each BC's `renderSpecMarkdown` to filter+render its section, drops `None` sections, and assembles the document.
+
 ## Terminal App Architecture
 
 The terminal app (`Imperium.Terminal`) hosts bounded contexts in-process using Terminal.Gui v2.
