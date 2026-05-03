@@ -732,8 +732,14 @@ let private rondelSpecs =
               (assertRondelOverviewNationNames [ "Austria"; "France"; "Germany" ])
       } ]
 
-let renderSpecMarkdown options =
-    SpecMarkdown.toMarkdownDocument options runner rondelSpecs
+let renderSpecMarkdown
+    (options: SpecMarkdown.MarkdownRenderOptions)
+    (filter: SpecFilter.T)
+    (rootPath: string list)
+    : string option =
+    rondelSpecs
+    |> SpecFilter.apply filter (rootPath @ [ "Rondel" ])
+    |> SpecMarkdown.render options "Rondel" runner
 
 // ────────────────────────────────────────────────────────────────────────────────
 // Test Registration

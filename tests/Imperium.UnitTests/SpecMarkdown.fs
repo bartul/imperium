@@ -194,4 +194,4 @@ let render
         let header = renderHeader sectionHeaderWeight sectionName
         let childOptions = { options with ParentHeader = sectionHeaderWeight }
         let body = toMarkdownDocument childOptions runner specs
-        Some $"{header}{Environment.NewLine}{body}{Environment.NewLine}"
+        Some $"{header}{Environment.NewLine}{Environment.NewLine}{body}{Environment.NewLine}"

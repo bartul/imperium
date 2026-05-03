@@ -86,8 +86,14 @@ let private accountingSpecs =
           expect "payment is not marked as failed" assertNoPaymentFailed
       } ]
 
-let renderSpecMarkdown options =
-    SpecMarkdown.toMarkdownDocument options runner accountingSpecs
+let renderSpecMarkdown
+    (options: SpecMarkdown.MarkdownRenderOptions)
+    (filter: SpecFilter.T)
+    (rootPath: string list)
+    : string option =
+    accountingSpecs
+    |> SpecFilter.apply filter (rootPath @ [ "Accounting" ])
+    |> SpecMarkdown.render options "Accounting" runner
 
 // ────────────────────────────────────────────────────────────────────────────────
 // Test Registration
