@@ -266,7 +266,38 @@ let private specFilterTests =
               Expect.isFalse
                   (filter.MatchExpectation
                       [ "Imperium"; "Rondel"; "spec"; "no leaf match" ])
-                  "the earlier --filter prefix is discarded; only the leaf 'payment' check runs, and this leaf does not contain 'payment'") ]
+                  "the earlier --filter prefix is discarded; only the leaf 'payment' check runs, and this leaf does not contain 'payment'")
+
+          testCase "apply keeps expectations matching the predicate and drops the rest" (fun _ ->
+              let filter: SpecFilter.T =
+                  { MatchExpectation = fun path -> List.last path = "kept" }
+
+              let specification =
+                  specOn<int, NoState, unit, unit> (fun () -> 0) "mixed spec" {
+                      expect "dropped" (fun _ -> ())
+                      expect "kept" (fun _ -> ())
+                      expect "also dropped" (fun _ -> ())
+                  }
+
+              let result = SpecFilter.apply filter [ "Imperium"; "BC" ] [ specification ]
+
+              Expect.hasLength
+                  result
+                  1
+                  "spec should survive because at least one expectation matches"
+
+              let returnedSpec = result[0]
+              Expect.equal returnedSpec.Name "mixed spec" "spec name preserved"
+
+              Expect.hasLength
+                  returnedSpec.Expectations
+                  1
+                  "only the matching expectation should remain"
+
+              Expect.equal
+                  returnedSpec.Expectations[0].Description
+                  "kept"
+                  "the kept expectation is the one matching the predicate") ]
 
 [<Tests>]
 let tests = TestList([ specTests; specFilterTests ], Normal)
