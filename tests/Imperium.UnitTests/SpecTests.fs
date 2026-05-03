@@ -297,7 +297,26 @@ let private specFilterTests =
               Expect.equal
                   returnedSpec.Expectations[0].Description
                   "kept"
-                  "the kept expectation is the one matching the predicate") ]
+                  "the kept expectation is the one matching the predicate")
+
+          testCase "apply prunes a spec whose expectations all fail the predicate" (fun _ ->
+              let filter: SpecFilter.T =
+                  { MatchExpectation = fun _ -> false }
+
+              let specA =
+                  specOn<int, NoState, unit, unit> (fun () -> 0) "all-fail spec" {
+                      expect "first" (fun _ -> ())
+                      expect "second" (fun _ -> ())
+                  }
+
+              let specB =
+                  specOn<int, NoState, unit, unit> (fun () -> 0) "also all-fail spec" {
+                      expect "only" (fun _ -> ())
+                  }
+
+              let result = SpecFilter.apply filter [ "Imperium"; "BC" ] [ specA; specB ]
+
+              Expect.isEmpty result "both specs should be pruned because no expectations matched") ]
 
 [<Tests>]
 let tests = TestList([ specTests; specFilterTests ], Normal)
