@@ -203,14 +203,11 @@ module SpecFilter =
                 match arg with
                 | "--filter" ->
                     value ()
-                    |> Option.map (fun hierarchy path ->
-                        (String.concat joinWith path).StartsWith hierarchy)
+                    |> Option.map (fun hierarchy path -> (String.concat joinWith path).StartsWith hierarchy)
                 | "--filter-test-list" ->
                     value ()
-                    |> Option.map (fun name path ->
-                        getNonLeaf path |> List.exists (fun s -> s.Contains name))
-                | "--filter-test-case" ->
-                    value () |> Option.map (fun name path -> (getLeaf path).Contains name)
+                    |> Option.map (fun name path -> getNonLeaf path |> List.exists (fun s -> s.Contains name))
+                | "--filter-test-case" -> value () |> Option.map (fun name path -> (getLeaf path).Contains name)
                 | _ -> None)
             |> Array.tryLast
 
@@ -229,10 +226,12 @@ module SpecFilter =
 
             let matching =
                 spec.Expectations
-                |> List.filter (fun exp -> filter.MatchExpectation (specPath @ [ exp.Description ]))
+                |> List.filter (fun exp -> filter.MatchExpectation(specPath @ [ exp.Description ]))
 
-            if List.isEmpty matching then None
-            else Some { spec with Expectations = matching })
+            if List.isEmpty matching then
+                None
+            else
+                Some { spec with Expectations = matching })
 
 // ────────────────────────────────────────────────────────────────────────────────
 // Runner Record
