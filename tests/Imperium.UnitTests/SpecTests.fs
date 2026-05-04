@@ -353,7 +353,39 @@ let private specFilterTests =
 
               Expect.isFalse
                   (filter.MatchExpectation [ "Imperium"; "Accounting"; "spec"; "exp" ])
-                  "spec named 'spec' under a different BC should not match") ]
+                  "spec named 'spec' under a different BC should not match")
+
+          testCase "fromArgs --run accepts multiple values; expectation matching any value passes" (fun _ ->
+              let filter =
+                  SpecFilter.fromArgs [| "--run"; "Imperium.Rondel.specA"; "Imperium.Accounting.specB" |]
+
+              Expect.isTrue
+                  (filter.MatchExpectation [ "Imperium"; "Rondel"; "specA"; "exp" ])
+                  "first --run value should match"
+
+              Expect.isTrue
+                  (filter.MatchExpectation [ "Imperium"; "Accounting"; "specB"; "exp" ])
+                  "second --run value should match"
+
+              Expect.isFalse
+                  (filter.MatchExpectation [ "Imperium"; "Rondel"; "specC"; "exp" ])
+                  "unrelated path should not match")
+
+          testCase "fromArgs --run stops consuming values at the next --flag boundary" (fun _ ->
+              let filter =
+                  SpecFilter.fromArgs [| "--run"; "Imperium.Rondel.specA"; "--join-with"; "." |]
+
+              Expect.isTrue
+                  (filter.MatchExpectation [ "Imperium"; "Rondel"; "specA"; "exp" ])
+                  "value before the boundary should still match"
+
+              Expect.isFalse
+                  (filter.MatchExpectation [ "--join-with"; "exp" ])
+                  "the boundary --flag token should not be consumed as a --run value"
+
+              Expect.isFalse
+                  (filter.MatchExpectation [ "."; "exp" ])
+                  "the value after --join-with should not be consumed as a --run value either") ]
 
 let private specMarkdownTests =
     testList
