@@ -330,7 +330,30 @@ let private specFilterTests =
 
               Expect.isFalse
                   (filter.MatchExpectation [ "Imperium"; "Accounting"; "spec"; "exp" ])
-                  "different BC should not match") ]
+                  "different BC should not match")
+
+          testCase "fromArgs --run with a spec-level path matches all expectations under that spec" (fun _ ->
+              let filter = SpecFilter.fromArgs [| "--run"; "Imperium.Rondel.spec" |]
+
+              Expect.isTrue
+                  (filter.MatchExpectation [ "Imperium"; "Rondel"; "spec"; "exp1" ])
+                  "expectation under named spec should match"
+
+              Expect.isTrue
+                  (filter.MatchExpectation [ "Imperium"; "Rondel"; "spec"; "exp2" ])
+                  "another expectation under named spec should match"
+
+              Expect.isFalse
+                  (filter.MatchExpectation [ "Imperium"; "Rondel"; "other-spec"; "exp" ])
+                  "expectation under different spec should not match"
+
+              Expect.isFalse
+                  (filter.MatchExpectation [ "Imperium"; "Rondel"; "spec-but-different"; "exp" ])
+                  "spec name with shared prefix but different segment should not match"
+
+              Expect.isFalse
+                  (filter.MatchExpectation [ "Imperium"; "Accounting"; "spec"; "exp" ])
+                  "spec named 'spec' under a different BC should not match") ]
 
 let private specMarkdownTests =
     testList

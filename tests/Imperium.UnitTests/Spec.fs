@@ -218,7 +218,10 @@ module SpecFilter =
 
                     Some(fun path ->
                         let joined = String.concat joinWith path
-                        values |> List.exists (fun v -> joined = v))
+
+                        values
+                        |> List.exists (fun userPath ->
+                            joined = userPath || joined.StartsWith(userPath + joinWith)))
                 | _ -> None)
             |> Array.tryLast
 
