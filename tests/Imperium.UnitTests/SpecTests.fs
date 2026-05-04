@@ -297,7 +297,25 @@ let private specFilterTests =
 
               let result = SpecFilter.apply filter [ "Imperium"; "BC" ] [ specA; specB ]
 
-              Expect.isEmpty result "both specs should be pruned because no expectations matched") ]
+              Expect.isEmpty result "both specs should be pruned because no expectations matched")
+
+          testCase "fromArgs --join-with last-wins when multiple --join-with flags are present" (fun _ ->
+              let filter =
+                  SpecFilter.fromArgs
+                      [| "--join-with"
+                         "."
+                         "--join-with"
+                         "/"
+                         "--filter"
+                         "Imperium/Rondel" |]
+
+              Expect.isTrue
+                  (filter.MatchExpectation [ "Imperium"; "Rondel"; "spec"; "exp" ])
+                  "later --join-with / wins; --filter sees slash-joined path"
+
+              Expect.isFalse
+                  (filter.MatchExpectation [ "Imperium"; "Accounting"; "spec"; "exp" ])
+                  "non-Rondel path still rejected") ]
 
 let private specMarkdownTests =
     testList

@@ -174,11 +174,6 @@ module SpecFilter =
 
     let none: T = { MatchExpectation = fun _ -> true }
 
-    let private valueAfter flag (args: string array) =
-        args
-        |> Array.tryFindIndex ((=) flag)
-        |> Option.bind (fun i -> Array.tryItem (i + 1) args)
-
     let private getNonLeaf (path: string list) =
         match path with
         | []
@@ -189,10 +184,16 @@ module SpecFilter =
         path |> List.tryLast |> Option.defaultValue ""
 
     let fromArgs (args: string array) : T =
+        // Mirror Expecto: each --join-with overwrites the joinWith field; last wins.
         let joinWith =
-            match valueAfter "--join-with" args with
-            | Some "/" -> "/"
-            | _ -> "."
+            args
+            |> Array.indexed
+            |> Array.choose (fun (i, a) ->
+                if a = "--join-with" then Array.tryItem (i + 1) args else None)
+            |> Array.tryLast
+            |> function
+                | Some "/" -> "/"
+                | _ -> "."
 
         let lastPredicate =
             args
