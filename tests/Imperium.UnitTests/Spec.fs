@@ -209,6 +209,16 @@ module SpecFilter =
                     value ()
                     |> Option.map (fun name path -> getNonLeaf path |> List.exists (fun s -> s.Contains name))
                 | "--filter-test-case" -> value () |> Option.map (fun name path -> (getLeaf path).Contains name)
+                | "--run" ->
+                    let values =
+                        args
+                        |> Array.skip (i + 1)
+                        |> Array.takeWhile (fun a -> not (a.StartsWith "--"))
+                        |> Array.toList
+
+                    Some(fun path ->
+                        let joined = String.concat joinWith path
+                        values |> List.exists (fun v -> joined = v))
                 | _ -> None)
             |> Array.tryLast
 

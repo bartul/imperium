@@ -315,7 +315,22 @@ let private specFilterTests =
 
               Expect.isFalse
                   (filter.MatchExpectation [ "Imperium"; "Accounting"; "spec"; "exp" ])
-                  "non-Rondel path still rejected") ]
+                  "non-Rondel path still rejected")
+
+          testCase "fromArgs --run with an exact expectation path matches only that expectation" (fun _ ->
+              let filter = SpecFilter.fromArgs [| "--run"; "Imperium.Rondel.spec.exp" |]
+
+              Expect.isTrue
+                  (filter.MatchExpectation [ "Imperium"; "Rondel"; "spec"; "exp" ])
+                  "exact expectation path should match"
+
+              Expect.isFalse
+                  (filter.MatchExpectation [ "Imperium"; "Rondel"; "spec"; "other-exp" ])
+                  "sibling expectation should not match"
+
+              Expect.isFalse
+                  (filter.MatchExpectation [ "Imperium"; "Accounting"; "spec"; "exp" ])
+                  "different BC should not match") ]
 
 let private specMarkdownTests =
     testList
