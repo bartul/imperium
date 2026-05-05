@@ -189,7 +189,10 @@ module SpecFilter =
             args
             |> Array.indexed
             |> Array.choose (fun (i, a) ->
-                if a = "--join-with" then Array.tryItem (i + 1) args else None)
+                if a = "--join-with" then
+                    Array.tryItem (i + 1) args
+                else
+                    None)
             |> Array.tryLast
             |> function
                 | Some "/" -> "/"
@@ -220,8 +223,7 @@ module SpecFilter =
                         let joined = String.concat joinWith path
 
                         values
-                        |> List.exists (fun userPath ->
-                            joined = userPath || joined.StartsWith(userPath + joinWith)))
+                        |> List.exists (fun userPath -> joined = userPath || joined.StartsWith(userPath + joinWith)))
                 | _ -> None)
             |> Array.tryLast
 

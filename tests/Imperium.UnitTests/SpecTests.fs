@@ -301,13 +301,7 @@ let private specFilterTests =
 
           testCase "fromArgs --join-with last-wins when multiple --join-with flags are present" (fun _ ->
               let filter =
-                  SpecFilter.fromArgs
-                      [| "--join-with"
-                         "."
-                         "--join-with"
-                         "/"
-                         "--filter"
-                         "Imperium/Rondel" |]
+                  SpecFilter.fromArgs [| "--join-with"; "."; "--join-with"; "/"; "--filter"; "Imperium/Rondel" |]
 
               Expect.isTrue
                   (filter.MatchExpectation [ "Imperium"; "Rondel"; "spec"; "exp" ])
@@ -389,11 +383,7 @@ let private specFilterTests =
 
           testCase "fromArgs uses last --run when multiple --run flags are present" (fun _ ->
               let filter =
-                  SpecFilter.fromArgs
-                      [| "--run"
-                         "Imperium.Rondel.specA"
-                         "--run"
-                         "Imperium.Accounting.specB" |]
+                  SpecFilter.fromArgs [| "--run"; "Imperium.Rondel.specA"; "--run"; "Imperium.Accounting.specB" |]
 
               Expect.isFalse
                   (filter.MatchExpectation [ "Imperium"; "Rondel"; "specA"; "exp" ])
@@ -402,6 +392,22 @@ let private specFilterTests =
               Expect.isTrue
                   (filter.MatchExpectation [ "Imperium"; "Accounting"; "specB"; "exp" ])
                   "the last --run wins; its value should match")
+
+          testCase "fromArgs lets a later filter flag override an earlier --run" (fun _ ->
+              let filter =
+                  SpecFilter.fromArgs [| "--run"; "Imperium.Rondel.specA"; "--filter"; "Imperium.Accounting" |]
+
+              Expect.isFalse
+                  (filter.MatchExpectation [ "Imperium"; "Rondel"; "specA"; "exp" ])
+                  "the earlier --run is overwritten and its value should not match"
+
+              Expect.isTrue
+                  (filter.MatchExpectation [ "Imperium"; "Accounting"; "specB"; "exp" ])
+                  "the later --filter wins; a path under its prefix should match"
+
+              Expect.isFalse
+                  (filter.MatchExpectation [ "Imperium"; "Rondel"; "specB"; "exp" ])
+                  "a path outside the later --filter prefix should not match")
 
           testCase "fromArgs --run alone with no values matches nothing" (fun _ ->
               let filter = SpecFilter.fromArgs [| "--run" |]
