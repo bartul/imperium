@@ -111,14 +111,16 @@ Both `toExpecto` and markdown rendering share the `runExpectation` execution pat
 
 ### Filtering
 
-The unit test runner exposes Expecto's filter flags (`--filter`, `--filter-test-list`, `--filter-test-case`, `--join-with`) for selecting which specs run. The same flags also apply to `--render-spec-markdown` so the rendered document can be scoped to a subset of specs.
+The unit test runner exposes Expecto's filter flags (`--filter`, `--filter-test-list`, `--filter-test-case`, `--run`, `--join-with`) for selecting which specs run. The same flags also apply to `--render-spec-markdown` so the rendered document can be scoped to a subset of specs.
 
 The filter operates on the hierarchical path `[ "Imperium"; bcName; specName; expectationDescription ]`, matching Expecto's semantics:
 
 - `--filter HIERA` — case-sensitive `StartsWith` prefix match on the joined path (default separator `.`, configurable via `--join-with`).
 - `--filter-test-list NAME` — case-sensitive `Contains` substring match against any non-leaf segment (root, BC, spec name).
 - `--filter-test-case NAME` — case-sensitive `Contains` substring match against the leaf (expectation description) only.
-- Multiple filter flags compose via last-wins: each new filter flag overrides any prior one.
+- `--run PATH...` — case-sensitive match against one or more full joined paths. Values are consumed until the next `--`-prefixed flag. Expectation paths match by exact equality, and this codebase adds a hierarchical extension: a path ending at any segment boundary (for example root, BC, or spec) matches all expectations below it.
+- `--join-with SEP` — configures the path separator used by `--filter` and `--run`. Supported values are `.` (default) and `/`; when multiple `--join-with` flags are present, the last one wins.
+- Multiple filter flags compose via last-wins: each new `--filter`, `--filter-test-list`, `--filter-test-case`, or `--run` flag overrides any prior filter flag. Multiple `--run` flags also use last-wins behavior. An empty `--run` value list matches nothing.
 
 In the markdown renderer, BC sections containing no surviving specs are omitted entirely. When every section is empty, the output reduces to the title plus `_no specs match the filter_`.
 
