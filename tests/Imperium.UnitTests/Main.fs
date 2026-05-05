@@ -16,7 +16,7 @@ let private renderSpecMarkdown (args: string array) =
           Rondel.renderSpecMarkdown opts filter rootPath ]
         |> List.choose id
 
-    let title = "## 📘Imperium Specification Based Tests"
+    let title = $"## 📘{rootPath} Specification Based Tests"
 
     if List.isEmpty sections then
         $"{title}{Environment.NewLine}{Environment.NewLine}_no specs match the filter_"

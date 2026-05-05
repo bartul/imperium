@@ -1,5 +1,5 @@
 # Repository Guidelines
-Last verified: 2026-02-19
+Last verified: 2026-05-05
 
 ## Agent Priorities
 
@@ -41,10 +41,10 @@ Last verified: 2026-02-19
   - Events use record types (e.g., `RondelEvent = | PositionedAtStart of PositionedAtStart` where `PositionedAtStart = { GameId: Guid }`)
 - **Domain modules:** CQRS bounded contexts with `.fsi` files defining public APIs
   - Internal types (GameId, NationId, Bank, Investor) hidden from public APIs; `Action`, `RondelBillingId`, and `Space` are exposed in `Rondel.fsi`; `RondelBillingId.ofId` enables creating billing IDs from `Id` for in-process event conversion
-  - **Two-layer architecture:** Transformation modules (accept Contract types, return `Result<DomainType, string>`) + Command/Event handlers (accept Domain types, return `unit` or `Result`)
+  - **Two-layer architecture:** Transformation modules (accept Contract types, return `Result<DomainType, string>`) + Command/Event handlers (accept Domain types, return `Async<unit>`)
   - Transformation modules: Named after domain types (e.g., `SetToStartingPositionsCommand.fromContract`, `MoveCommand.fromContract`, `InvoicePaidInboundEvent.fromContract`) using directional naming (`fromContract` for Contract → Domain, `toContract` for Domain → Contract)
-  - Command handlers: Accept domain types directly, throw exceptions for business rule violations, return `unit`
-  - Event handlers: Accept domain event types (after transformation), return `unit` (throw exceptions for errors)
+  - Command handlers: Accept domain types directly, throw exceptions for business rule violations, return `Async<unit>`
+  - Event handlers: Accept domain event types (after transformation), return `Async<unit>` (throw exceptions for errors)
   - All handlers take dependency injections explicitly (e.g., `load`, `save`, `publish`, specialized services)
   - `Gameplay` has no public API currently (placeholder values only)
   - `Accounting` exposes: transformation modules (ChargeNationForRondelMovementCommand, VoidRondelChargeCommand, AccountingEvent), domain command types (ChargeNationForRondelMovementCommand with `Id` GameId/BillingId, VoidRondelChargeCommand), domain event types (RondelInvoicePaidEvent, RondelInvoicePaymentFailedEvent with `Id` GameId/BillingId), command routing DU (AccountingCommand), event routing DU (AccountingEvent), dependency types (PublishAccountingEvent, AccountingDependencies record), `execute` router (routes AccountingCommand to internal handlers)
@@ -93,7 +93,7 @@ Last verified: 2026-02-19
 
 ### Multi-Environment Architecture (Phase 1: Terminal App)
 - See `docs/architecture.md` for full architecture and design decisions.
-- **Terminal app** (`Imperium.Terminal`): In-process app with Terminal.Gui v2 (`2.0.0-develop.5027`), MailboxProcessor hosting, in-memory store.
+- **Terminal app** (`Imperium.Terminal`): In-process app with Terminal.Gui v2 (`2.0.0-develop.5259`), MailboxProcessor hosting, in-memory store.
 - **Key patterns:**
   - `IBus` interface for cross-bounded-context **events** (pub/sub with generic `Publish<'T>` and `Subscribe<'T>`); implementation uses `ConcurrentDictionary<Type, obj>` storing typed handler lists to avoid boxing events on publish
   - Thunk injection for cross-BC **commands** (breaks circular dependencies, type-safe direct calls)
@@ -248,7 +248,7 @@ Domain modules (`.fsi` and `.fs` pairs) follow a consistent sectioned structure.
 - Use `[<Tests>]` attribute on test values for discovery by YoloDev.Expecto.TestSdk (enables VS Code Test Explorer integration).
 - Execute `dotnet test` (via TestSdk) or `dotnet run --project tests/Imperium.UnitTests/Imperium.UnitTests.fsproj` (native Expecto runner with colorized output).
 - Execute `dotnet run --no-build --project tests/Imperium.UnitTests/Imperium.UnitTests.fsproj -- --render-spec-markdown` to verify the spec-markdown rendering path and regenerate the specification document output when needed.
-- Both `dotnet test` and `--render-spec-markdown` accept Expecto's filter flags (`--filter`, `--filter-test-list`, `--filter-test-case`, `--join-with`). The markdown renderer omits BC sections whose specs all fail the filter and prints `_no specs match the filter_` when the entire document is empty. See `docs/architecture.md` for filter semantics.
+- Both `dotnet test` and `--render-spec-markdown` accept Expecto's filter flags (`--filter`, `--filter-test-list`, `--filter-test-case`, `--run`, `--join-with`). `--run` supports exact expectation paths plus the project-specific hierarchical extension documented in `docs/architecture.md`; multiple filter flags use last-wins behavior. The markdown renderer omits BC sections whose specs all fail the filter and prints `_no specs match the filter_` when the entire document is empty.
 - Test organization: group related tests with `testList`, use descriptive test names in lowercase ("accepts valid GUID", not "AcceptsValidGuid").
 - Cover edge cases: null inputs, empty strings, invalid formats, boundary conditions.
 
@@ -309,7 +309,7 @@ let tests = testList "Accounting" (specs |> List.map (toExpecto runner))
   - **Runner pattern**: Use `{ SpecRunner.empty with ... }` to define runners that execute commands/events, optionally seed state, and capture state snapshots for reporting
   - **Assertion helper pattern**: For repeated collection checks, define accessors like `let private events = CollectionAssert.forAccessor (fun (ctx: MyContext) -> ctx.Events :> seq<_>)` and compose module-local assertion helpers from that accessor using `Has`, `HasAny`, `HasNone`, `Count`, `HasSize`
   - **Separation**: Keep transformation layer tests independent from behavior specs to reduce boilerplate and keep intent explicit
-- Current test coverage (105 tests total, all passing):
+- Current test coverage (126 tests total, all passing):
   - **AccountingContractTests.fs** (6 transformation validation tests):
     - ChargeNationForRondelMovementCommand.fromContract: requires valid GameId; requires valid BillingId; accepts valid command
     - VoidRondelChargeCommand.fromContract: requires valid GameId; requires valid BillingId; accepts valid command
@@ -348,10 +348,12 @@ let tests = testList "Accounting" (specs |> List.map (toExpecto runner))
     - wires command execution to domain
     - publishes events to bus
     - keeps processing commands after a handler failure
-  - **SpecTests.fs** (10 spec infrastructure tests):
+  - **SpecTests.fs** (31 spec infrastructure, filter, and markdown tests):
     - context factory behavior (specOn default, explicit on override, last-on-wins, plain spec compatibility)
     - assertion expectations pass and fail correctly
     - runExpectation captures action failures, state snapshots, preserve behavior, and exception types
+    - `SpecFilter` parsing and application for `--filter`, `--filter-test-list`, `--filter-test-case`, `--run`, `--join-with`, hierarchical `--run`, empty `--run`, and last-wins behavior
+    - `SpecMarkdown.render` empty and non-empty rendering behavior
   - **GameplayTests.fs** (placeholder module):
     - currently no executable test cases
 
