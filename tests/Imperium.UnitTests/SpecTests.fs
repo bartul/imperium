@@ -385,7 +385,50 @@ let private specFilterTests =
 
               Expect.isFalse
                   (filter.MatchExpectation [ "."; "exp" ])
-                  "the value after --join-with should not be consumed as a --run value either") ]
+                  "the value after --join-with should not be consumed as a --run value either")
+
+          testCase "fromArgs uses last --run when multiple --run flags are present" (fun _ ->
+              let filter =
+                  SpecFilter.fromArgs
+                      [| "--run"
+                         "Imperium.Rondel.specA"
+                         "--run"
+                         "Imperium.Accounting.specB" |]
+
+              Expect.isFalse
+                  (filter.MatchExpectation [ "Imperium"; "Rondel"; "specA"; "exp" ])
+                  "the first --run is overwritten and its value should not match"
+
+              Expect.isTrue
+                  (filter.MatchExpectation [ "Imperium"; "Accounting"; "specB"; "exp" ])
+                  "the last --run wins; its value should match")
+
+          testCase "fromArgs --run alone with no values matches nothing" (fun _ ->
+              let filter = SpecFilter.fromArgs [| "--run" |]
+
+              Expect.isFalse
+                  (filter.MatchExpectation [ "Imperium"; "Rondel"; "spec"; "exp" ])
+                  "any expectation under an empty --run should be rejected"
+
+              Expect.isFalse
+                  (filter.MatchExpectation [ "Imperium"; "Accounting"; "spec"; "exp" ])
+                  "another path should also be rejected")
+
+          testCase "fromArgs --run honors --join-with /" (fun _ ->
+              let filter =
+                  SpecFilter.fromArgs [| "--join-with"; "/"; "--run"; "Imperium/Rondel/spec" |]
+
+              Expect.isTrue
+                  (filter.MatchExpectation [ "Imperium"; "Rondel"; "spec"; "exp" ])
+                  "expectation under spec-level path with slash separator should match (hierarchical)"
+
+              Expect.isFalse
+                  (filter.MatchExpectation [ "Imperium"; "Accounting"; "spec"; "exp" ])
+                  "different BC should still be rejected with slash separator"
+
+              Expect.isFalse
+                  (filter.MatchExpectation [ "Imperium"; "Rondel"; "spec-but-different"; "exp" ])
+                  "segment-boundary safety still holds: 'spec' must not match 'spec-but-different'") ]
 
 let private specMarkdownTests =
     testList
