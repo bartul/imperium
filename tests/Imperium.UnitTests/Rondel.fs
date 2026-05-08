@@ -357,7 +357,7 @@ let private rondelSpecs =
       spec "moving a nation to its current position is rejected (stay put)" {
           state (
               RondelState.create gameId nations
-              |> RondelState.withNationPositions [ ("France", Space.Factory); ("Austria", Space.Investor) ]
+              |> RondelState.withNationPositions [ "France", Space.Factory; "Austria", Space.Investor ]
           )
 
           when_command (Move { GameId = gameId; Nation = "France"; Space = Space.Factory })
