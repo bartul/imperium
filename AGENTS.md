@@ -307,7 +307,7 @@ let tests = testList "Accounting" (specs |> List.map (toExpecto runner))
   - **Transformation validation tests** (in `*ContractTests.fs`): Test `fromContract` transformations with Contract types to verify input validation returns appropriate errors; use domain types directly in test setup
   - **Behavior specs** (in `Rondel.fs` and `Accounting.fs`): Use CE-based `spec` definitions with `on`, optional `state`, optional setup `actions`, `when_`, and multiple `expect` assertions using the full Expecto API
   - **Runner pattern**: Use `{ SpecRunner.empty with ... }` to define runners that execute commands/events, optionally seed state, and capture state snapshots for reporting
-  - **Assertion helper pattern**: For repeated collection checks, define accessors like `let private events = CollectionAssert.forAccessor (fun (ctx: MyContext) -> ctx.Events :> seq<_>)` and compose module-local assertion helpers from that accessor using `Has`, `HasAny`, `HasNone`, `Count`, `HasSize`
+  - **Assertion helper pattern**: For repeated collection checks, define accessors like `let private events = CollectionAssert.forAccessor (fun (ctx: MyContext) -> ctx.Events :> seq<_>)` and compose module-local assertion helpers from that accessor using `Has`, `HasAny`, `HasNone`, `Count`, `HasSize`. Module-local helper functions use the `assert*` prefix (e.g., `assertExactEvent`, `assertNationPosition`) so call sites read as assertions rather than predicates.
   - **Separation**: Keep transformation layer tests independent from behavior specs to reduce boilerplate and keep intent explicit
 - Current test coverage (126 tests total, all passing):
   - **AccountingContractTests.fs** (6 transformation validation tests):
