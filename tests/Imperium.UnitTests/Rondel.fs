@@ -516,7 +516,7 @@ let private rondelSpecs =
                   "investor action should be determined")
 
           expect
-              "subsequent move uses starts from updated position"
+              "subsequent move starts from updated position"
               (assertExactEvent
                   (ActionDetermined { GameId = gameId; Nation = "Austria"; Action = Action.Import })
                   "import action should be determined")
