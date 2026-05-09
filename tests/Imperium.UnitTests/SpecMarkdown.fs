@@ -160,7 +160,7 @@ let private toMarkdown
         |> List.map (fun result ->
             match result.Outcome with
             | Passed -> "✅", result.Description
-            | Failed ex -> "❌", $"{result.Description} — {escapeCell ex.Message}")
+            | Failed ex -> "❌", $"{result.Description} — {ex.Message}")
 
     let specHeaderWeight = childHeader options.ParentHeader
     let sectionHeaderWeight = childHeader specHeaderWeight
