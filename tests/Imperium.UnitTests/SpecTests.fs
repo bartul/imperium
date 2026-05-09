@@ -134,7 +134,7 @@ let private specTests =
 
               Expect.equal result.Outcome Passed "preserve should keep setup side effects")
 
-          testCase "runExpectation preserves exception type for rethrow" (fun _ ->
+          testCase "runExpectation captures AssertException" (fun _ ->
               let specification =
                   specOn<int, NoState, unit, unit> (fun () -> 1) "rethrow test" {
                       expect "fails" (fun ctx -> Expect.equal ctx 99 "should be 99")
