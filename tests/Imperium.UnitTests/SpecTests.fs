@@ -466,7 +466,31 @@ let private specMarkdownTests =
                       "#### Accounting"
                       "section header rendered one level beneath ParentHeader (H3 → H4)"
 
-                  Expect.stringContains result.Value "a spec" "spec body included") ]
+                  Expect.stringContains result.Value "a spec" "spec body included")
+
+          testCase "render includes failed expectation rows and continues with later expectations" (fun _ ->
+              let runner: SpecRunner<int, NoState, NoState, unit, unit> = SpecRunner.empty
+              let options: SpecMarkdown.MarkdownRenderOptions = { ParentHeader = SpecMarkdown.H3 }
+
+              let specs =
+                  [ specOn<int, NoState, unit, unit> (fun () -> 0) "mixed outcomes" {
+                        expect "first expectation fails" (fun _ -> failwith "broken | value")
+                        expect "later expectation still renders" (fun _ -> ())
+                    } ]
+
+              let result = SpecMarkdown.render options "SpecMarkdown" runner specs
+
+              Expect.isSome result "non-empty spec list should produce markdown"
+
+              Expect.stringContains
+                  result.Value
+                  "| ❌ | first expectation fails — broken \\| value |"
+                  "failure row should render and escape table pipes once"
+
+              Expect.stringContains
+                  result.Value
+                  "| ✅ | later expectation still renders |"
+                  "markdown rendering should continue after a failed expectation") ]
 
 [<Tests>]
 let tests = TestList([ specTests; specFilterTests; specMarkdownTests ], Normal)
