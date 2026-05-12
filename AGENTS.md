@@ -309,7 +309,7 @@ let tests = testList "Accounting" (specs |> List.map (toExpecto runner))
   - **Runner pattern**: Use `{ SpecRunner.empty with ... }` to define runners that execute commands/events, optionally seed state, and capture state snapshots for reporting
   - **Assertion helper pattern**: For repeated collection checks, define accessors like `let private events = CollectionAssert.forAccessor (fun (ctx: MyContext) -> ctx.Events :> seq<_>)` and compose module-local assertion helpers from that accessor using `Has`, `HasAny`, `HasNone`, `Count`, `HasSize`. Module-local helper functions use the `assert*` prefix (e.g., `assertExactEvent`, `assertNationPosition`) so call sites read as assertions rather than predicates.
   - **Separation**: Keep transformation layer tests independent from behavior specs to reduce boilerplate and keep intent explicit
-- Current test coverage (126 tests total, all passing):
+- Current test coverage snapshot:
   - **AccountingContractTests.fs** (6 transformation validation tests):
     - ChargeNationForRondelMovementCommand.fromContract: requires valid GameId; requires valid BillingId; accepts valid command
     - VoidRondelChargeCommand.fromContract: requires valid GameId; requires valid BillingId; accepts valid command
