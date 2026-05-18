@@ -5,7 +5,7 @@ description: Deep research on a GitHub issue or problem description. Use when as
 
 # Research Issue
 
-Read and follow `WORKFLOW.md`.
+Read and follow `../../workflows/research-issue/WORKFLOW.md`.
 
 Adapt tool usage to Codex:
 

@@ -13,7 +13,7 @@ allowed-tools: Read, Write, Grep, Glob, Bash(gh issue view:*), Bash(gh api:*), A
 
 # Research Issue
 
-Read and follow `../../../.agent-skills/research-issue/WORKFLOW.md`.
+Read and follow `../../../.agents/workflows/research-issue/WORKFLOW.md`.
 
 Use `$ARGUMENTS` as the issue number or problem description. For GitHub issue
 numbers, prefer `gh issue view $ARGUMENTS --json title,body,labels,comments`.
