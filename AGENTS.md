@@ -132,7 +132,9 @@ Last verified: 2026-05-05
 
 ### research-issue
 
-- **Location:** `.claude/skills/research-issue/SKILL.md`
+- **Canonical workflow:** `.agent-skills/research-issue/WORKFLOW.md`
+- **Claude wrapper:** `.claude/skills/research-issue/SKILL.md`
+- **Codex wrapper:** `.agent-skills/research-issue/SKILL.md`
 - **Invoke:** `/research-issue <issue-number-or-description>`
 - **Purpose:** In-depth research and analysis of a GitHub issue or free-text problem description before implementation. Produces a structured report with multiple competing approaches, code sketches, pro/con analysis, and architecture alignment assessment.
 - **Read-only:** The skill cannot modify project files — it only produces analysis and a research report at `/tmp/research-issue-{number}.md` or `/tmp/research-topic.md`.
