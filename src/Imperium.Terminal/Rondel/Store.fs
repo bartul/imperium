@@ -9,9 +9,7 @@ open Imperium.Rondel
 // ──────────────────────────────────────────────────────────────────────────
 
 /// Store for Rondel bounded context persistence
-type RondelStore =
-    { Load: LoadRondelState
-      Save: RondelState -> Async<Result<unit, string>> }
+type RondelStore = { Load: LoadRondelState; Save: RondelState -> Async<Result<unit, string>> }
 
 // ──────────────────────────────────────────────────────────────────────────
 // In-Memory Implementation

@@ -87,8 +87,7 @@ module RondelHost =
             toAccountingCommand outbound |> dispatchToAccounting ()
 
         let deps: RondelDependencies =
-            { Load = store.Load
-              Commit = RondelDirectCommit.create store.Save bus.Publish dispatch }
+            { Load = store.Load; Commit = RondelDirectCommit.create store.Save bus.Publish dispatch }
 
         let processMessage =
             function

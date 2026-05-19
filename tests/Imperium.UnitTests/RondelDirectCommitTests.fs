@@ -17,18 +17,13 @@ let private sampleState: RondelState =
       NationPositions = Map.ofList [ ("Austria", Some Space.Factory) ]
       PendingMovements = Map.empty }
 
-let private sampleEvent: RondelEvent =
-    PositionedAtStart { GameId = sampleGameId }
+let private sampleEvent: RondelEvent = PositionedAtStart { GameId = sampleGameId }
 
 let private sampleCommand: RondelOutboundCommand =
-    VoidCharge
-        { GameId = sampleGameId
-          BillingId = RondelBillingId.ofId (Id.newId ()) }
+    VoidCharge { GameId = sampleGameId; BillingId = RondelBillingId.ofId (Id.newId ()) }
 
 let private sampleEffects: RondelEffects =
-    { State = Some sampleState
-      IntegrationEvents = [ sampleEvent ]
-      OutboundCommands = [ sampleCommand ] }
+    { State = Some sampleState; IntegrationEvents = [ sampleEvent ]; OutboundCommands = [ sampleCommand ] }
 
 // ──────────────────────────────────────────────────────────────────────────
 // Tests
@@ -76,9 +71,7 @@ let tests =
 
               let commit = RondelDirectCommit.create save publish dispatch
 
-              Expect.throws
-                  (fun () -> commit sampleEffects |> Async.RunSynchronously)
-                  "save failure raises"
+              Expect.throws (fun () -> commit sampleEffects |> Async.RunSynchronously) "save failure raises"
 
               Expect.isEmpty log "publish and dispatch never ran"
 
@@ -93,12 +86,12 @@ let tests =
                   }
 
               let publish _ = async { log.Add "publish" }
-              let dispatch _ = async { return Error "accounting down" }
+
+              let dispatch _ =
+                  async { return Error "accounting down" }
 
               let commit = RondelDirectCommit.create save publish dispatch
 
-              Expect.throws
-                  (fun () -> commit sampleEffects |> Async.RunSynchronously)
-                  "dispatch failure raises"
+              Expect.throws (fun () -> commit sampleEffects |> Async.RunSynchronously) "dispatch failure raises"
 
               Expect.sequenceEqual log [ "save"; "publish" ] "save and publish completed before failure" ]

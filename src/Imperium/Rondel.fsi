@@ -141,17 +141,13 @@ module Rondel =
     /// Unified dependencies for all Rondel handlers.
     /// Load resolves current state; Commit durably applies the resulting effects
     /// (state, integration events, outbound commands) as an atomic unit.
-    type RondelDependencies =
-        { Load: LoadRondelState
-          Commit: CommitRondelEffects }
+    type RondelDependencies = { Load: LoadRondelState; Commit: CommitRondelEffects }
 
     /// Named effect shape returned by Rondel handlers.
     /// Represents the side effects of a single command/event:
     /// optional new state, published integration events, and outbound commands.
     and RondelEffects =
-        { State: RondelState option
-          IntegrationEvents: RondelEvent list
-          OutboundCommands: RondelOutboundCommand list }
+        { State: RondelState option; IntegrationEvents: RondelEvent list; OutboundCommands: RondelOutboundCommand list }
 
     /// Commit boundary for Rondel effects.
     /// Infrastructure-owned function that durably applies state, publishes events,
