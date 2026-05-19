@@ -15,6 +15,7 @@
     <Compile Include="RondelContractTests.fs" />
     <Compile Include="Rondel.fs" />
     <Compile Include="RondelHostTests.fs" />
+    <Compile Include="RondelDirectCommitTests.fs" />
     <Compile Include="TerminalBusTests.fs" />
     <Compile Include="TerminalRondelStoreTests.fs" />
     <Compile Include="AccountingHostTests.fs" />
