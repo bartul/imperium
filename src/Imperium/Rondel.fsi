@@ -138,19 +138,6 @@ module Rondel =
     /// CancellationToken flows implicitly through Async context.
     type LoadRondelState = Id -> Async<RondelState option>
 
-    /// Save rondel state. Returns Error if persistence fails.
-    /// CancellationToken flows implicitly through Async context.
-    type SaveRondelState = RondelState -> Async<Result<unit, string>>
-
-    /// Publish rondel domain events to the event bus.
-    /// CancellationToken flows implicitly through Async context.
-    type PublishRondelEvent = RondelEvent -> Async<unit>
-
-    /// Dispatch outbound commands to other bounded contexts (e.g., Accounting).
-    /// Infrastructure handles conversion to contract types and actual dispatch.
-    /// CancellationToken flows implicitly through Async context.
-    type DispatchOutboundCommand = RondelOutboundCommand -> Async<Result<unit, string>>
-
     /// Unified dependencies for all Rondel handlers.
     /// Load resolves current state; Commit durably applies the resulting effects
     /// (state, integration events, outbound commands) as an atomic unit.
