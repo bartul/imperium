@@ -138,24 +138,22 @@ module Rondel =
     /// CancellationToken flows implicitly through Async context.
     type LoadRondelState = Id -> Async<RondelState option>
 
-    /// Save rondel state. Returns Error if persistence fails.
-    /// CancellationToken flows implicitly through Async context.
-    type SaveRondelState = RondelState -> Async<Result<unit, string>>
-
-    /// Publish rondel domain events to the event bus.
-    /// CancellationToken flows implicitly through Async context.
-    type PublishRondelEvent = RondelEvent -> Async<unit>
-
-    /// Dispatch outbound commands to other bounded contexts (e.g., Accounting).
-    /// Infrastructure handles conversion to contract types and actual dispatch.
-    /// CancellationToken flows implicitly through Async context.
-    type DispatchOutboundCommand = RondelOutboundCommand -> Async<Result<unit, string>>
-
     /// Unified dependencies for all Rondel handlers.
-    /// All handlers receive the same dependencies record for consistency,
-    /// even if some handlers don't use all dependencies.
-    type RondelDependencies =
-        { Load: LoadRondelState; Save: SaveRondelState; Publish: PublishRondelEvent; Dispatch: DispatchOutboundCommand }
+    /// Load resolves current state; Commit durably applies the resulting effects
+    /// (state, integration events, outbound commands) as an atomic unit.
+    type RondelDependencies = { Load: LoadRondelState; Commit: CommitRondelEffects }
+
+    /// Named effect shape returned by Rondel handlers.
+    /// Represents the side effects of a single command/event:
+    /// optional new state, published integration events, and outbound commands.
+    and RondelEffects =
+        { State: RondelState option; IntegrationEvents: RondelEvent list; OutboundCommands: RondelOutboundCommand list }
+
+    /// Commit boundary for Rondel effects.
+    /// Infrastructure-owned function that durably applies state, publishes events,
+    /// and dispatches outbound commands as an atomic unit.
+    /// Failures propagate as exceptions (Async&lt;unit&gt; semantics).
+    and CommitRondelEffects = RondelEffects -> Async<unit>
 
     // ──────────────────────────────────────────────────────────────────────────
     // Queries

@@ -30,13 +30,14 @@ val getRondelOverview:  RondelQueryDependencies -> GetRondelOverviewQuery  -> As
 
 ## Handler Pipeline
 
-All command/event handlers follow the same three-step pattern:
+All command/event handlers follow the same four-step pattern:
 
-1. **Load** — Fetch current state from the store via injected `Load` dependency
+1. **Load** — Fetch current state from the store via the injected `Load` dependency
 2. **Execute** — Pure business logic in internal modules (e.g., `Move.execute`) returns a `(state, events, commands)` tuple
-3. **Materialize** — Shared function sequences IO side effects: save state, publish events, dispatch outbound commands
+3. **Return effects** — Handlers wrap the tuple as a `RondelEffects` record and return it; no IO is performed inside the handler
+4. **Commit** — The public router (`execute`, `handle`) invokes the injected `Commit` once per command/event; infrastructure decides how to apply the effects atomically
 
-This separates pure domain logic from IO, making business rules testable without infrastructure.
+This separates pure domain logic from IO and concentrates the commit policy in a single seam.
 
 ## Dependency Injection
 
@@ -44,10 +45,11 @@ Dependencies are records of `Async<_>` functions — no IoC container:
 
 ```fsharp
 type RondelDependencies =
-    { Load: LoadRondelState; Save: SaveRondelState; Publish: PublishRondelEvent; Dispatch: DispatchOutboundCommand }
+    { Load: LoadRondelState
+      Commit: CommitRondelEffects }
 ```
 
-`CancellationToken` flows implicitly through the `Async` context without explicit threading.
+The terminal sandbox composes `Commit` from `RondelDirectCommit.create store.Save bus.Publish dispatch`, which sequences save → publish → dispatch with `failwith` failure semantics. Future hosts substitute their own commit implementation (durable outbox, transactional session, actor persistence) at the same seam. `CancellationToken` flows implicitly through the `Async` context without explicit threading.
 
 ## Contract Isolation
 

@@ -8,6 +8,7 @@
     <Compile Include="SupervisedMailbox.fs" />
     <Compile Include="Shell/SystemEvent.fs" />
     <Compile Include="Rondel/Store.fs" />
+    <Compile Include="Rondel/DirectCommit.fs" />
     <Compile Include="Rondel/Host.fs" />
     <Compile Include="Accounting/Host.fs" />
     <Compile Include="Shell/UI.fs" />
