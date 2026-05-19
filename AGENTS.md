@@ -128,12 +128,15 @@ Last verified: 2026-05-05
 - **Technology choices (terminal):** Terminal.Gui v2 (TUI framework with views, menu bars, keyboard/mouse support), direct function calls for in-process messaging.
 - **RondelView architecture:** Stateless `RondelCanvas` (zero mutable fields) reads from shared `RondelViewState` record with mutable fields (`CurrentGame`, `Selection`, `Positions`). `SelectionMode` record (`Nation` + `Space`) replaces separate selection tracking — single `Option` makes state transitions atomic. `SyncFocus()` method toggles canvas focus based on selection state. Navigation uses `RondelLayout.nextSpace`/`prevSpace` helpers. `onSpaceSelected: Space -> unit` callback replaces direct `RondelHost` dependency. Color scheme: Investor=teal, Import=orange, Production=grey, Maneuver=green, Taxation=yellow, Factory=blue. Emoji flags (🇦🇹🇫🇷🇩🇪🇬🇧🇮🇹🇷🇺) on nation abbreviations with `displayWidth` helper for correct terminal centering.
 
-## Claude Code Skills
+## Agent Skills
 
 ### research-issue
 
-- **Location:** `.claude/skills/research-issue/SKILL.md`
-- **Invoke:** `/research-issue <issue-number-or-description>`
+- **Canonical workflow:** `.agents/workflows/research-issue/WORKFLOW.md`
+- **Claude wrapper:** `.claude/skills/research-issue/SKILL.md`
+- **Codex repo skill wrapper:** `.agents/skills/research-issue/SKILL.md`
+- **Invoke in Claude:** `/research-issue <issue-number-or-description>`
+- **Invoke in Codex:** ask for the `research-issue` skill or request in-depth issue research.
 - **Purpose:** In-depth research and analysis of a GitHub issue or free-text problem description before implementation. Produces a structured report with multiple competing approaches, code sketches, pro/con analysis, and architecture alignment assessment.
 - **Read-only:** The skill cannot modify project files — it only produces analysis and a research report at `/tmp/research-issue-{number}.md` or `/tmp/research-topic.md`.
 - **Interactive:** Runs inline with explicit pause points between phases for Q&A. Ask clarifying questions at any time.
