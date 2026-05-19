@@ -236,18 +236,25 @@ module Rondel =
     type DispatchOutboundCommand = RondelOutboundCommand -> Async<Result<unit, string>>
 
     /// Unified dependencies for all Rondel handlers.
-    /// All handlers receive the same dependencies record for consistency,
-    /// even if some handlers don't use all dependencies.
+    /// Load resolves current state; Commit durably applies the resulting effects
+    /// (state, integration events, outbound commands) as an atomic unit.
     type RondelDependencies =
-        { Load: LoadRondelState; Save: SaveRondelState; Publish: PublishRondelEvent; Dispatch: DispatchOutboundCommand }
+        { Load: LoadRondelState
+          Commit: CommitRondelEffects }
 
     /// Named effect shape returned by Rondel handlers.
     /// Represents the side effects of a single command/event:
     /// optional new state, published integration events, and outbound commands.
-    type RondelEffects =
+    and RondelEffects =
         { State: RondelState option
           IntegrationEvents: RondelEvent list
           OutboundCommands: RondelOutboundCommand list }
+
+    /// Commit boundary for Rondel effects.
+    /// Infrastructure-owned function that durably applies state, publishes events,
+    /// and dispatches outbound commands as an atomic unit.
+    /// Failures propagate as exceptions (Async&lt;unit&gt; semantics).
+    and CommitRondelEffects = RondelEffects -> Async<unit>
 
     [<RequireQualifiedAccess>]
     module internal RondelEffects =
@@ -255,12 +262,6 @@ module Rondel =
             { State = state
               IntegrationEvents = events
               OutboundCommands = commands }
-
-    /// Commit boundary for Rondel effects.
-    /// Infrastructure-owned function that durably applies state, publishes events,
-    /// and dispatches outbound commands as an atomic unit.
-    /// Failures propagate as exceptions (Async&lt;unit&gt; semantics).
-    type CommitRondelEffects = RondelEffects -> Async<unit>
 
     // ──────────────────────────────────────────────────────────────────────────
     // Transformations (Contract <-> Domain)
@@ -492,35 +493,6 @@ module Rondel =
     // Handlers (Internal Types)
     // ──────────────────────────────────────────────────────────────────────────
 
-    /// Materialize side effects from pure command results.
-    /// Sequences IO operations (save state → publish events → dispatch commands).
-    /// CancellationToken flows implicitly through Async context.
-    /// Used by all command handlers to apply the results of pure business logic execution.
-    let internal materialize deps state events commands : Async<unit> =
-        async {
-            // Save state
-            match state with
-            | Some s ->
-                let! result = deps.Save s
-
-                match result with
-                | Error e -> return failwith $"Failed to save state: {e}"
-                | Ok() -> ()
-            | None -> ()
-
-            // Publish events
-            for event in events do
-                do! deps.Publish event
-
-            // Dispatch commands
-            for command in commands do
-                let! result = deps.Dispatch command
-
-                match result with
-                | Error e -> return failwith $"Failed to dispatch command: {e}"
-                | Ok() -> ()
-        }
-
     /// Internal module containing pure move logic and decision pipeline.
     module internal Move =
         /// Movement decision outcome (internal to move handler).
@@ -742,56 +714,65 @@ module Rondel =
 
     /// Initialize rondel for the specified game with the given nations.
     let internal setToStartingPositions
-        (deps: RondelDependencies)
+        (load: LoadRondelState)
         (command: SetToStartingPositionsCommand)
-        : Async<unit> =
+        : Async<RondelEffects> =
         async {
-            let! state = deps.Load command.GameId
-            let newState, events, commands = SetToStartingPositions.execute command state
-            do! materialize deps newState events commands
+            let! state = load command.GameId
+            return SetToStartingPositions.execute command state |> RondelEffects.ofTuple
         }
 
     /// Move a nation to the specified space on the rondel.
-    let internal move (deps: RondelDependencies) (command: MoveCommand) : Async<unit> =
+    let internal move (load: LoadRondelState) (command: MoveCommand) : Async<RondelEffects> =
         async {
-            let! state = deps.Load command.GameId
-            let newState, events, commands = Move.execute command state
-            do! materialize deps newState events commands
+            let! state = load command.GameId
+            return Move.execute command state |> RondelEffects.ofTuple
         }
 
     /// Process invoice payment confirmation from Accounting domain.
-    let internal onInvoicePaid (deps: RondelDependencies) (event: InvoicePaidInboundEvent) : Async<unit> =
+    let internal onInvoicePaid
+        (load: LoadRondelState)
+        (event: InvoicePaidInboundEvent)
+        : Async<RondelEffects> =
         async {
-            let! state = deps.Load event.GameId
-            let newState, events, commands = OnInvoicePaid.handle event state
-            do! materialize deps newState events commands
+            let! state = load event.GameId
+            return OnInvoicePaid.handle event state |> RondelEffects.ofTuple
         }
 
     /// Process invoice payment failure from Accounting domain.
     let internal onInvoicePaymentFailed
-        (deps: RondelDependencies)
+        (load: LoadRondelState)
         (event: InvoicePaymentFailedInboundEvent)
-        : Async<unit> =
+        : Async<RondelEffects> =
         async {
-            let! state = deps.Load event.GameId
-            let newState, events, commands = OnInvoicePaymentFailed.handle event state
-            do! materialize deps newState events commands
+            let! state = load event.GameId
+            return OnInvoicePaymentFailed.handle event state |> RondelEffects.ofTuple
         }
     // ──────────────────────────────────────────────────────────────────────────
     // Public Routers
     // ──────────────────────────────────────────────────────────────────────────
 
-    /// Execute a rondel command. Routes to the appropriate command handler.
+    /// Execute a rondel command. Routes to the appropriate command handler and commits its effects.
     let execute (deps: RondelDependencies) (command: RondelCommand) : Async<unit> =
-        match command with
-        | SetToStartingPositions cmd -> setToStartingPositions deps cmd
-        | Move cmd -> move deps cmd
+        async {
+            let! effects =
+                match command with
+                | SetToStartingPositions cmd -> setToStartingPositions deps.Load cmd
+                | Move cmd -> move deps.Load cmd
 
-    /// Handle an inbound event from other bounded contexts. Routes to the appropriate event handler.
+            do! deps.Commit effects
+        }
+
+    /// Handle an inbound event from other bounded contexts. Routes to the appropriate event handler and commits its effects.
     let handle (deps: RondelDependencies) (event: RondelInboundEvent) : Async<unit> =
-        match event with
-        | InvoicePaid evt -> onInvoicePaid deps evt
-        | InvoicePaymentFailed evt -> onInvoicePaymentFailed deps evt
+        async {
+            let! effects =
+                match event with
+                | InvoicePaid evt -> onInvoicePaid deps.Load evt
+                | InvoicePaymentFailed evt -> onInvoicePaymentFailed deps.Load evt
+
+            do! deps.Commit effects
+        }
 
     // ──────────────────────────────────────────────────────────────────────────
     // Queries

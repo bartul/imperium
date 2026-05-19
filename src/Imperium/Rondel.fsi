@@ -152,15 +152,16 @@ module Rondel =
     type DispatchOutboundCommand = RondelOutboundCommand -> Async<Result<unit, string>>
 
     /// Unified dependencies for all Rondel handlers.
-    /// All handlers receive the same dependencies record for consistency,
-    /// even if some handlers don't use all dependencies.
+    /// Load resolves current state; Commit durably applies the resulting effects
+    /// (state, integration events, outbound commands) as an atomic unit.
     type RondelDependencies =
-        { Load: LoadRondelState; Save: SaveRondelState; Publish: PublishRondelEvent; Dispatch: DispatchOutboundCommand }
+        { Load: LoadRondelState
+          Commit: CommitRondelEffects }
 
     /// Named effect shape returned by Rondel handlers.
     /// Represents the side effects of a single command/event:
     /// optional new state, published integration events, and outbound commands.
-    type RondelEffects =
+    and RondelEffects =
         { State: RondelState option
           IntegrationEvents: RondelEvent list
           OutboundCommands: RondelOutboundCommand list }
@@ -169,7 +170,7 @@ module Rondel =
     /// Infrastructure-owned function that durably applies state, publishes events,
     /// and dispatches outbound commands as an atomic unit.
     /// Failures propagate as exceptions (Async&lt;unit&gt; semantics).
-    type CommitRondelEffects = RondelEffects -> Async<unit>
+    and CommitRondelEffects = RondelEffects -> Async<unit>
 
     // ──────────────────────────────────────────────────────────────────────────
     // Queries

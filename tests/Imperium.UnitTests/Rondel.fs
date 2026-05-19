@@ -32,18 +32,11 @@ let private createContext gameId =
                 | false, _ -> None
         }
 
-    let save (state: RondelState) =
+    let commit (effects: RondelEffects) =
         async {
-            store[state.GameId] <- state
-            return Ok()
-        }
-
-    let publish event = async { events.Add event }
-
-    let dispatch command =
-        async {
-            commands.Add command
-            return Ok()
+            effects.State |> Option.iter (fun s -> store[s.GameId] <- s)
+            effects.IntegrationEvents |> List.iter events.Add
+            effects.OutboundCommands |> List.iter commands.Add
         }
 
     let queryDeps: RondelQueryDependencies = { Load = load }
@@ -54,7 +47,7 @@ let private createContext gameId =
     let getRondelOverviewForGame () =
         getRondelOverview queryDeps { GameId = gameId } |> Async.RunSynchronously
 
-    { Deps = { Load = load; Save = save; Publish = publish; Dispatch = dispatch }
+    { Deps = { Load = load; Commit = commit }
       Events = events
       Commands = commands
       Store = store
