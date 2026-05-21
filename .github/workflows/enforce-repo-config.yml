@@ -41,8 +41,9 @@ jobs:
           # Extract topics (handled via separate endpoint)
           TOPICS=$(jq -c '.topics' .github/repo-config.json)
 
-          # Apply general repo settings (exclude topics — different endpoint)
-          jq 'del(.topics)' .github/repo-config.json | \
+          # Apply general repo settings (exclude topics and security analysis —
+          # those use separate handling/endpoints).
+          jq 'del(.topics, .security_and_analysis)' .github/repo-config.json | \
             gh api repos/${{ github.repository }} \
               --method PATCH \
               --input -
@@ -121,21 +122,42 @@ jobs:
             echo "- **Private vulnerability reporting**: Skipped (requires public repo)" >> $GITHUB_STEP_SUMMARY
           fi
 
-          # Secret scanning requires public repo or GitHub Advanced Security
-          if gh api repos/${{ github.repository }} \
-            --method PATCH \
-            --input - <<'EOF' 2>&1; then
-          {
-            "security_and_analysis": {
-              "secret_scanning": { "status": "enabled" },
-              "secret_scanning_push_protection": { "status": "enabled" }
-            }
-          }
-          EOF
-            echo "Secret scanning enabled."
+          SECURITY_AND_ANALYSIS=$(jq -c '.security_and_analysis // empty' .github/repo-config.json)
+          SECURITY_AND_ANALYSIS_WITHOUT_ADVANCED=$(jq -c '.security_and_analysis // {} | del(.advanced_security)' .github/repo-config.json)
+          ADVANCED_SECURITY=$(jq -c '.security_and_analysis.advanced_security // empty' .github/repo-config.json)
+
+          if [ -z "$SECURITY_AND_ANALYSIS" ]; then
+            echo "No security_and_analysis settings configured."
           else
-            echo "::warning::Secret scanning requires a public repo or GitHub Advanced Security. Skipping."
-            echo "- **Secret scanning**: Skipped (requires public repo or GitHub Advanced Security)" >> $GITHUB_STEP_SUMMARY
+            if [ "$SECURITY_AND_ANALYSIS_WITHOUT_ADVANCED" != "{}" ]; then
+              echo "Applying security and analysis settings..."
+
+              if jq -n --argjson security "$SECURITY_AND_ANALYSIS_WITHOUT_ADVANCED" \
+                '{ security_and_analysis: $security }' | \
+                gh api repos/${{ github.repository }} \
+                  --method PATCH \
+                  --input - 2>&1; then
+                echo "Security and analysis settings applied."
+              else
+                echo "::warning::Security and analysis settings require repository eligibility. Skipping."
+                echo "- **Security and analysis settings**: Skipped (requires repository eligibility)" >> $GITHUB_STEP_SUMMARY
+              fi
+            fi
+
+            if [ -n "$ADVANCED_SECURITY" ]; then
+              echo "Applying Advanced Security setting..."
+
+              if jq -n --argjson advanced "$ADVANCED_SECURITY" \
+                '{ security_and_analysis: { advanced_security: $advanced } }' | \
+                gh api repos/${{ github.repository }} \
+                  --method PATCH \
+                  --input - 2>&1; then
+                echo "Advanced Security setting applied."
+              else
+                echo "::warning::Advanced Security requires an eligible plan or product. Skipping."
+                echo "- **Advanced Security**: Skipped (requires eligible plan or product)" >> $GITHUB_STEP_SUMMARY
+              fi
+            fi
           fi
 
           echo "Security features enabled."
@@ -168,6 +190,14 @@ jobs:
           echo "### Topics" >> $GITHUB_STEP_SUMMARY
           echo '```json' >> $GITHUB_STEP_SUMMARY
           echo "$TOPICS" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Verify security and analysis settings
+          SECURITY=$(gh api repos/${{ github.repository }} --jq '.security_and_analysis // {}')
+          echo "### Security And Analysis" >> $GITHUB_STEP_SUMMARY
+          echo '```json' >> $GITHUB_STEP_SUMMARY
+          echo "$SECURITY" | jq . >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 
