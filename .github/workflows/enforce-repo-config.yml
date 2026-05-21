@@ -41,8 +41,9 @@ jobs:
           # Extract topics (handled via separate endpoint)
           TOPICS=$(jq -c '.topics' .github/repo-config.json)
 
-          # Apply general repo settings (exclude topics — different endpoint)
-          jq 'del(.topics)' .github/repo-config.json | \
+          # Apply general repo settings (exclude topics and security analysis —
+          # those use separate handling/endpoints).
+          jq 'del(.topics, .security_and_analysis)' .github/repo-config.json | \
             gh api repos/${{ github.repository }} \
               --method PATCH \
               --input -
@@ -55,15 +56,6 @@ jobs:
 
           echo "Repository settings applied."
 
-      - name: Check repository visibility
-        id: visibility
-        env:
-          GH_TOKEN: ${{ secrets.REPO_ADMIN_TOKEN }}
-        run: |
-          VISIBILITY=$(gh api repos/${{ github.repository }} --jq '.visibility')
-          echo "visibility=$VISIBILITY" >> $GITHUB_OUTPUT
-          echo "Repository visibility: $VISIBILITY"
-
       - name: Apply branch protection
         env:
           GH_TOKEN: ${{ secrets.REPO_ADMIN_TOKEN }}
@@ -75,8 +67,8 @@ jobs:
             --input .github/branch-protection.json 2>&1; then
             echo "Branch protection applied."
           else
-            echo "::warning::Branch protection requires a public repo or GitHub Pro. Skipping."
-            echo "- **Branch protection**: Skipped (requires public repo or GitHub Pro)" >> $GITHUB_STEP_SUMMARY
+            echo "::warning::Branch protection could not be applied. Check repository plan eligibility and REPO_ADMIN_TOKEN permissions."
+            echo "- **Branch protection**: Not applied; check repository plan eligibility and REPO_ADMIN_TOKEN permissions" >> $GITHUB_STEP_SUMMARY
           fi
 
       - name: Restrict GitHub Actions to verified
@@ -98,11 +90,11 @@ jobs:
 
           echo "Actions restrictions applied."
 
-      - name: Enable security features
+      - name: Enforce security features
         env:
           GH_TOKEN: ${{ secrets.REPO_ADMIN_TOKEN }}
         run: |
-          echo "Enabling security features..."
+          echo "Enforcing security features..."
 
           # Enable Dependabot vulnerability alerts
           gh api repos/${{ github.repository }}/vulnerability-alerts \
@@ -117,28 +109,51 @@ jobs:
             --method PUT 2>&1; then
             echo "Private vulnerability reporting enabled."
           else
-            echo "::warning::Private vulnerability reporting requires a public repo. Skipping."
-            echo "- **Private vulnerability reporting**: Skipped (requires public repo)" >> $GITHUB_STEP_SUMMARY
+            echo "::warning::Private vulnerability reporting could not be enabled. Check feature availability and REPO_ADMIN_TOKEN permissions."
+            echo "- **Private vulnerability reporting**: Not enabled; check feature availability and REPO_ADMIN_TOKEN permissions" >> $GITHUB_STEP_SUMMARY
           fi
 
-          # Secret scanning requires public repo or GitHub Advanced Security
-          if gh api repos/${{ github.repository }} \
-            --method PATCH \
-            --input - <<'EOF' 2>&1; then
-          {
-            "security_and_analysis": {
-              "secret_scanning": { "status": "enabled" },
-              "secret_scanning_push_protection": { "status": "enabled" }
-            }
-          }
-          EOF
-            echo "Secret scanning enabled."
+          SECURITY_AND_ANALYSIS=$(jq -c '.security_and_analysis // empty' .github/repo-config.json)
+          SECURITY_AND_ANALYSIS_WITHOUT_ADVANCED=$(jq -c '.security_and_analysis // {} | del(.advanced_security)' .github/repo-config.json)
+          ADVANCED_SECURITY=$(jq -c '.security_and_analysis.advanced_security // empty' .github/repo-config.json)
+
+          if [ -z "$SECURITY_AND_ANALYSIS" ]; then
+            echo "No security_and_analysis settings configured."
           else
-            echo "::warning::Secret scanning requires a public repo or GitHub Advanced Security. Skipping."
-            echo "- **Secret scanning**: Skipped (requires public repo or GitHub Advanced Security)" >> $GITHUB_STEP_SUMMARY
+            if [ "$SECURITY_AND_ANALYSIS_WITHOUT_ADVANCED" != "{}" ]; then
+              echo "Applying security and analysis settings..."
+
+              if SECURITY_OUTPUT=$(jq -n --argjson security "$SECURITY_AND_ANALYSIS_WITHOUT_ADVANCED" \
+                '{ security_and_analysis: $security }' | \
+                gh api repos/${{ github.repository }} \
+                  --method PATCH \
+                  --input - 2>&1); then
+                echo "Security and analysis settings applied."
+              else
+                echo "$SECURITY_OUTPUT"
+                echo "::warning::Security and analysis settings could not be applied. See GitHub API output above."
+                echo "- **Security and analysis settings**: Not fully applied; see workflow logs for GitHub API response" >> $GITHUB_STEP_SUMMARY
+              fi
+            fi
+
+            if [ -n "$ADVANCED_SECURITY" ]; then
+              echo "Applying Advanced Security setting..."
+
+              if ADVANCED_SECURITY_OUTPUT=$(jq -n --argjson advanced "$ADVANCED_SECURITY" \
+                '{ security_and_analysis: { advanced_security: $advanced } }' | \
+                gh api repos/${{ github.repository }} \
+                  --method PATCH \
+                  --input - 2>&1); then
+                echo "Advanced Security setting applied."
+              else
+                echo "$ADVANCED_SECURITY_OUTPUT"
+                echo "::warning::Advanced Security setting could not be applied. See GitHub API output above."
+                echo "- **Advanced Security**: Not applied; see workflow logs for GitHub API response" >> $GITHUB_STEP_SUMMARY
+              fi
+            fi
           fi
 
-          echo "Security features enabled."
+          echo "Security feature enforcement complete."
 
       - name: Verify applied settings
         env:
@@ -171,6 +186,14 @@ jobs:
           echo '```' >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 
+          # Verify security and analysis settings
+          SECURITY=$(gh api repos/${{ github.repository }} --jq '.security_and_analysis // {}')
+          echo "### Security And Analysis" >> $GITHUB_STEP_SUMMARY
+          echo '```json' >> $GITHUB_STEP_SUMMARY
+          echo "$SECURITY" | jq . >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
           # Verify actions permissions
           ACTIONS=$(gh api repos/${{ github.repository }}/actions/permissions --jq '{enabled: .enabled, allowed_actions: .allowed_actions}')
           echo "### Actions Permissions" >> $GITHUB_STEP_SUMMARY
@@ -178,7 +201,7 @@ jobs:
           echo "$ACTIONS" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
 
-          # Verify branch protection (may not be available on private free repos)
+          # Verify branch protection (may depend on repository plan or token permissions)
           echo "" >> $GITHUB_STEP_SUMMARY
           if PROTECTION=$(gh api repos/${{ github.repository }}/branches/master/protection --jq '{
             required_status_checks: .required_status_checks.contexts,
@@ -192,7 +215,7 @@ jobs:
             echo '```' >> $GITHUB_STEP_SUMMARY
           else
             echo "### Branch Protection" >> $GITHUB_STEP_SUMMARY
-            echo "> Not available (requires public repo or GitHub Pro)" >> $GITHUB_STEP_SUMMARY
+            echo "> Not available; check repository plan eligibility and REPO_ADMIN_TOKEN permissions" >> $GITHUB_STEP_SUMMARY
           fi
 
           echo "" >> $GITHUB_STEP_SUMMARY
