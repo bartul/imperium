@@ -65,26 +65,3 @@ module Space =
 
     /// Assembly-internal: parse a space from its persisted string form.
     val internal fromString: string -> Result<Space, string>
-
-// ──────────────────────────────────────────────────────────────────────────
-// Queries
-// ──────────────────────────────────────────────────────────────────────────
-
-/// Query for nation positions in a game.
-type GetNationPositionsQuery = { GameId: Id }
-
-/// Query for basic rondel overview.
-type GetRondelOverviewQuery = { GameId: Id }
-
-// ──────────────────────────────────────────────────────────────────────────
-// Query Results
-// ──────────────────────────────────────────────────────────────────────────
-
-/// Result of GetNationPositions query.
-type RondelPositionsView = { GameId: Id; Positions: NationPositionView list }
-
-/// A nation's position on the rondel.
-and NationPositionView = { Nation: string; CurrentSpace: Space option; PendingSpace: Space option }
-
-/// Result of GetRondelOverview query.
-type RondelView = { GameId: Id; NationNames: string list }

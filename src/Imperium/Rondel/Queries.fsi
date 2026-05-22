@@ -6,18 +6,23 @@ open Imperium.Primitives
 // Queries
 // ──────────────────────────────────────────────────────────────────────────
 
+/// Query for nation positions in a game.
 type GetNationPositionsQuery = { GameId: Id }
 
+/// Query for basic rondel overview.
 type GetRondelOverviewQuery = { GameId: Id }
 
 // ──────────────────────────────────────────────────────────────────────────
 // Query Results
 // ──────────────────────────────────────────────────────────────────────────
 
+/// Result of GetNationPositions query.
 type RondelPositionsView = { GameId: Id; Positions: NationPositionView list }
 
+/// A nation's position on the rondel.
 and NationPositionView = { Nation: string; CurrentSpace: Space option; PendingSpace: Space option }
 
+/// Result of GetRondelOverview query.
 type RondelView = { GameId: Id; NationNames: string list }
 
 // ──────────────────────────────────────────────────────────────────────────
@@ -27,35 +32,8 @@ type RondelView = { GameId: Id; NationNames: string list }
 /// Internal query handlers for the Rondel bounded context.
 /// Routers in the public Rondel facade delegate to these.
 module internal Queries =
+    /// Get nation positions for a game. Returns None if game not found.
+    val getNationPositions: RondelQueryDependencies -> GetNationPositionsQuery -> Async<RondelPositionsView option>
 
-    let getNationPositions
-        (deps: RondelQueryDependencies)
-        (query: GetNationPositionsQuery)
-        : Async<RondelPositionsView option> =
-        let mapPosition nation position pendingMovement =
-            { Nation = nation; CurrentSpace = position; PendingSpace = pendingMovement |> Option.map _.TargetSpace }
-
-        let mapPositions currentPositions pendingMovements =
-            currentPositions
-            |> Map.toList
-            |> List.map (fun (nation, currentPosition) ->
-                mapPosition nation currentPosition (pendingMovements |> Map.tryFind nation))
-
-        async {
-            let! state = deps.Load query.GameId
-
-            return
-                state
-                |> Option.map (fun s ->
-                    { GameId = query.GameId; Positions = mapPositions s.NationPositions s.PendingMovements })
-        }
-
-    let getRondelOverview (deps: RondelQueryDependencies) (query: GetRondelOverviewQuery) : Async<RondelView option> =
-        async {
-            let! state = deps.Load query.GameId
-
-            return
-                state
-                |> Option.map (fun s ->
-                    { GameId = query.GameId; NationNames = s.NationPositions |> Map.toList |> List.map fst })
-        }
+    /// Get rondel overview for a game. Returns None if game not found.
+    val getRondelOverview: RondelQueryDependencies -> GetRondelOverviewQuery -> Async<RondelView option>

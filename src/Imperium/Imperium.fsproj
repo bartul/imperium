@@ -32,6 +32,7 @@
     <Compile Include="Rondel/Movement.fs" />
     <Compile Include="Rondel/Invoices.fs" />
     <Compile Include="Rondel/Handlers.fs" />
+    <Compile Include="Rondel/Queries.fsi" />
     <Compile Include="Rondel/Queries.fs" />
     <Compile Include="Rondel/Rondel.fsi" />
     <Compile Include="Rondel/Rondel.fs" />

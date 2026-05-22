@@ -102,21 +102,3 @@ module Space =
         | Space.ManeuverTwo -> Action.Maneuver
         | Space.Taxation -> Action.Taxation
         | Space.Factory -> Action.Factory
-
-// ──────────────────────────────────────────────────────────────────────────
-// Queries
-// ──────────────────────────────────────────────────────────────────────────
-
-type GetNationPositionsQuery = { GameId: Id }
-
-type GetRondelOverviewQuery = { GameId: Id }
-
-// ──────────────────────────────────────────────────────────────────────────
-// Query Results
-// ──────────────────────────────────────────────────────────────────────────
-
-type RondelPositionsView = { GameId: Id; Positions: NationPositionView list }
-
-and NationPositionView = { Nation: string; CurrentSpace: Space option; PendingSpace: Space option }
-
-type RondelView = { GameId: Id; NationNames: string list }
