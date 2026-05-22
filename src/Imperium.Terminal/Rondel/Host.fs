@@ -91,8 +91,8 @@ module RondelHost =
 
         let processMessage =
             function
-            | Command cmd -> execute deps cmd
-            | InboundEvent evt -> handle deps evt
+            | Command cmd -> Rondel.execute deps cmd
+            | InboundEvent evt -> Rondel.handle deps evt
 
         let mailbox = SupervisedMailbox.start processMessage onMailboxError
 
@@ -102,5 +102,5 @@ module RondelHost =
         let queryDeps: RondelQueryDependencies = { Load = store.Load }
 
         { Execute = fun cmd -> async { Command cmd |> mailbox.Post }
-          QueryPositions = fun query -> getNationPositions queryDeps query
-          QueryOverview = fun query -> getRondelOverview queryDeps query }
+          QueryPositions = fun query -> Rondel.getNationPositions queryDeps query
+          QueryOverview = fun query -> Rondel.getRondelOverview queryDeps query }

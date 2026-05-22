@@ -15,6 +15,14 @@
     <Compile Include="Accounting/Handlers.fs" />
     <Compile Include="Accounting/Accounting.fsi" />
     <Compile Include="Accounting/Accounting.fs" />
+    <Compile Include="Rondel/Types.fsi" />
+    <Compile Include="Rondel/Types.fs" />
+    <Compile Include="Rondel/State.fsi" />
+    <Compile Include="Rondel/State.fs" />
+    <Compile Include="Rondel/Movement.fs" />
+    <Compile Include="Rondel/Invoices.fs" />
+    <Compile Include="Rondel/Handlers.fs" />
+    <Compile Include="Rondel/Queries.fs" />
     <Compile Include="Rondel/Rondel.fsi" />
     <Compile Include="Rondel/Rondel.fs" />
   </ItemGroup>
