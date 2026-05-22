@@ -10,6 +10,9 @@
     <Compile Include="Contract/Rondel.fs" />
     <Compile Include="Gameplay/Gameplay.fsi" />
     <Compile Include="Gameplay/Gameplay.fs" />
+    <Compile Include="Accounting/Types.fsi" />
+    <Compile Include="Accounting/Types.fs" />
+    <Compile Include="Accounting/Handlers.fs" />
     <Compile Include="Accounting/Accounting.fsi" />
     <Compile Include="Accounting/Accounting.fs" />
     <Compile Include="Rondel/Rondel.fsi" />
