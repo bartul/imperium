@@ -12,6 +12,8 @@
     <Compile Include="Gameplay/Gameplay.fs" />
     <Compile Include="Accounting/Types.fsi" />
     <Compile Include="Accounting/Types.fs" />
+    <Compile Include="Accounting/Dependencies.fsi" />
+    <Compile Include="Accounting/Dependencies.fs" />
     <Compile Include="Accounting/Handlers.fs" />
     <Compile Include="Accounting/Accounting.fsi" />
     <Compile Include="Accounting/Accounting.fs" />
@@ -19,6 +21,8 @@
     <Compile Include="Rondel/Types.fs" />
     <Compile Include="Rondel/State.fsi" />
     <Compile Include="Rondel/State.fs" />
+    <Compile Include="Rondel/Dependencies.fsi" />
+    <Compile Include="Rondel/Dependencies.fs" />
     <Compile Include="Rondel/Movement.fs" />
     <Compile Include="Rondel/Invoices.fs" />
     <Compile Include="Rondel/Handlers.fs" />

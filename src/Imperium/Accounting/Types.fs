@@ -29,14 +29,6 @@ and RondelInvoicePaidEvent = { GameId: Id; BillingId: Id }
 and RondelInvoicePaymentFailedEvent = { GameId: Id; BillingId: Id }
 
 // ──────────────────────────────────────────────────────────────────────────
-// Dependencies
-// ──────────────────────────────────────────────────────────────────────────
-
-type PublishAccountingEvent = AccountingEvent -> Async<unit>
-
-type AccountingDependencies = { Publish: PublishAccountingEvent }
-
-// ──────────────────────────────────────────────────────────────────────────
 // Transformations (Contract <-> Domain)
 // ──────────────────────────────────────────────────────────────────────────
 

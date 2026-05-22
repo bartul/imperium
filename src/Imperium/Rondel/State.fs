@@ -143,20 +143,3 @@ module RondelState =
                         |> Result.bind (withPendingMoveResult nation pendingMove.TargetSpace pendingMove.BillingId))
                     (Ok stateWithPositions)
         }
-
-// ──────────────────────────────────────────────────────────────────────────
-// Dependencies
-// ──────────────────────────────────────────────────────────────────────────
-
-type LoadRondelState = Id -> Async<RondelState option>
-
-type RondelDependencies = { Load: LoadRondelState; Commit: CommitRondelEffects }
-
-and RondelEffects =
-    { State: RondelState option; IntegrationEvents: RondelEvent list; OutboundCommands: RondelOutboundCommand list }
-
-and CommitRondelEffects = RondelEffects -> Async<unit>
-
-type LoadRondelStateForQuery = Id -> Async<RondelState option>
-
-type RondelQueryDependencies = { Load: LoadRondelStateForQuery }
