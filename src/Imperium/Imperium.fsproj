@@ -10,8 +10,10 @@
     <Compile Include="Contract/Rondel.fs" />
     <Compile Include="Gameplay/Gameplay.fsi" />
     <Compile Include="Gameplay/Gameplay.fs" />
-    <Compile Include="Accounting/Types.fsi" />
-    <Compile Include="Accounting/Types.fs" />
+    <Compile Include="Accounting/Commands.fsi" />
+    <Compile Include="Accounting/Commands.fs" />
+    <Compile Include="Accounting/Events.fsi" />
+    <Compile Include="Accounting/Events.fs" />
     <Compile Include="Accounting/Dependencies.fsi" />
     <Compile Include="Accounting/Dependencies.fs" />
     <Compile Include="Accounting/Handlers.fs" />
@@ -19,6 +21,10 @@
     <Compile Include="Accounting/Accounting.fs" />
     <Compile Include="Rondel/Types.fsi" />
     <Compile Include="Rondel/Types.fs" />
+    <Compile Include="Rondel/Commands.fsi" />
+    <Compile Include="Rondel/Commands.fs" />
+    <Compile Include="Rondel/Events.fsi" />
+    <Compile Include="Rondel/Events.fs" />
     <Compile Include="Rondel/State.fsi" />
     <Compile Include="Rondel/State.fs" />
     <Compile Include="Rondel/Dependencies.fsi" />
