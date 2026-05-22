@@ -1,5 +1,8 @@
-namespace Imperium
+namespace Imperium.Gameplay
 
+/// Public facade for the Gameplay bounded context.
+/// Placeholder until game-level coordination logic is added.
+[<RequireQualifiedAccess>]
 module Gameplay =
 
     // Gameplay types are internal implementation details.

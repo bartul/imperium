@@ -1,5 +1,6 @@
-namespace Imperium
+namespace Imperium.Gameplay
 
+[<RequireQualifiedAccess>]
 module Gameplay =
 
     open System
