@@ -32,6 +32,6 @@ module AccountingHost =
 
         let deps: AccountingDependencies = { Publish = publish }
 
-        let mailbox = SupervisedMailbox.start (execute deps) onMailboxError
+        let mailbox = SupervisedMailbox.start (Accounting.execute deps) onMailboxError
 
         { Execute = fun cmd -> async { mailbox.Post cmd } }

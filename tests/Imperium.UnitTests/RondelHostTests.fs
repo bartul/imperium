@@ -1,13 +1,12 @@
 module Imperium.UnitTests.RondelHostTests
 
 open Expecto
+open Imperium.Accounting
 open Imperium.Primitives
 open Imperium.Rondel
 open Imperium.Terminal
 open Imperium.Terminal.Rondel
 open Imperium.Terminal.Shell
-
-module Accounting = Imperium.Accounting
 
 // ──────────────────────────────────────────────────────────────────────────
 // Test Helpers
@@ -48,7 +47,7 @@ let private createRondelHost (dispatchToAccounting: DispatchToAccounting) =
     {| Publish = fun event -> bus.Publish event |> Async.RunSynchronously |}
 
 let private createRondelHostWithDefaults () =
-    let dispatchedCommands = ResizeArray<Accounting.AccountingCommand>()
+    let dispatchedCommands = ResizeArray<AccountingCommand>()
 
     let stubDispatch: DispatchToAccounting =
         fun () ->
@@ -128,13 +127,12 @@ let tests =
               let billingId =
                   dispatchedCommands
                   |> Seq.choose (function
-                      | Accounting.ChargeNationForRondelMovement chargeCmd -> Some chargeCmd.BillingId
+                      | ChargeNationForRondelMovement chargeCmd -> Some chargeCmd.BillingId
                       | _ -> None)
                   |> Seq.tryHead
                   |> Option.defaultWith (fun () -> failwith "charge command not dispatched")
 
-              Accounting.RondelInvoicePaid { GameId = gameId; BillingId = billingId }
-              |> bus.Publish
+              RondelInvoicePaid { GameId = gameId; BillingId = billingId } |> bus.Publish
 
               let hasActionDetermined () =
                   publishedEvents
@@ -214,7 +212,7 @@ let tests =
           <| fun _ ->
               let _, publishedEvents, _, _, bus = createRondelHostWithDefaults ()
 
-              Accounting.RondelInvoicePaid { GameId = Id.newId (); BillingId = Id.newId () }
+              RondelInvoicePaid { GameId = Id.newId (); BillingId = Id.newId () }
               |> bus.Publish
 
               let hasWarningNotification () =

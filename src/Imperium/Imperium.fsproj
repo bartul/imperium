@@ -3,17 +3,39 @@
     <TargetFramework>net10.0</TargetFramework>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="Primitives.fs" />
-    <Compile Include="AsyncExtensions.fs" />
-    <Compile Include="Contract.fs" />
-    <Compile Include="Contract.Accounting.fs" />
-    <Compile Include="Contract.Rondel.fs" />
-    <Compile Include="Gameplay.fsi" />
-    <Compile Include="Gameplay.fs" />
-    <Compile Include="Accounting.fsi" />
-    <Compile Include="Accounting.fs" />
-    <Compile Include="Rondel.fsi" />
-    <Compile Include="Rondel.fs" />
+    <Compile Include="Primitives/Primitives.fs" />
+    <Compile Include="Primitives/AsyncExtensions.fs" />
+    <Compile Include="Contract/Contract.fs" />
+    <Compile Include="Contract/Accounting.fs" />
+    <Compile Include="Contract/Rondel.fs" />
+    <Compile Include="Gameplay/Gameplay.fsi" />
+    <Compile Include="Gameplay/Gameplay.fs" />
+    <Compile Include="Accounting/Commands.fsi" />
+    <Compile Include="Accounting/Commands.fs" />
+    <Compile Include="Accounting/Events.fsi" />
+    <Compile Include="Accounting/Events.fs" />
+    <Compile Include="Accounting/Dependencies.fsi" />
+    <Compile Include="Accounting/Dependencies.fs" />
+    <Compile Include="Accounting/Handlers.fs" />
+    <Compile Include="Accounting/Accounting.fsi" />
+    <Compile Include="Accounting/Accounting.fs" />
+    <Compile Include="Rondel/Types.fsi" />
+    <Compile Include="Rondel/Types.fs" />
+    <Compile Include="Rondel/Commands.fsi" />
+    <Compile Include="Rondel/Commands.fs" />
+    <Compile Include="Rondel/Events.fsi" />
+    <Compile Include="Rondel/Events.fs" />
+    <Compile Include="Rondel/State.fsi" />
+    <Compile Include="Rondel/State.fs" />
+    <Compile Include="Rondel/Dependencies.fsi" />
+    <Compile Include="Rondel/Dependencies.fs" />
+    <Compile Include="Rondel/Movement.fs" />
+    <Compile Include="Rondel/Invoices.fs" />
+    <Compile Include="Rondel/Handlers.fs" />
+    <Compile Include="Rondel/Queries.fsi" />
+    <Compile Include="Rondel/Queries.fs" />
+    <Compile Include="Rondel/Rondel.fsi" />
+    <Compile Include="Rondel/Rondel.fs" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="FsToolkit.ErrorHandling" Version="5.2.0" />

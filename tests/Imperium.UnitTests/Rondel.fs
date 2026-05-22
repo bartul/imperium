@@ -42,10 +42,11 @@ let private createContext gameId =
     let queryDeps: RondelQueryDependencies = { Load = load }
 
     let getNationPositionsForGame () =
-        getNationPositions queryDeps { GameId = gameId } |> Async.RunSynchronously
+        Rondel.getNationPositions queryDeps { GameId = gameId }
+        |> Async.RunSynchronously
 
     let getRondelOverviewForGame () =
-        getRondelOverview queryDeps { GameId = gameId } |> Async.RunSynchronously
+        Rondel.getRondelOverview queryDeps { GameId = gameId } |> Async.RunSynchronously
 
     { Deps = { Load = load; Commit = commit }
       Events = events
@@ -176,8 +177,8 @@ module private RondelStateFormatting =
 
 let private runner =
     { SpecRunner.empty with
-        Execute = fun ctx cmd -> execute ctx.Deps cmd |> Async.RunSynchronously
-        Handle = fun ctx evt -> handle ctx.Deps evt |> Async.RunSynchronously
+        Execute = fun ctx cmd -> Rondel.execute ctx.Deps cmd |> Async.RunSynchronously
+        Handle = fun ctx evt -> Rondel.handle ctx.Deps evt |> Async.RunSynchronously
         ClearEvents = fun ctx -> ctx.Events.Clear()
         ClearCommands = fun ctx -> ctx.Commands.Clear()
         SeedState = fun ctx state -> ctx.Store[ctx.GameId] <- state

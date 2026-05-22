@@ -22,7 +22,7 @@ let private createContext () =
 
 let private runner: SpecRunner<AccountingContext, NoState, NoState, AccountingCommand, unit> =
     { SpecRunner.empty with
-        Execute = fun ctx cmd -> execute ctx.Deps cmd |> Async.RunSynchronously
+        Execute = fun ctx cmd -> Accounting.execute ctx.Deps cmd |> Async.RunSynchronously
         ClearEvents = fun ctx -> ctx.Events.Clear() }
 
 // ────────────────────────────────────────────────────────────────────────────────
