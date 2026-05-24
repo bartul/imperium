@@ -33,14 +33,14 @@ module SpecRunner =
 // ────────────────────────────────────────────────────────────────────────────────
 
 /// Run all actions on context using provided runner
-let runActions (runner: SpecRunner<'ctx, 'seed, 'state, 'cmd, 'evt>) ctx actions =
+let private runActions (runner: SpecRunner<'ctx, 'seed, 'state, 'cmd, 'evt>) ctx actions =
     for action in actions do
         match action with
         | Execute cmd -> runner.Execute ctx cmd
         | Handle evt -> runner.Handle ctx evt
 
 /// Build context and run optional setup phases before when_.
-let prepareContext
+let private prepareContext
     (runner: SpecRunner<'ctx, 'seed, 'state, 'cmd, 'evt>)
     (specification: Specification<'ctx, 'seed, 'cmd, 'evt>)
     =
