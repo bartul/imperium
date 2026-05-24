@@ -1,11 +1,12 @@
 [<RequireQualifiedAccess>]
-module Imperium.UnitTests.SpecMarkdown
+module Imperium.Testing.Spec.SpecMarkdown
 
 open System
 open System.Collections
 open System.Text.RegularExpressions
 open Microsoft.FSharp.Reflection
-open Spec
+open Imperium.Testing.Spec.Specification
+open Imperium.Testing.Spec.Runner
 
 // ────────────────────────────────────────────────────────────────────────────────
 // Markdown Rendering

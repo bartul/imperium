@@ -2,7 +2,12 @@ module Imperium.UnitTests.Main
 
 open System
 open Expecto
-open Spec
+open Imperium.Testing.Spec
+open Imperium.Testing.Spec.Specification
+open Imperium.Testing.Spec.Runner
+
+module Accounting = Imperium.UnitTests.Accounting.Specs
+module Rondel = Imperium.UnitTests.Rondel.Specs
 
 let private renderSpecMarkdown (args: string array) =
     let filter = SpecFilter.fromArgs args
@@ -32,13 +37,18 @@ let main args =
         let allTests =
             testList
                 "Imperium"
-                [ SpecTests.tests
+                [ SpecificationTests.tests
+                  FilterTests.tests
+                  MarkdownTests.tests
+                  AccountingContractTests.tests
+                  RondelContractTests.tests
+                  Accounting.tests
                   Gameplay.tests
                   Rondel.tests
-                  RondelHostTests.tests
                   TerminalBusTests.tests
                   TerminalRondelStoreTests.tests
-                  AccountingHostTests.tests
-                  Accounting.tests ]
+                  RondelDirectCommitTests.tests
+                  RondelHostTests.tests
+                  AccountingHostTests.tests ]
 
         runTestsWithCLIArgs [] args allTests
