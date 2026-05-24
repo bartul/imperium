@@ -1,5 +1,5 @@
 # Repository Guidelines
-Last verified: 2026-05-05
+Last verified: 2026-05-24
 
 ## Agent Priorities
 
@@ -37,7 +37,15 @@ Last verified: 2026-05-05
 - **Namespace + facade convention.** Each bounded context lives in a `namespace Imperium.<BC>` that spans multiple files. Public domain types (commands, events, state, dependencies) sit directly at the namespace level. Routers and query handlers are exposed only through a same-named `[<RequireQualifiedAccess>] module <BC>` facade. Standard caller idiom: `open Imperium.Rondel` then `Rondel.execute deps cmd` / `Rondel.handle deps evt` / `Rondel.getNationPositions deps q`. Bare `execute` is intentionally not in scope.
 - **Type-companion modules live with their type.** A module that shares a type's name (e.g. `module MoveCommand` providing `MoveCommand.fromContract`, `module AccountingEvent` providing `AccountingEvent.toContract`) must be declared in the *same* `.fsi`/`.fs` pair as the type — typically `Types.fsi/.fs` or `State.fsi/.fs`. They cannot be hoisted into a sibling `Transformations.fsi/.fs`.
 - **Assembly-internal helpers in `.fsi`.** Once a file has a signature file, anything not in the `.fsi` becomes private to the implementation file. Cross-file helpers that should remain hidden from external consumers but visible to sibling files in the same assembly (e.g. `Space.toString`, `Space.fromString`, `Space.distance`, `RondelBillingId.create`, `RondelBillingId.newId`) are declared as `val internal name: ...` in the relevant `.fsi`.
-- `tests/Imperium.UnitTests` contains Expecto-based unit tests; bounded-context behavior specs live in `Rondel.fs` and `Accounting.fs`, transformation validation lives in `*ContractTests.fs`, and infrastructure plumbing tests live in `*HostTests.fs` plus terminal bus/store test modules.
+- `tests/Imperium.UnitTests` contains Expecto-based unit tests; the project mirrors `src/` and isolates a package-ready spec support layer:
+  - `Support/Spec/` — spec framework in namespace `Imperium.Testing.Spec` (`Specification.fs`, `Runner.fs`, `Filter.fs` (`[<RequireQualifiedAccess>] SpecFilter`), `CollectionAssert.fs`, `Markdown.fs` (`[<RequireQualifiedAccess>] SpecMarkdown`))
+  - `Support/Spec.Tests/` — spec framework unit tests (`SpecificationTests.fs`, `FilterTests.fs`, `MarkdownTests.fs`)
+  - `Imperium/Contract/` — transformation validation (`AccountingContractTests.fs`, `RondelContractTests.fs`)
+  - `Imperium/Accounting/` — BC behavior specs split into `Context.fs`, `Assertions.fs`, `Specs.fs` (module `Imperium.UnitTests.Accounting.Specs`)
+  - `Imperium/Gameplay/` — `GameplayTests.fs` (placeholder)
+  - `Imperium/Rondel/` — BC behavior specs split into `StateFormatting.fs`, `Context.fs`, `Assertions.fs`, `Specs.fs` (module `Imperium.UnitTests.Rondel.Specs`)
+  - `Imperium.Terminal/` — mirrors `src/Imperium.Terminal` (`BusTests.fs`, `Rondel/StoreTests.fs`, `Rondel/DirectCommitTests.fs`, `Rondel/HostTests.fs`, `Accounting/HostTests.fs`)
+  - `Main.fs` — entry point + native runner + markdown renderer; uses module abbreviations `Accounting = Imperium.UnitTests.Accounting.Specs` and `Rondel = Imperium.UnitTests.Rondel.Specs` so callers keep short BC names.
 - **Primitives module:** Foundational types with no `.fsi` file (intentionally public)
   - `Id` - Struct wrapping `Guid` with validation; provides `create`, `newId`, `value`, `toString`, `tryParse`, and mapper helpers
   - `Amount` - Measured struct wrapper (`int<M>`) with guarded construction; errors are plain strings; includes `tryParse`
@@ -255,7 +263,8 @@ Domain modules (`.fsi` and `.fs` pairs) follow a consistent sectioned structure.
 
 ## Testing Guidelines
 - Unit tests live in `tests/Imperium.UnitTests` using Expecto 10.2.3 with FsCheck integration for property-based testing.
-- Test modules are organized by concern: bounded-context behavior specs in `Imperium.UnitTests.Rondel` and `Imperium.UnitTests.Accounting`, transformation validation in `*ContractTests.fs`, and infrastructure plumbing in `*HostTests.fs` plus terminal bus/store tests.
+- Test modules are organized by concern, mirroring `src/`: bounded-context behavior specs in `Imperium.UnitTests.Rondel.Specs` and `Imperium.UnitTests.Accounting.Specs` (with sibling `Context`/`Assertions` modules under `Imperium/{BC}/`), transformation validation under `Imperium/Contract/`, and infrastructure plumbing under `Imperium.Terminal/` mirroring `src/Imperium.Terminal`.
+- Spec support lives in namespace `Imperium.Testing.Spec` (under `Support/Spec/`). Consumer files open `Imperium.Testing.Spec` (to bring `SpecFilter`/`SpecMarkdown`/`CollectionAssert` into scope by short name), plus `Imperium.Testing.Spec.Specification` and `Imperium.Testing.Spec.Runner` for the CE builders and runner helpers.
 - Use `[<Tests>]` attribute on test values for discovery by YoloDev.Expecto.TestSdk (enables VS Code Test Explorer integration).
 - Execute `dotnet test` (via TestSdk) or `dotnet run --project tests/Imperium.UnitTests/Imperium.UnitTests.fsproj` (native Expecto runner with colorized output).
 - Execute `dotnet run --no-build --project tests/Imperium.UnitTests/Imperium.UnitTests.fsproj -- --render-spec-markdown` to verify the spec-markdown rendering path and regenerate the specification document output when needed.
@@ -265,7 +274,7 @@ Domain modules (`.fsi` and `.fs` pairs) follow a consistent sectioned structure.
 
 ### CE-Based Testing (Simple.Testing style)
 
-The `Spec.fs` module provides a computation expression-based testing approach inspired by Gregory Young's Simple.Testing pattern. Use declarative `on`/`when_`/`expect` syntax for readable, isolated test specifications with assertion-native expectations.
+The spec framework under `Support/Spec/` (namespace `Imperium.Testing.Spec`) provides a computation expression-based testing approach inspired by Gregory Young's Simple.Testing pattern. Use declarative `on`/`when_`/`expect` syntax for readable, isolated test specifications with assertion-native expectations.
 
 **Core types:**
 - `Action<'cmd, 'evt>`: DU with `Execute`, `Handle` cases
@@ -312,42 +321,42 @@ let tests = testList "Accounting" (specs |> List.map (toExpecto runner))
 - **Collection assertion reuse**: Prefer `CollectionAssert.forAccessor` to bind `events`, `commands`, or similar collections once per spec module, then compose assertion helpers via `Has`, `HasAny`, `HasNone`, `Count`, and `HasSize` instead of repeating `Seq.exists`/`Seq.filter` helpers per domain.
 - **Markdown continuation**: Markdown rendering executes all expectations and renders all results (pass and fail) without aborting on the first failure.
 
-**Reference implementation:** See `Accounting.fs` and `Rondel.fs` for complete examples.
+**Reference implementation:** See `Imperium/Accounting/Specs.fs` and `Imperium/Rondel/Specs.fs` for complete examples.
 
 - **Testing approach:**
-  - **Transformation validation tests** (in `*ContractTests.fs`): Test `fromContract` transformations with Contract types to verify input validation returns appropriate errors; use domain types directly in test setup
-  - **Behavior specs** (in `Rondel.fs` and `Accounting.fs`): Use CE-based `spec` definitions with `on`, optional `state`, optional setup `actions`, `when_`, and multiple `expect` assertions using the full Expecto API
+  - **Transformation validation tests** (in `Imperium/Contract/*ContractTests.fs`): Test `fromContract` transformations with Contract types to verify input validation returns appropriate errors; use domain types directly in test setup
+  - **Behavior specs** (in `Imperium/{BC}/Specs.fs`): Use CE-based `spec` definitions with `on`, optional `state`, optional setup `actions`, `when_`, and multiple `expect` assertions using the full Expecto API; sibling `Context.fs` owns the runner + context factory, `Assertions.fs` owns reusable assertion helpers
   - **Runner pattern**: Use `{ SpecRunner.empty with ... }` to define runners that execute commands/events, optionally seed state, and capture state snapshots for reporting
   - **Assertion helper pattern**: For repeated collection checks, define accessors like `let private events = CollectionAssert.forAccessor (fun (ctx: MyContext) -> ctx.Events :> seq<_>)` and compose module-local assertion helpers from that accessor using `Has`, `HasAny`, `HasNone`, `Count`, `HasSize`. Module-local helper functions use the `assert*` prefix (e.g., `assertExactEvent`, `assertNationPosition`) so call sites read as assertions rather than predicates.
   - **Separation**: Keep transformation layer tests independent from behavior specs to reduce boilerplate and keep intent explicit
 - Current test coverage snapshot:
-  - **AccountingContractTests.fs** (6 transformation validation tests):
+  - **Imperium/Contract/AccountingContractTests.fs** (6 transformation validation tests):
     - ChargeNationForRondelMovementCommand.fromContract: requires valid GameId; requires valid BillingId; accepts valid command
     - VoidRondelChargeCommand.fromContract: requires valid GameId; requires valid BillingId; accepts valid command
-  - **Accounting.fs** (5 CE-based spec expectations across 2 specs):
+  - **Imperium/Accounting/Specs.fs** (5 CE-based spec expectations across 2 specs):
     - charging a nation for paid movement confirms payment
     - voiding a charge records no accounting outcome
-  - **RondelContractTests.fs** (5 transformation validation tests):
+  - **Imperium/Contract/RondelContractTests.fs** (5 transformation validation tests):
     - SetToStartingPositionsCommand.fromContract: rejects Guid.Empty; rejects empty nations array; accepts duplicate nations (Set deduplicates to 2 from 3)
     - MoveCommand.fromContract: rejects unknown rondel space; rejects Guid.Empty
-  - **Rondel.fs** (60 CE-based spec expectations across 25 specs):
+  - **Imperium/Rondel/Specs.fs** (60 CE-based spec expectations across 25 specs):
     - starting setup for nation roster (initial placement and idempotency)
     - move validation and pricing rules (initialization required, stay-put rejection, free vs paid thresholds, max-distance rejection)
     - superseding pending paid movements (voiding prior charge, rejecting stale target, completing free supersession)
     - payment inbound events (`onInvoicePaid`, `onInvoicePaymentFailed`) including idempotency and voided/superseded payment handling
     - query handlers (`getNationPositions`, `getRondelOverview`) for unknown and initialized game states
-  - **TerminalBusTests.fs** (6 Bus tests):
+  - **Imperium.Terminal/BusTests.fs** (6 Bus tests):
     - publish with no subscribers does nothing
     - subscriber receives published event
     - multiple subscribers receive same event
     - different event types are isolated
     - failing subscriber does not block later subscribers
     - subscriber added during publish only affects later publishes
-  - **TerminalRondelStoreTests.fs** (3 store tests):
+  - **Imperium.Terminal/Rondel/StoreTests.fs** (3 store tests):
     - load returns None for unknown game
     - save then load returns saved state
     - save overwrites existing state
-  - **RondelHostTests.fs** (7 plumbing tests with exponential backoff):
+  - **Imperium.Terminal/Rondel/HostTests.fs** (7 plumbing tests with exponential backoff):
     - wires command execution to domain
     - wires domain events to bus
     - wires outbound commands to dispatch thunk
@@ -355,17 +364,17 @@ let tests = testList "Accounting" (specs |> List.map (toExpecto runner))
     - wires queries to store
     - keeps processing commands after a handler failure
     - logs warning when inbound event targets unknown game
-  - **AccountingHostTests.fs** (3 plumbing tests):
+  - **Imperium.Terminal/Accounting/HostTests.fs** (3 plumbing tests):
     - wires command execution to domain
     - publishes events to bus
     - keeps processing commands after a handler failure
-  - **SpecTests.fs** (31 spec infrastructure, filter, and markdown tests):
+  - **Support/Spec.Tests/{SpecificationTests,FilterTests,MarkdownTests}.fs** (31 spec infrastructure, filter, and markdown tests):
     - context factory behavior (specOn default, explicit on override, last-on-wins, plain spec compatibility)
     - assertion expectations pass and fail correctly
     - runExpectation captures action failures, state snapshots, preserve behavior, and exception types
     - `SpecFilter` parsing and application for `--filter`, `--filter-test-list`, `--filter-test-case`, `--run`, `--join-with`, hierarchical `--run`, empty `--run`, and last-wins behavior
     - `SpecMarkdown.render` empty and non-empty rendering behavior
-  - **GameplayTests.fs** (placeholder module):
+  - **Imperium/Gameplay/GameplayTests.fs** (placeholder module):
     - currently no executable test cases
 
 ## Branch Naming Guidelines
