@@ -440,7 +440,7 @@ let private rondelSpecs =
 
 let renderSpecMarkdown
     (options: SpecMarkdown.MarkdownRenderOptions)
-    (filter: SpecFilter.T)
+    (filter: SpecFilter.Predicate)
     (rootPath: string list)
     : string option =
     rondelSpecs

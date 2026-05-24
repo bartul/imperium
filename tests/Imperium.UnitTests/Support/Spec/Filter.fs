@@ -7,7 +7,7 @@ open Imperium.Testing.Spec.Specification
 // Spec Filter
 // ────────────────────────────────────────────────────────────────────────────────
 
-type T = { MatchExpectation: string list -> bool }
+type Predicate = string list -> bool
 
 type private ParsedFlag =
     | Filter of hierarchy: string
@@ -15,7 +15,7 @@ type private ParsedFlag =
     | FilterTestCase of name: string
     | Run of paths: string list
 
-let none: T = { MatchExpectation = fun _ -> true }
+let none: Predicate = fun _ -> true
 
 let private getNonLeaf (path: string list) =
     match path with
@@ -77,18 +77,18 @@ let private toPredicate joinWith flag =
     | FilterTestCase name -> fun path -> (getLeaf path).Contains name
     | Run paths -> matchesRunPath joinWith paths
 
-let fromArgs (args: string array) : T =
+let fromArgs (args: string array) : Predicate =
     let joinWith = resolveJoinWith args
 
     let lastPredicate =
         args |> parse |> List.tryLast |> Option.map (toPredicate joinWith)
 
     match lastPredicate with
-    | Some predicate -> { MatchExpectation = predicate }
+    | Some predicate -> predicate
     | None -> none
 
 let apply
-    (filter: T)
+    (filter: Predicate)
     (pathPrefix: string list)
     (specs: Specification<'ctx, 'seed, 'cmd, 'evt> list)
     : Specification<'ctx, 'seed, 'cmd, 'evt> list =
@@ -98,7 +98,7 @@ let apply
 
         let matching =
             spec.Expectations
-            |> List.filter (fun exp -> filter.MatchExpectation(specPath @ [ exp.Description ]))
+            |> List.filter (fun exp -> filter (specPath @ [ exp.Description ]))
 
         if List.isEmpty matching then
             None

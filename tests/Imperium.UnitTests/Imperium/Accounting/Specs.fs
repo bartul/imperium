@@ -38,7 +38,7 @@ let private accountingSpecs =
 
 let renderSpecMarkdown
     (options: SpecMarkdown.MarkdownRenderOptions)
-    (filter: SpecFilter.T)
+    (filter: SpecFilter.Predicate)
     (rootPath: string list)
     : string option =
     accountingSpecs
