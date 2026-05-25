@@ -6,19 +6,38 @@
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="Spec.fs" />
-    <Compile Include="SpecMarkdown.fs" />
-    <Compile Include="SpecTests.fs" />
-    <Compile Include="AccountingContractTests.fs" />
-    <Compile Include="Accounting.fs" />
-    <Compile Include="GameplayTests.fs" />
-    <Compile Include="RondelContractTests.fs" />
-    <Compile Include="Rondel.fs" />
-    <Compile Include="RondelHostTests.fs" />
-    <Compile Include="RondelDirectCommitTests.fs" />
-    <Compile Include="TerminalBusTests.fs" />
-    <Compile Include="TerminalRondelStoreTests.fs" />
-    <Compile Include="AccountingHostTests.fs" />
+    <Compile Include="Support/Spec/Specification.fs" />
+    <Compile Include="Support/Spec/SpecRunner.fs" />
+    <Compile Include="Support/Spec/Filter.fs" />
+    <Compile Include="Support/Spec/CollectionAssert.fs" />
+    <Compile Include="Support/Spec/Markdown.fs" />
+
+    <Compile Include="Support/Spec.Tests/SpecificationTests.fs" />
+    <Compile Include="Support/Spec.Tests/SpecRunnerTests.fs" />
+    <Compile Include="Support/Spec.Tests/CollectionAssertTests.fs" />
+    <Compile Include="Support/Spec.Tests/FilterTests.fs" />
+    <Compile Include="Support/Spec.Tests/MarkdownTests.fs" />
+
+    <Compile Include="Imperium/Contract/AccountingContractTests.fs" />
+    <Compile Include="Imperium/Contract/RondelContractTests.fs" />
+
+    <Compile Include="Imperium/Accounting/Context.fs" />
+    <Compile Include="Imperium/Accounting/Assertions.fs" />
+    <Compile Include="Imperium/Accounting/Specs.fs" />
+
+    <Compile Include="Imperium/Gameplay/GameplayTests.fs" />
+
+    <Compile Include="Imperium/Rondel/Board.fs" />
+    <Compile Include="Imperium/Rondel/Context.fs" />
+    <Compile Include="Imperium/Rondel/Assertions.fs" />
+    <Compile Include="Imperium/Rondel/Specs.fs" />
+
+    <Compile Include="Imperium.Terminal/BusTests.fs" />
+    <Compile Include="Imperium.Terminal/Rondel/StoreTests.fs" />
+    <Compile Include="Imperium.Terminal/Rondel/DirectCommitTests.fs" />
+    <Compile Include="Imperium.Terminal/Rondel/HostTests.fs" />
+    <Compile Include="Imperium.Terminal/Accounting/HostTests.fs" />
+
     <Compile Include="Main.fs" />
   </ItemGroup>
   <ItemGroup>

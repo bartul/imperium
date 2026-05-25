@@ -1,11 +1,11 @@
 [<RequireQualifiedAccess>]
-module Imperium.UnitTests.SpecMarkdown
+module Imperium.Testing.Spec.Markdown
 
 open System
 open System.Collections
 open System.Text.RegularExpressions
 open Microsoft.FSharp.Reflection
-open Spec
+open Imperium.Testing.Spec
 
 // ────────────────────────────────────────────────────────────────────────────────
 // Markdown Rendering
@@ -19,7 +19,7 @@ type HeaderWeight =
     | H5
     | H6
 
-type MarkdownRenderOptions = { ParentHeader: HeaderWeight }
+type RenderOptions = { ParentHeader: HeaderWeight }
 
 let private toLevel =
     function
@@ -133,11 +133,11 @@ let private renderActionSection weight title rows =
     @ if List.isEmpty rows then [] else renderTableRows rows
 
 let private toMarkdown
-    (options: MarkdownRenderOptions)
+    (options: RenderOptions)
     (runner: SpecRunner<'ctx, 'seed, 'state, 'cmd, 'evt>)
     (spec: Specification<'ctx, 'seed, 'cmd, 'evt>)
     =
-    let results = spec.Expectations |> List.map (runExpectation runner spec)
+    let results = spec.Expectations |> List.map (SpecRunner.runExpectation runner spec)
 
     let initialStateText =
         results
@@ -176,13 +176,13 @@ let private toMarkdown
          @ renderSection sectionHeaderWeight "Then" finalStateText thenRows
          @ [ "" ])
 
-let toMarkdownDocument options runner specifications =
+let private toMarkdownDocument options runner specifications =
     specifications
     |> List.map (toMarkdown options runner)
     |> String.concat Environment.NewLine
 
 let render
-    (options: MarkdownRenderOptions)
+    (options: RenderOptions)
     (sectionName: string)
     (runner: SpecRunner<'ctx, 'seed, 'state, 'cmd, 'evt>)
     (specs: Specification<'ctx, 'seed, 'cmd, 'evt> list)

@@ -1,181 +1,17 @@
-module Imperium.UnitTests.Rondel
+module Imperium.UnitTests.Rondel.Specs
 
-open System.Collections.Generic
 open Expecto
-open Spec
 open Imperium.Rondel
 open Imperium.Primitives
-
-// ────────────────────────────────────────────────────────────────────────────────
-// Context
-// ────────────────────────────────────────────────────────────────────────────────
-
-type RondelContext =
-    { Deps: RondelDependencies
-      Events: ResizeArray<RondelEvent>
-      Commands: ResizeArray<RondelOutboundCommand>
-      Store: Dictionary<Id, RondelState>
-      GameId: Id
-      GetNationPositions: unit -> RondelPositionsView option
-      GetRondelOverview: unit -> RondelView option }
-
-let private createContext gameId =
-    let store = Dictionary<Id, RondelState>()
-    let events = ResizeArray<RondelEvent>()
-    let commands = ResizeArray<RondelOutboundCommand>()
-
-    let load id =
-        async {
-            return
-                match store.TryGetValue(id) with
-                | true, state -> Some state
-                | false, _ -> None
-        }
-
-    let commit (effects: RondelEffects) =
-        async {
-            effects.State |> Option.iter (fun s -> store[s.GameId] <- s)
-            effects.IntegrationEvents |> List.iter events.Add
-            effects.OutboundCommands |> List.iter commands.Add
-        }
-
-    let queryDeps: RondelQueryDependencies = { Load = load }
-
-    let getNationPositionsForGame () =
-        Rondel.getNationPositions queryDeps { GameId = gameId }
-        |> Async.RunSynchronously
-
-    let getRondelOverviewForGame () =
-        Rondel.getRondelOverview queryDeps { GameId = gameId } |> Async.RunSynchronously
-
-    { Deps = { Load = load; Commit = commit }
-      Events = events
-      Commands = commands
-      Store = store
-      GameId = gameId
-      GetNationPositions = getNationPositionsForGame
-      GetRondelOverview = getRondelOverviewForGame }
+open Imperium.Testing.Spec
+open Imperium.Testing.Spec.Specification
+open Imperium.UnitTests.Rondel.Assertions
 
 // ────────────────────────────────────────────────────────────────────────────────
 // Runner
 // ────────────────────────────────────────────────────────────────────────────────
 
-module private RondelStateFormatting =
-    type BoardCell =
-        | SpaceCell of Space
-        | StartCell
-
-    type CellToken = { Nation: string; Text: string }
-
-    let private abbreviateNation =
-        function
-        | "Austria" -> "AH"
-        | "Austria-Hungary" -> "AH"
-        | "France" -> "FR"
-        | "Britain" -> "GB"
-        | "Germany" -> "GE"
-        | "Great Britain" -> "GB"
-        | "Italy" -> "IT"
-        | "Russia" -> "RU"
-        | name when name.Length >= 2 -> name[..1].ToUpperInvariant()
-        | name -> name.ToUpperInvariant()
-
-    let private boardCellName =
-        function
-        | SpaceCell Space.Investor -> "Investor"
-        | SpaceCell Space.Import -> "Import"
-        | SpaceCell Space.ProductionOne
-        | SpaceCell Space.ProductionTwo -> "Production"
-        | SpaceCell Space.ManeuverOne
-        | SpaceCell Space.ManeuverTwo -> "Maneuver"
-        | SpaceCell Space.Taxation -> "Taxation"
-        | SpaceCell Space.Factory -> "Factory"
-        | StartCell -> "↻"
-
-    let private boardCellForPosition =
-        function
-        | Some space -> SpaceCell space
-        | None -> StartCell
-
-    let private boardRows =
-        [ [ SpaceCell Space.ManeuverTwo
-            SpaceCell Space.Investor
-            SpaceCell Space.Import ]
-          [ SpaceCell Space.ProductionTwo; StartCell; SpaceCell Space.ProductionOne ]
-          [ SpaceCell Space.Factory
-            SpaceCell Space.Taxation
-            SpaceCell Space.ManeuverOne ] ]
-
-    let private addToken cell token tokensByCell =
-        let existing = tokensByCell |> Map.tryFind cell |> Option.defaultValue []
-        tokensByCell |> Map.add cell (token :: existing)
-
-    let private cellContent tokensByCell cell =
-        tokensByCell
-        |> Map.tryFind cell
-        |> Option.defaultValue []
-        |> List.sortBy (fun token -> token.Nation)
-        |> List.map (fun token -> token.Text)
-        |> String.concat " "
-
-    let private center width (text: string) =
-        let padding = max 0 (width - text.Length)
-        let left = padding / 2
-        let right = padding - left
-        String.replicate left " " + text + String.replicate right " "
-
-    let private renderBoardRow width cells tokensByCell =
-        let renderLine renderCell =
-            cells |> List.map renderCell |> String.concat "|" |> (fun line -> $"|{line}|")
-
-        let titleLine = renderLine (fun cell -> $" {center width (boardCellName cell)} ")
-
-        let contentLine =
-            renderLine (fun cell -> $" {center width (cellContent tokensByCell cell)} ")
-
-        [ titleLine; contentLine ]
-
-    let format (state: RondelState option) : string =
-        match state with
-        | None -> "No rondel state"
-        | Some state ->
-            let tokensByCell =
-                state.NationPositions
-                |> Map.toList
-                |> List.fold
-                    (fun currentTokens (nation, currentSpace) ->
-                        let abbreviation = abbreviateNation nation
-                        let originCell = boardCellForPosition currentSpace
-
-                        match state.PendingMovements |> Map.tryFind nation with
-                        | Some pending ->
-                            currentTokens
-                            |> addToken originCell { Nation = nation; Text = $"{abbreviation}->" }
-                            |> addToken (SpaceCell pending.TargetSpace) { Nation = nation; Text = $"->{abbreviation}" }
-                        | None -> currentTokens |> addToken originCell { Nation = nation; Text = abbreviation })
-                    Map.empty
-
-            let cellWidth =
-                boardRows
-                |> List.collect id
-                |> List.collect (fun cell -> [ boardCellName cell; cellContent tokensByCell cell ])
-                |> List.map String.length
-                |> List.max
-                |> max 12
-
-            let border =
-                [ 1..3 ]
-                |> List.map (fun _ -> String.replicate (cellWidth + 2) "-")
-                |> String.concat "+"
-                |> fun line -> $"+{line}+"
-
-            let boardLines =
-                boardRows
-                |> List.collect (fun row -> border :: renderBoardRow cellWidth row tokensByCell)
-
-            String.concat "\n" (boardLines @ [ border ])
-
-let private runner =
+let private runner: SpecRunner<Context, RondelState, RondelState option, RondelCommand, RondelInboundEvent> =
     { SpecRunner.empty with
         Execute = fun ctx cmd -> Rondel.execute ctx.Deps cmd |> Async.RunSynchronously
         Handle = fun ctx evt -> Rondel.handle ctx.Deps evt |> Async.RunSynchronously
@@ -187,124 +23,16 @@ let private runner =
                 match ctx.Store.TryGetValue(ctx.GameId) with
                 | true, state -> Some state
                 | false, _ -> None)
-        FormatState = Some RondelStateFormatting.format }
+        FormatState = Some Board.render }
 
 // ────────────────────────────────────────────────────────────────────────────────
-// Helpers
+// Specs
 // ────────────────────────────────────────────────────────────────────────────────
 
-let private events =
-    CollectionAssert.forAccessor (fun (ctx: RondelContext) -> ctx.Events :> seq<_>)
-
-let private commands =
-    CollectionAssert.forAccessor (fun (ctx: RondelContext) -> ctx.Commands :> seq<_>)
-
-let private assertExactEvent event_ message = events.Has event_ message
-
-let private assertStartingPositionsSet gameId =
-    assertExactEvent (PositionedAtStart { GameId = gameId }) "starting positions should be set"
-
-let private assertNoStartingPositionsSet gameId =
-    events.HasNone (fun e -> e = PositionedAtStart { GameId = gameId }) "starting positions should not be set"
-
-let private assertActionDetermined =
-    events.HasAny
-        (function
-        | ActionDetermined _ -> true
-        | _ -> false)
-        "action should be determined"
-
-let private assertNoActionDetermined =
-    events.HasNone
-        (function
-        | ActionDetermined _ -> true
-        | _ -> false)
-        "no action should be determined"
-
-let private assertChargeCommand =
-    commands.HasAny
-        (function
-        | ChargeMovement _ -> true
-        | _ -> false)
-        "charge command should be dispatched"
-
-let private assertNoChargeCommand =
-    commands.HasNone
-        (function
-        | ChargeMovement _ -> true
-        | _ -> false)
-        "no charge command should be dispatched"
-
-let private assertChargeCommandOfM millions =
-    let amount = Amount.unsafe millions
-
-    commands.HasAny
-        (function
-        | ChargeMovement cmd when cmd.Amount = amount -> true
-        | _ -> false)
-        $"charge command of %d{millions}M should be dispatched"
-
-let private assertExactCommand command message = commands.Has command message
-
-let private assertExactEventCount event_ expectedCount message =
-    events.Count event_ expectedCount message
-
-let private getNationPositionsResult ctx = ctx.GetNationPositions()
-
-let private newBillingId () = Id.newId () |> RondelBillingId.ofId
-
-let private assertNoNationPositions ctx =
-    Expect.isNone (getNationPositionsResult ctx) "no positions should be returned"
-
-let private assertNationPositions ctx =
-    Expect.isSome (getNationPositionsResult ctx) "positions should be returned"
-
-let private assertNationPositionsForGameId gameId ctx =
-    let result = getNationPositionsResult ctx
-    Expect.isSome result "positions should be returned"
-    Expect.equal result.Value.GameId gameId "positions should belong to expected game"
-
-let private assertNationPositionsCount expectedCount ctx =
-    let result = getNationPositionsResult ctx
-    Expect.isSome result "positions should be returned"
-    Expect.equal (List.length result.Value.Positions) expectedCount "nation position count should match"
-
-let private assertNationPosition nation currentSpace pendingSpace ctx =
-    let result = getNationPositionsResult ctx
-    Expect.isSome result "positions should be returned"
-
-    let position = result.Value.Positions |> List.tryFind (fun p -> p.Nation = nation)
-
-    Expect.isSome position $"position for %s{nation} should exist"
-    Expect.equal position.Value.CurrentSpace currentSpace $"%s{nation} current space should match"
-    Expect.equal position.Value.PendingSpace pendingSpace $"%s{nation} pending space should match"
-
-let private getRondelOverviewResult ctx = ctx.GetRondelOverview()
-
-let private assertNoRondelOverview ctx =
-    Expect.isNone (getRondelOverviewResult ctx) "no overview should be returned"
-
-let private assertRondelOverview ctx =
-    Expect.isSome (getRondelOverviewResult ctx) "overview should be returned"
-
-let private assertRondelOverviewForGameId gameId ctx =
-    let result = getRondelOverviewResult ctx
-    Expect.isSome result "overview should be returned"
-    Expect.equal result.Value.GameId gameId "overview should belong to expected game"
-
-let private assertRondelOverviewNationNames expectedNames ctx =
-    let result = getRondelOverviewResult ctx
-    Expect.isSome result "overview should be returned"
-    Expect.equal (result.Value.NationNames |> List.sort) (expectedNames |> List.sort) "nation names should match"
-
-// ────────────────────────────────────────────────────────────────────────────────
-// Specs: move
-// ────────────────────────────────────────────────────────────────────────────────
-
-let private rondelSpecs =
+let private specifications =
     let gameId = Id.newId ()
     let nations = Set.ofList [ "France"; "Austria" ]
-    let spec = specOn (fun () -> createContext gameId)
+    let spec = specOn (fun () -> Context.create gameId)
 
     [ spec "starting setup places nations at their opening positions" {
           when_command (SetToStartingPositions { GameId = gameId; Nations = nations })
@@ -726,18 +454,19 @@ let private rondelSpecs =
               (assertRondelOverviewNationNames [ "Austria"; "France"; "Germany" ])
       } ]
 
-let renderSpecMarkdown
-    (options: SpecMarkdown.MarkdownRenderOptions)
-    (filter: SpecFilter.T)
+let renderMarkdown
+    (options: Markdown.RenderOptions)
+    (filter: SpecFilter.Predicate)
     (rootPath: string list)
     : string option =
-    rondelSpecs
+    specifications
     |> SpecFilter.apply filter (rootPath @ [ "Rondel" ])
-    |> SpecMarkdown.render options "Rondel" runner
+    |> Markdown.render options "Rondel" runner
 
 // ────────────────────────────────────────────────────────────────────────────────
 // Test Registration
 // ────────────────────────────────────────────────────────────────────────────────
 
 [<Tests>]
-let tests = testList "Rondel" (rondelSpecs |> List.map (toExpecto runner))
+let tests =
+    testList "Rondel" (specifications |> List.map (SpecRunner.toExpectoTestList runner))

@@ -2,18 +2,21 @@ module Imperium.UnitTests.Main
 
 open System
 open Expecto
-open Spec
+open Imperium.Testing.Spec
 
-let private renderSpecMarkdown (args: string array) =
+module Accounting = Imperium.UnitTests.Accounting.Specs
+module Rondel = Imperium.UnitTests.Rondel.Specs
+
+let private renderMarkdown (args: string array) =
     let filter = SpecFilter.fromArgs args
 
-    let opts: SpecMarkdown.MarkdownRenderOptions = { ParentHeader = SpecMarkdown.H2 }
+    let opts: Markdown.RenderOptions = { ParentHeader = Markdown.H2 }
 
     let rootPath = [ "Imperium" ]
 
     let sections =
-        [ Accounting.renderSpecMarkdown opts filter rootPath
-          Rondel.renderSpecMarkdown opts filter rootPath ]
+        [ Accounting.renderMarkdown opts filter rootPath
+          Rondel.renderMarkdown opts filter rootPath ]
         |> List.choose id
 
     let title = $"## 📘{rootPath.[0]} Specification Based Tests"
@@ -26,19 +29,26 @@ let private renderSpecMarkdown (args: string array) =
 [<EntryPoint>]
 let main args =
     if args |> Array.contains "--render-spec-markdown" then
-        renderSpecMarkdown args |> printfn "%s"
+        renderMarkdown args |> printfn "%s"
         0
     else
         let allTests =
             testList
                 "Imperium"
-                [ SpecTests.tests
+                [ SpecificationTests.tests
+                  SpecRunnerTests.tests
+                  CollectionAssertTests.tests
+                  FilterTests.tests
+                  MarkdownTests.tests
+                  AccountingContractTests.tests
+                  RondelContractTests.tests
+                  Accounting.tests
                   Gameplay.tests
                   Rondel.tests
-                  RondelHostTests.tests
                   TerminalBusTests.tests
                   TerminalRondelStoreTests.tests
-                  AccountingHostTests.tests
-                  Accounting.tests ]
+                  RondelDirectCommitTests.tests
+                  RondelHostTests.tests
+                  AccountingHostTests.tests ]
 
         runTestsWithCLIArgs [] args allTests

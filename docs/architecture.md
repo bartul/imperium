@@ -106,10 +106,10 @@ Each `expect` is materialized as its own test case and reruns the full flow abov
 
 ### Renderers
 
-Both `toExpecto` and markdown rendering share the `runExpectation` execution path:
+Both `SpecRunner.toExpectoTestList` and markdown rendering share the `SpecRunner.runExpectation` execution path:
 
-- **`toExpecto`** — creates Expecto `testCase` values that call `runExpectation` inside each test thunk. Failed outcomes are rethrown via `ExceptionDispatchInfo.Capture(ex).Throw()` to preserve stack traces and exception types.
-- **`toMarkdown`** — calls `runExpectation` for every expectation and renders all results. Failures do not abort rendering; each expectation result is shown with pass/fail status and failure messages.
+- **`SpecRunner.toExpectoTestList`** — creates Expecto `testCase` values that call `runExpectation` inside each test thunk. Failed outcomes are rethrown via `ExceptionDispatchInfo.Capture(ex).Throw()` to preserve stack traces and exception types.
+- **`Markdown.render`** — calls `runExpectation` for every expectation and renders all results. Failures do not abort rendering; each expectation result is shown with pass/fail status and failure messages.
 
 ### Filtering
 
@@ -126,7 +126,7 @@ The filter operates on the hierarchical path `[ "Imperium"; bcName; specName; ex
 
 In the markdown renderer, BC sections containing no surviving specs are omitted entirely. When every section is empty, the output reduces to the title plus `_no specs match the filter_`.
 
-The implementation lives in `SpecFilter` (parser + apply transform) and `SpecMarkdown.render` (renders a section or omits it). `Main.fs` orchestrates: parses args via `SpecFilter.fromArgs`, calls each BC's `renderSpecMarkdown` to filter+render its section, drops `None` sections, and assembles the document.
+The implementation lives in `SpecFilter` (parser + apply transform) and `Markdown.render` (renders a section or omits it). `Main.fs` orchestrates: parses args via `SpecFilter.fromArgs`, calls each BC's `renderMarkdown` to filter+render its section, drops `None` sections, and assembles the document.
 
 ## Terminal App Architecture
 
