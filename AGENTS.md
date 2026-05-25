@@ -1,5 +1,5 @@
 # Repository Guidelines
-Last verified: 2026-05-24
+Last verified: 2026-05-25
 
 ## Agent Priorities
 
@@ -38,12 +38,12 @@ Last verified: 2026-05-24
 - **Type-companion modules live with their type.** A module that shares a type's name (e.g. `module MoveCommand` providing `MoveCommand.fromContract`, `module AccountingEvent` providing `AccountingEvent.toContract`) must be declared in the *same* `.fsi`/`.fs` pair as the type — typically `Types.fsi/.fs` or `State.fsi/.fs`. They cannot be hoisted into a sibling `Transformations.fsi/.fs`.
 - **Assembly-internal helpers in `.fsi`.** Once a file has a signature file, anything not in the `.fsi` becomes private to the implementation file. Cross-file helpers that should remain hidden from external consumers but visible to sibling files in the same assembly (e.g. `Space.toString`, `Space.fromString`, `Space.distance`, `RondelBillingId.create`, `RondelBillingId.newId`) are declared as `val internal name: ...` in the relevant `.fsi`.
 - `tests/Imperium.UnitTests` contains Expecto-based unit tests; the project mirrors `src/` and isolates a package-ready spec support layer:
-  - `Support/Spec/` — spec framework in namespace `Imperium.Testing.Spec` (`Specification.fs`, `Runner.fs`, `Filter.fs` (`[<RequireQualifiedAccess>] SpecFilter`), `CollectionAssert.fs`, `Markdown.fs` (`[<RequireQualifiedAccess>] SpecMarkdown`))
-  - `Support/Spec.Tests/` — spec framework unit tests (`SpecificationTests.fs`, `FilterTests.fs`, `MarkdownTests.fs`)
+  - `Support/Spec/` — spec framework in namespace `Imperium.Testing.Spec` (`Specification.fs` declares type `Specification<...>` + companion `module Specification` with `spec`/`specOn` CE factories; `SpecRunner.fs` declares type `SpecRunner<...>` + companion `module SpecRunner` with `empty`, `runExpectation`, `toExpectoTestList`; `Filter.fs` (`[<RequireQualifiedAccess>] SpecFilter`); `CollectionAssert.fs`; `Markdown.fs` (`[<RequireQualifiedAccess>] Markdown`))
+  - `Support/Spec.Tests/` — spec framework unit tests (`SpecificationTests.fs`, `SpecRunnerTests.fs`, `CollectionAssertTests.fs`, `FilterTests.fs`, `MarkdownTests.fs`)
   - `Imperium/Contract/` — transformation validation (`AccountingContractTests.fs`, `RondelContractTests.fs`)
-  - `Imperium/Accounting/` — BC behavior specs split into `Context.fs`, `Assertions.fs`, `Specs.fs` (module `Imperium.UnitTests.Accounting.Specs`)
+  - `Imperium/Accounting/` — BC behavior specs in `namespace Imperium.UnitTests.Accounting`: `Context.fs` (type `Context` + companion `module Context.create`), `Assertions.fs`, `Specs.fs` (module `Imperium.UnitTests.Accounting.Specs`, hosts the private `runner` and `specifications`)
   - `Imperium/Gameplay/` — `GameplayTests.fs` (placeholder)
-  - `Imperium/Rondel/` — BC behavior specs split into `StateFormatting.fs`, `Context.fs`, `Assertions.fs`, `Specs.fs` (module `Imperium.UnitTests.Rondel.Specs`)
+  - `Imperium/Rondel/` — BC behavior specs in `namespace Imperium.UnitTests.Rondel`: `StateFormatting.fs`, `Context.fs` (type `Context` + companion `module Context.create`), `Assertions.fs`, `Specs.fs` (module `Imperium.UnitTests.Rondel.Specs`, hosts the private `runner` and `specifications`)
   - `Imperium.Terminal/` — mirrors `src/Imperium.Terminal` (`BusTests.fs`, `Rondel/StoreTests.fs`, `Rondel/DirectCommitTests.fs`, `Rondel/HostTests.fs`, `Accounting/HostTests.fs`)
   - `Main.fs` — entry point + native runner + markdown renderer; uses module abbreviations `Accounting = Imperium.UnitTests.Accounting.Specs` and `Rondel = Imperium.UnitTests.Rondel.Specs` so callers keep short BC names.
 - **Primitives module:** Foundational types with no `.fsi` file (intentionally public)
@@ -264,7 +264,7 @@ Domain modules (`.fsi` and `.fs` pairs) follow a consistent sectioned structure.
 ## Testing Guidelines
 - Unit tests live in `tests/Imperium.UnitTests` using Expecto 10.2.3 with FsCheck integration for property-based testing.
 - Test modules are organized by concern, mirroring `src/`: bounded-context behavior specs in `Imperium.UnitTests.Rondel.Specs` and `Imperium.UnitTests.Accounting.Specs` (with sibling `Context`/`Assertions` modules under `Imperium/{BC}/`), transformation validation under `Imperium/Contract/`, and infrastructure plumbing under `Imperium.Terminal/` mirroring `src/Imperium.Terminal`.
-- Spec support lives in namespace `Imperium.Testing.Spec` (under `Support/Spec/`). Consumer files open `Imperium.Testing.Spec` (to bring `SpecFilter`/`SpecMarkdown`/`CollectionAssert` into scope by short name), plus `Imperium.Testing.Spec.Specification` and `Imperium.Testing.Spec.Runner` for the CE builders and runner helpers.
+- Spec support lives in namespace `Imperium.Testing.Spec` (under `Support/Spec/`). Consumer files open `Imperium.Testing.Spec` to bring the `Specification`/`SpecRunner` types, the `SpecRunner` companion module, the `SpecFilter`/`Markdown`/`CollectionAssert` modules, and the framework's other types (`NoState`, `Action`, `Expectation`, `ExpectationOutcome`, `ExpectationRunResult`) into scope. Add `open Imperium.Testing.Spec.Specification` for unqualified access to the `spec`/`specOn` CE factories.
 - Use `[<Tests>]` attribute on test values for discovery by YoloDev.Expecto.TestSdk (enables VS Code Test Explorer integration).
 - Execute `dotnet test` (via TestSdk) or `dotnet run --project tests/Imperium.UnitTests/Imperium.UnitTests.fsproj` (native Expecto runner with colorized output).
 - Execute `dotnet run --no-build --project tests/Imperium.UnitTests/Imperium.UnitTests.fsproj -- --render-spec-markdown` to verify the spec-markdown rendering path and regenerate the specification document output when needed.
@@ -288,8 +288,8 @@ The spec framework under `Support/Spec/` (namespace `Imperium.Testing.Spec`) pro
 
 **Usage pattern:**
 ```fsharp
-let private specs =
-    let spec = specOn createContext
+let private specifications =
+    let spec = specOn Context.create
 
     [ spec "chargeNationForRondelMovement auto-approves" {
           when_command (ChargeNationForRondelMovement cmd)
@@ -309,13 +309,13 @@ let private specs =
       } ]
 
 [<Tests>]
-let tests = testList "Accounting" (specs |> List.map (toExpecto runner))
+let tests = testList "Accounting" (specifications |> List.map (SpecRunner.toExpectoTestList runner))
 ```
 
 **Key design decisions:**
 - **Assertion-native expectations**: Expectations are `'ctx -> unit` functions that call Expecto assertions directly (`Expect.equal`, `Expect.isTrue`, `Expect.contains`, etc.). Failures are thrown exceptions with rich diagnostic messages.
-- **Shared execution via `runExpectation`**: Both `toExpecto` and markdown rendering use the same execution primitive that captures outcomes as `ExpectationRunResult` records.
-- **Each expectation is its own testCase**: `toExpecto` creates a `testList` where each expectation runs the full `on`/`when_` sequence independently for isolation. Failed outcomes are rethrown via `ExceptionDispatchInfo.Capture(ex).Throw()` preserving stack traces.
+- **Shared execution via `SpecRunner.runExpectation`**: Both `SpecRunner.toExpectoTestList` and markdown rendering use the same execution primitive that captures outcomes as `ExpectationRunResult` records.
+- **Each expectation is its own testCase**: `SpecRunner.toExpectoTestList` creates a `testList` where each expectation runs the full `on`/`when_` sequence independently for isolation. Failed outcomes are rethrown via `ExceptionDispatchInfo.Capture(ex).Throw()` preserving stack traces.
 - **Actions as data**: `when_` collects actions declaratively; runner controls execution (enables logging, timing, etc.).
 - **State capture for reporting**: Runner's `CaptureState` provides initial/final state snapshots in `ExpectationRunResult`, used for markdown state rendering.
 - **Collection assertion reuse**: Prefer `CollectionAssert.forAccessor` to bind `events`, `commands`, or similar collections once per spec module, then compose assertion helpers via `Has`, `HasAny`, `HasNone`, `Count`, and `HasSize` instead of repeating `Seq.exists`/`Seq.filter` helpers per domain.
@@ -325,7 +325,7 @@ let tests = testList "Accounting" (specs |> List.map (toExpecto runner))
 
 - **Testing approach:**
   - **Transformation validation tests** (in `Imperium/Contract/*ContractTests.fs`): Test `fromContract` transformations with Contract types to verify input validation returns appropriate errors; use domain types directly in test setup
-  - **Behavior specs** (in `Imperium/{BC}/Specs.fs`): Use CE-based `spec` definitions with `on`, optional `state`, optional setup `actions`, `when_`, and multiple `expect` assertions using the full Expecto API; sibling `Context.fs` owns the runner + context factory, `Assertions.fs` owns reusable assertion helpers
+  - **Behavior specs** (in `Imperium/{BC}/Specs.fs`): Use CE-based `spec` definitions with `on`, optional `state`, optional setup `actions`, `when_`, and multiple `expect` assertions using the full Expecto API; sibling `Context.fs` owns the `Context` type and `Context.create` factory; the test runner is defined as a private value at the top of `Specs.fs`; `Assertions.fs` owns reusable assertion helpers
   - **Runner pattern**: Use `{ SpecRunner.empty with ... }` to define runners that execute commands/events, optionally seed state, and capture state snapshots for reporting
   - **Assertion helper pattern**: For repeated collection checks, define accessors like `let private events = CollectionAssert.forAccessor (fun (ctx: MyContext) -> ctx.Events :> seq<_>)` and compose module-local assertion helpers from that accessor using `Has`, `HasAny`, `HasNone`, `Count`, `HasSize`. Module-local helper functions use the `assert*` prefix (e.g., `assertExactEvent`, `assertNationPosition`) so call sites read as assertions rather than predicates.
   - **Separation**: Keep transformation layer tests independent from behavior specs to reduce boilerplate and keep intent explicit
@@ -368,12 +368,12 @@ let tests = testList "Accounting" (specs |> List.map (toExpecto runner))
     - wires command execution to domain
     - publishes events to bus
     - keeps processing commands after a handler failure
-  - **Support/Spec.Tests/{SpecificationTests,FilterTests,MarkdownTests}.fs** (31 spec infrastructure, filter, and markdown tests):
-    - context factory behavior (specOn default, explicit on override, last-on-wins, plain spec compatibility)
-    - assertion expectations pass and fail correctly
-    - runExpectation captures action failures, state snapshots, preserve behavior, and exception types
-    - `SpecFilter` parsing and application for `--filter`, `--filter-test-list`, `--filter-test-case`, `--run`, `--join-with`, hierarchical `--run`, empty `--run`, and last-wins behavior
-    - `SpecMarkdown.render` empty and non-empty rendering behavior
+  - **Support/Spec.Tests/{SpecificationTests,SpecRunnerTests,CollectionAssertTests,FilterTests,MarkdownTests}.fs** — spec framework tests split per module:
+    - `SpecificationTests` — `spec`/`specOn` CE factory behavior (default, explicit `on` override, last-`on`-wins, plain-`spec` compatibility) and `expect` accepting Expecto assertions
+    - `SpecRunnerTests` — `runExpectation` capturing assertion failures, action failures, state snapshots, preserve behavior, and exception types
+    - `CollectionAssertTests` — `HasAny` and `HasNone` failure message contents
+    - `FilterTests` — `SpecFilter` parsing and application for `--filter`, `--filter-test-list`, `--filter-test-case`, `--run`, `--join-with`, hierarchical `--run`, empty `--run`, and last-wins behavior
+    - `MarkdownTests` — `Markdown.render` empty and non-empty rendering behavior
   - **Imperium/Gameplay/GameplayTests.fs** (placeholder module):
     - currently no executable test cases
 
