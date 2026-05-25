@@ -5,8 +5,25 @@ open Imperium.Rondel
 open Imperium.Primitives
 open Imperium.Testing.Spec
 open Imperium.Testing.Spec.Specification
-open Imperium.UnitTests.Rondel.Context
 open Imperium.UnitTests.Rondel.Assertions
+
+// ────────────────────────────────────────────────────────────────────────────────
+// Runner
+// ────────────────────────────────────────────────────────────────────────────────
+
+let private runner: SpecRunner<Context, RondelState, RondelState option, RondelCommand, RondelInboundEvent> =
+    { SpecRunner.empty with
+        Execute = fun ctx cmd -> Rondel.execute ctx.Deps cmd |> Async.RunSynchronously
+        Handle = fun ctx evt -> Rondel.handle ctx.Deps evt |> Async.RunSynchronously
+        ClearEvents = fun ctx -> ctx.Events.Clear()
+        ClearCommands = fun ctx -> ctx.Commands.Clear()
+        SeedState = fun ctx state -> ctx.Store[ctx.GameId] <- state
+        CaptureState =
+            Some(fun ctx ->
+                match ctx.Store.TryGetValue(ctx.GameId) with
+                | true, state -> Some state
+                | false, _ -> None)
+        FormatState = Some StateFormatting.format }
 
 // ────────────────────────────────────────────────────────────────────────────────
 // Specs
@@ -15,7 +32,7 @@ open Imperium.UnitTests.Rondel.Assertions
 let private rondelSpecs =
     let gameId = Id.newId ()
     let nations = Set.ofList [ "France"; "Austria" ]
-    let spec = specOn (fun () -> createContext gameId)
+    let spec = specOn (fun () -> Context.create gameId)
 
     [ spec "starting setup places nations at their opening positions" {
           when_command (SetToStartingPositions { GameId = gameId; Nations = nations })

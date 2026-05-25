@@ -5,8 +5,16 @@ open Imperium.Primitives
 open Imperium.Accounting
 open Imperium.Testing.Spec
 open Imperium.Testing.Spec.Specification
-open Imperium.UnitTests.Accounting.Context
 open Imperium.UnitTests.Accounting.Assertions
+
+// ────────────────────────────────────────────────────────────────────────────────
+// Runner
+// ────────────────────────────────────────────────────────────────────────────────
+
+let private runner: SpecRunner<Context, NoState, NoState, AccountingCommand, unit> =
+    { SpecRunner.empty with
+        Execute = fun ctx cmd -> Accounting.execute ctx.Deps cmd |> Async.RunSynchronously
+        ClearEvents = fun ctx -> ctx.Events.Clear() }
 
 // ────────────────────────────────────────────────────────────────────────────────
 // Specs
@@ -15,7 +23,7 @@ open Imperium.UnitTests.Accounting.Assertions
 let private accountingSpecs =
     let gameId = Id.newId ()
     let billingId = Id.newId ()
-    let spec = specOn createContext
+    let spec = specOn Context.create
 
     [ spec "charging a nation for paid movement confirms payment" {
           when_command (

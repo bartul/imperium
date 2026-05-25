@@ -3,13 +3,12 @@ module Imperium.UnitTests.Accounting.Assertions
 open Imperium.Accounting
 open Imperium.Primitives
 open Imperium.Testing.Spec.CollectionAssert
-open Imperium.UnitTests.Accounting.Context
 
 // ────────────────────────────────────────────────────────────────────────────────
 // Helpers
 // ────────────────────────────────────────────────────────────────────────────────
 
-let events = forAccessor (fun (ctx: AccountingContext) -> ctx.Events :> seq<_>)
+let events = forAccessor (fun (ctx: Context) -> ctx.Events :> seq<_>)
 
 let assertEventCount expected =
     events.HasSize expected "event count should match"

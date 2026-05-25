@@ -4,15 +4,14 @@ open Expecto
 open Imperium.Rondel
 open Imperium.Primitives
 open Imperium.Testing.Spec.CollectionAssert
-open Imperium.UnitTests.Rondel.Context
 
 // ────────────────────────────────────────────────────────────────────────────────
 // Helpers
 // ────────────────────────────────────────────────────────────────────────────────
 
-let events = forAccessor (fun (ctx: RondelContext) -> ctx.Events :> seq<_>)
+let events = forAccessor (fun (ctx: Context) -> ctx.Events :> seq<_>)
 
-let commands = forAccessor (fun (ctx: RondelContext) -> ctx.Commands :> seq<_>)
+let commands = forAccessor (fun (ctx: Context) -> ctx.Commands :> seq<_>)
 
 let assertExactEvent event_ message = events.Has event_ message
 
