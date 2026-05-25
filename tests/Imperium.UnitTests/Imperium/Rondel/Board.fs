@@ -1,9 +1,10 @@
-module Imperium.UnitTests.Rondel.StateFormatting
+[<RequireQualifiedAccess>]
+module Imperium.UnitTests.Rondel.Board
 
 open Imperium.Rondel
 
 // ────────────────────────────────────────────────────────────────────────────────
-// State Formatting
+// Board Rendering
 // ────────────────────────────────────────────────────────────────────────────────
 
 type private BoardCell =
@@ -80,7 +81,7 @@ let private renderBoardRow width cells tokensByCell =
 
     [ titleLine; contentLine ]
 
-let format (state: RondelState option) : string =
+let render (state: RondelState option) : string =
     match state with
     | None -> "No rondel state"
     | Some state ->

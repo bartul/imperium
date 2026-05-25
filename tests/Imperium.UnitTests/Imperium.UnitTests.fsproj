@@ -27,7 +27,7 @@
 
     <Compile Include="Imperium/Gameplay/GameplayTests.fs" />
 
-    <Compile Include="Imperium/Rondel/StateFormatting.fs" />
+    <Compile Include="Imperium/Rondel/Board.fs" />
     <Compile Include="Imperium/Rondel/Context.fs" />
     <Compile Include="Imperium/Rondel/Assertions.fs" />
     <Compile Include="Imperium/Rondel/Specs.fs" />

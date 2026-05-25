@@ -23,7 +23,7 @@ let private runner: SpecRunner<Context, RondelState, RondelState option, RondelC
                 match ctx.Store.TryGetValue(ctx.GameId) with
                 | true, state -> Some state
                 | false, _ -> None)
-        FormatState = Some StateFormatting.format }
+        FormatState = Some Board.render }
 
 // ────────────────────────────────────────────────────────────────────────────────
 // Specs

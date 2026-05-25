@@ -43,7 +43,7 @@ Last verified: 2026-05-25
   - `Imperium/Contract/` — transformation validation (`AccountingContractTests.fs`, `RondelContractTests.fs`)
   - `Imperium/Accounting/` — BC behavior specs in `namespace Imperium.UnitTests.Accounting`: `Context.fs` (type `Context` + companion `module Context.create`), `Assertions.fs`, `Specs.fs` (module `Imperium.UnitTests.Accounting.Specs`, hosts the private `runner` and `specifications`)
   - `Imperium/Gameplay/` — `GameplayTests.fs` (placeholder)
-  - `Imperium/Rondel/` — BC behavior specs in `namespace Imperium.UnitTests.Rondel`: `StateFormatting.fs`, `Context.fs` (type `Context` + companion `module Context.create`), `Assertions.fs`, `Specs.fs` (module `Imperium.UnitTests.Rondel.Specs`, hosts the private `runner` and `specifications`)
+  - `Imperium/Rondel/` — BC behavior specs in `namespace Imperium.UnitTests.Rondel`: `Board.fs` (`[<RequireQualifiedAccess>] Board.render` for state-as-board diagram), `Context.fs` (type `Context` + companion `module Context.create`), `Assertions.fs`, `Specs.fs` (module `Imperium.UnitTests.Rondel.Specs`, hosts the private `runner` and `specifications`)
   - `Imperium.Terminal/` — mirrors `src/Imperium.Terminal` (`BusTests.fs`, `Rondel/StoreTests.fs`, `Rondel/DirectCommitTests.fs`, `Rondel/HostTests.fs`, `Accounting/HostTests.fs`)
   - `Main.fs` — entry point + native runner + markdown renderer; uses module abbreviations `Accounting = Imperium.UnitTests.Accounting.Specs` and `Rondel = Imperium.UnitTests.Rondel.Specs` so callers keep short BC names.
 - **Primitives module:** Foundational types with no `.fsi` file (intentionally public)
