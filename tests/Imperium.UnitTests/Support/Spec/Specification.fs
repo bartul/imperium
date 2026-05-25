@@ -1,4 +1,4 @@
-module Imperium.Testing.Spec.Specification
+namespace Imperium.Testing.Spec
 
 // ────────────────────────────────────────────────────────────────────────────────
 // Marker Types
@@ -94,27 +94,13 @@ type SpecificationBuilder<'ctx, 'seed, 'cmd, 'evt>(name, defaultOn: (unit -> 'ct
     member _.Expect(spec, description, assertion: 'ctx -> unit) =
         { spec with Expectations = spec.Expectations @ [ { Description = description; Assert = assertion } ] }
 
-let spec<'ctx, 'seed, 'cmd, 'evt> name =
-    SpecificationBuilder<'ctx, 'seed, 'cmd, 'evt>(name, None)
-
-let specOn<'ctx, 'seed, 'cmd, 'evt> (contextFactory: unit -> 'ctx) name =
-    SpecificationBuilder<'ctx, 'seed, 'cmd, 'evt>(name, Some contextFactory)
+// ────────────────────────────────────────────────────────────────────────────────
+// Specification Module
+// ────────────────────────────────────────────────────────────────────────────────
 
 module Specification =
-    /// Add state seed outside CE definition.
-    let withGivenState
-        (state: 'seed)
-        (specification: Specification<'ctx, 'seed, 'cmd, 'evt>)
-        : Specification<'ctx, 'seed, 'cmd, 'evt> =
-        { specification with GivenState = Some state }
+    let spec<'ctx, 'seed, 'cmd, 'evt> name =
+        SpecificationBuilder<'ctx, 'seed, 'cmd, 'evt>(name, None)
 
-    /// Add setup actions outside CE definition.
-    let withActions
-        (actions: Action<'cmd, 'evt> list)
-        (specification: Specification<'ctx, 'seed, 'cmd, 'evt>)
-        : Specification<'ctx, 'seed, 'cmd, 'evt> =
-        { specification with GivenActions = actions }
-
-    /// Preserve setup side effects outside CE definition.
-    let preserve (specification: Specification<'ctx, 'seed, 'cmd, 'evt>) : Specification<'ctx, 'seed, 'cmd, 'evt> =
-        { specification with Preserve = true }
+    let specOn<'ctx, 'seed, 'cmd, 'evt> (contextFactory: unit -> 'ctx) name =
+        SpecificationBuilder<'ctx, 'seed, 'cmd, 'evt>(name, Some contextFactory)
