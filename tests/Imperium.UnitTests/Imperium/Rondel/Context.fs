@@ -3,8 +3,7 @@ module Imperium.UnitTests.Rondel.Context
 open System.Collections.Generic
 open Imperium.Rondel
 open Imperium.Primitives
-open Imperium.Testing.Spec.Specification
-open Imperium.Testing.Spec.Runner
+open Imperium.Testing.Spec
 open Imperium.UnitTests.Rondel.StateFormatting
 
 // ────────────────────────────────────────────────────────────────────────────────

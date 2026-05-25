@@ -3,7 +3,6 @@ module Imperium.UnitTests.MarkdownTests
 open Expecto
 open Imperium.Testing.Spec
 open Imperium.Testing.Spec.Specification
-open Imperium.Testing.Spec.Runner
 
 [<Tests>]
 let tests =

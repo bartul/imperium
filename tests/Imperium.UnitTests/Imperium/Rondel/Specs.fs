@@ -5,7 +5,6 @@ open Imperium.Rondel
 open Imperium.Primitives
 open Imperium.Testing.Spec
 open Imperium.Testing.Spec.Specification
-open Imperium.Testing.Spec.Runner
 open Imperium.UnitTests.Rondel.Context
 open Imperium.UnitTests.Rondel.Assertions
 
@@ -452,4 +451,5 @@ let renderSpecMarkdown
 // ────────────────────────────────────────────────────────────────────────────────
 
 [<Tests>]
-let tests = testList "Rondel" (rondelSpecs |> List.map (toExpecto runner))
+let tests =
+    testList "Rondel" (rondelSpecs |> List.map (SpecRunner.toExpectoTestList runner))

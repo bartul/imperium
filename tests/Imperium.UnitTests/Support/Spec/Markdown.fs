@@ -5,8 +5,8 @@ open System
 open System.Collections
 open System.Text.RegularExpressions
 open Microsoft.FSharp.Reflection
+open Imperium.Testing.Spec
 open Imperium.Testing.Spec.Specification
-open Imperium.Testing.Spec.Runner
 
 // ────────────────────────────────────────────────────────────────────────────────
 // Markdown Rendering
@@ -138,7 +138,7 @@ let private toMarkdown
     (runner: SpecRunner<'ctx, 'seed, 'state, 'cmd, 'evt>)
     (spec: Specification<'ctx, 'seed, 'cmd, 'evt>)
     =
-    let results = spec.Expectations |> List.map (runExpectation runner spec)
+    let results = spec.Expectations |> List.map (SpecRunner.runExpectation runner spec)
 
     let initialStateText =
         results

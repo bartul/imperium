@@ -5,7 +5,6 @@ open Imperium.Primitives
 open Imperium.Accounting
 open Imperium.Testing.Spec
 open Imperium.Testing.Spec.Specification
-open Imperium.Testing.Spec.Runner
 open Imperium.UnitTests.Accounting.Context
 open Imperium.UnitTests.Accounting.Assertions
 
@@ -50,4 +49,5 @@ let renderSpecMarkdown
 // ────────────────────────────────────────────────────────────────────────────────
 
 [<Tests>]
-let tests = testList "Accounting" (accountingSpecs |> List.map (toExpecto runner))
+let tests =
+    testList "Accounting" (accountingSpecs |> List.map (SpecRunner.toExpectoTestList runner))

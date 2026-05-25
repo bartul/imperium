@@ -3,10 +3,11 @@ module Imperium.UnitTests.SpecificationTests
 open Expecto
 open Imperium.Testing.Spec
 open Imperium.Testing.Spec.Specification
-open Imperium.Testing.Spec.Runner
 
 let private runAndExpectPass runner (specification: Specification<_, _, _, _>) =
-    let result = runExpectation runner specification specification.Expectations.Head
+    let result =
+        SpecRunner.runExpectation runner specification specification.Expectations.Head
+
     Expect.equal result.Outcome Passed "expectation should pass"
 
 [<Tests>]
@@ -62,10 +63,12 @@ let tests =
                       expect "context equals 42" (fun ctx -> Expect.equal ctx 42 "should be 42")
                   }
 
-              let result = runExpectation runner specification specification.Expectations.Head
+              let result =
+                  SpecRunner.runExpectation runner specification specification.Expectations.Head
+
               Expect.equal result.Outcome Passed "assertion should pass")
 
-          testCase "runExpectation captures Expecto assertion failure" (fun _ ->
+          testCase "SpecRunner.runExpectation captures Expecto assertion failure" (fun _ ->
               let runner: SpecRunner<int, NoState, NoState, unit, unit> = SpecRunner.empty
 
               let specification =
@@ -73,13 +76,14 @@ let tests =
                       expect "context equals 2" (fun ctx -> Expect.equal ctx 2 "should be 2")
                   }
 
-              let result = runExpectation runner specification specification.Expectations.Head
+              let result =
+                  SpecRunner.runExpectation runner specification specification.Expectations.Head
 
               match result.Outcome with
               | Failed _ -> ()
               | Passed -> failtest "expected assertion failure")
 
-          testCase "runExpectation captures action failure" (fun _ ->
+          testCase "SpecRunner.runExpectation captures action failure" (fun _ ->
               let runner: SpecRunner<int, NoState, NoState, unit, unit> = SpecRunner.empty
               let failingRunner = { runner with Execute = fun _ _ -> failwith "action exploded" }
 
@@ -90,13 +94,13 @@ let tests =
                   }
 
               let result =
-                  runExpectation failingRunner specification specification.Expectations.Head
+                  SpecRunner.runExpectation failingRunner specification specification.Expectations.Head
 
               match result.Outcome with
               | Failed ex -> Expect.stringContains ex.Message "action exploded" "exception message should match"
               | Passed -> failtest "expected action failure to be captured")
 
-          testCase "runExpectation captures state snapshots" (fun _ ->
+          testCase "SpecRunner.runExpectation captures state snapshots" (fun _ ->
               let mutable counter = 0
 
               let countingRunner: SpecRunner<int, NoState, int, unit, unit> =
@@ -116,7 +120,7 @@ let tests =
               counter <- 0
 
               let result =
-                  runExpectation countingRunner specification specification.Expectations.Head
+                  SpecRunner.runExpectation countingRunner specification specification.Expectations.Head
 
               Expect.equal result.InitialState (Some 0) "initial state should be captured before actions"
               Expect.equal result.FinalState (Some 1) "final state should be captured after actions")
@@ -141,11 +145,11 @@ let tests =
                   }
 
               let result =
-                  runExpectation trackingRunner specification specification.Expectations.Head
+                  SpecRunner.runExpectation trackingRunner specification specification.Expectations.Head
 
               Expect.equal result.Outcome Passed "preserve should keep setup side effects")
 
-          testCase "runExpectation captures AssertException" (fun _ ->
+          testCase "SpecRunner.runExpectation captures AssertException" (fun _ ->
               let runner: SpecRunner<int, NoState, NoState, unit, unit> = SpecRunner.empty
 
               let specification =
@@ -153,7 +157,8 @@ let tests =
                       expect "fails" (fun ctx -> Expect.equal ctx 99 "should be 99")
                   }
 
-              let result = runExpectation runner specification specification.Expectations.Head
+              let result =
+                  SpecRunner.runExpectation runner specification specification.Expectations.Head
 
               match result.Outcome with
               | Failed(:? AssertException) -> ()
