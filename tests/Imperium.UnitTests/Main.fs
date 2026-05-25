@@ -11,7 +11,7 @@ module Rondel = Imperium.UnitTests.Rondel.Specs
 let private renderSpecMarkdown (args: string array) =
     let filter = SpecFilter.fromArgs args
 
-    let opts: SpecMarkdown.MarkdownRenderOptions = { ParentHeader = SpecMarkdown.H2 }
+    let opts: Markdown.RenderOptions = { ParentHeader = Markdown.H2 }
 
     let rootPath = [ "Imperium" ]
 

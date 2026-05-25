@@ -36,13 +36,13 @@ let private accountingSpecs =
       } ]
 
 let renderSpecMarkdown
-    (options: SpecMarkdown.MarkdownRenderOptions)
+    (options: Markdown.RenderOptions)
     (filter: SpecFilter.Predicate)
     (rootPath: string list)
     : string option =
     accountingSpecs
     |> SpecFilter.apply filter (rootPath @ [ "Accounting" ])
-    |> SpecMarkdown.render options "Accounting" runner
+    |> Markdown.render options "Accounting" runner
 
 // ────────────────────────────────────────────────────────────────────────────────
 // Test Registration

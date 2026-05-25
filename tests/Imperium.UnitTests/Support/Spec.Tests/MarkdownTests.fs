@@ -7,12 +7,12 @@ open Imperium.Testing.Spec.Specification
 [<Tests>]
 let tests =
     testList
-        "SpecMarkdown"
+        "Markdown"
         [ testCase "render returns None for an empty spec list" (fun _ ->
               let runner: SpecRunner<int, NoState, NoState, unit, unit> = SpecRunner.empty
-              let options: SpecMarkdown.MarkdownRenderOptions = { ParentHeader = SpecMarkdown.H3 }
+              let options: Markdown.RenderOptions = { ParentHeader = Markdown.H3 }
 
-              let result = SpecMarkdown.render options "any-section" runner []
+              let result = Markdown.render options "any-section" runner []
 
               Expect.isNone result "empty spec list should produce no markdown")
 
@@ -21,12 +21,12 @@ let tests =
               (fun _ ->
                   let runner: SpecRunner<int, NoState, NoState, unit, unit> = SpecRunner.empty
 
-                  let options: SpecMarkdown.MarkdownRenderOptions = { ParentHeader = SpecMarkdown.H3 }
+                  let options: Markdown.RenderOptions = { ParentHeader = Markdown.H3 }
 
                   let specs =
                       [ specOn<int, NoState, unit, unit> (fun () -> 0) "a spec" { expect "an exp" (fun _ -> ()) } ]
 
-                  let result = SpecMarkdown.render options "Accounting" runner specs
+                  let result = Markdown.render options "Accounting" runner specs
 
                   Expect.isSome result "non-empty spec list should produce markdown"
 
@@ -39,7 +39,7 @@ let tests =
 
           testCase "render includes failed expectation rows and continues with later expectations" (fun _ ->
               let runner: SpecRunner<int, NoState, NoState, unit, unit> = SpecRunner.empty
-              let options: SpecMarkdown.MarkdownRenderOptions = { ParentHeader = SpecMarkdown.H3 }
+              let options: Markdown.RenderOptions = { ParentHeader = Markdown.H3 }
 
               let specs =
                   [ specOn<int, NoState, unit, unit> (fun () -> 0) "mixed outcomes" {
@@ -47,7 +47,7 @@ let tests =
                         expect "later expectation still renders" (fun _ -> ())
                     } ]
 
-              let result = SpecMarkdown.render options "SpecMarkdown" runner specs
+              let result = Markdown.render options "SpecMarkdown" runner specs
 
               Expect.isSome result "non-empty spec list should produce markdown"
 

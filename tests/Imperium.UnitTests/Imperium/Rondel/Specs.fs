@@ -438,13 +438,13 @@ let private rondelSpecs =
       } ]
 
 let renderSpecMarkdown
-    (options: SpecMarkdown.MarkdownRenderOptions)
+    (options: Markdown.RenderOptions)
     (filter: SpecFilter.Predicate)
     (rootPath: string list)
     : string option =
     rondelSpecs
     |> SpecFilter.apply filter (rootPath @ [ "Rondel" ])
-    |> SpecMarkdown.render options "Rondel" runner
+    |> Markdown.render options "Rondel" runner
 
 // ────────────────────────────────────────────────────────────────────────────────
 // Test Registration
