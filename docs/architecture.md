@@ -109,7 +109,7 @@ Each `expect` is materialized as its own test case and reruns the full flow abov
 Both `SpecRunner.toExpectoTestList` and markdown rendering share the `SpecRunner.runExpectation` execution path:
 
 - **`SpecRunner.toExpectoTestList`** — creates Expecto `testCase` values that call `runExpectation` inside each test thunk. Failed outcomes are rethrown via `ExceptionDispatchInfo.Capture(ex).Throw()` to preserve stack traces and exception types.
-- **`Markdown.toMarkdownDocument`** — calls `runExpectation` for every expectation and renders all results. Failures do not abort rendering; each expectation result is shown with pass/fail status and failure messages.
+- **`Markdown.render`** — calls `runExpectation` for every expectation and renders all results. Failures do not abort rendering; each expectation result is shown with pass/fail status and failure messages.
 
 ### Filtering
 
