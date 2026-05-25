@@ -177,7 +177,7 @@ let private toMarkdown
          @ renderSection sectionHeaderWeight "Then" finalStateText thenRows
          @ [ "" ])
 
-let toMarkdownDocument options runner specifications =
+let private toMarkdownDocument options runner specifications =
     specifications
     |> List.map (toMarkdown options runner)
     |> String.concat Environment.NewLine
