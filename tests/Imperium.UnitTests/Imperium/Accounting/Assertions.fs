@@ -1,7 +1,6 @@
 module Imperium.UnitTests.Accounting.Assertions
 
 open Imperium.Accounting
-open Imperium.Primitives
 open Imperium.Testing.Spec.CollectionAssert
 
 // ────────────────────────────────────────────────────────────────────────────────

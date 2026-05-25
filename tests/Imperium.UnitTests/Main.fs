@@ -3,7 +3,6 @@ module Imperium.UnitTests.Main
 open System
 open Expecto
 open Imperium.Testing.Spec
-open Imperium.Testing.Spec.Specification
 
 module Accounting = Imperium.UnitTests.Accounting.Specs
 module Rondel = Imperium.UnitTests.Rondel.Specs

@@ -1,8 +1,6 @@
 [<RequireQualifiedAccess>]
 module Imperium.Testing.Spec.SpecFilter
 
-open Imperium.Testing.Spec.Specification
-
 // ────────────────────────────────────────────────────────────────────────────────
 // Spec Filter
 // ────────────────────────────────────────────────────────────────────────────────

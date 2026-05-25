@@ -2,8 +2,6 @@ namespace Imperium.Testing.Spec
 
 open System.Runtime.ExceptionServices
 open Expecto
-open Imperium.Testing.Spec.Specification
-
 // ────────────────────────────────────────────────────────────────────────────────
 // Runner Record
 // ────────────────────────────────────────────────────────────────────────────────

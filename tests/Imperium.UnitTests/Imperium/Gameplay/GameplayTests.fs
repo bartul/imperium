@@ -1,7 +1,6 @@
 module Imperium.UnitTests.Gameplay
 
 open Expecto
-open Imperium.Gameplay
 
 [<Tests>]
 let tests =
