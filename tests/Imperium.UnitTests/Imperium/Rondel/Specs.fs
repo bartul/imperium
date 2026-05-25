@@ -29,7 +29,7 @@ let private runner: SpecRunner<Context, RondelState, RondelState option, RondelC
 // Specs
 // ────────────────────────────────────────────────────────────────────────────────
 
-let private rondelSpecs =
+let private specifications =
     let gameId = Id.newId ()
     let nations = Set.ofList [ "France"; "Austria" ]
     let spec = specOn (fun () -> Context.create gameId)
@@ -454,12 +454,12 @@ let private rondelSpecs =
               (assertRondelOverviewNationNames [ "Austria"; "France"; "Germany" ])
       } ]
 
-let renderSpecMarkdown
+let renderMarkdown
     (options: Markdown.RenderOptions)
     (filter: SpecFilter.Predicate)
     (rootPath: string list)
     : string option =
-    rondelSpecs
+    specifications
     |> SpecFilter.apply filter (rootPath @ [ "Rondel" ])
     |> Markdown.render options "Rondel" runner
 
@@ -469,4 +469,4 @@ let renderSpecMarkdown
 
 [<Tests>]
 let tests =
-    testList "Rondel" (rondelSpecs |> List.map (SpecRunner.toExpectoTestList runner))
+    testList "Rondel" (specifications |> List.map (SpecRunner.toExpectoTestList runner))

@@ -8,7 +8,7 @@ open Imperium.Testing.Spec.Specification
 module Accounting = Imperium.UnitTests.Accounting.Specs
 module Rondel = Imperium.UnitTests.Rondel.Specs
 
-let private renderSpecMarkdown (args: string array) =
+let private renderMarkdown (args: string array) =
     let filter = SpecFilter.fromArgs args
 
     let opts: Markdown.RenderOptions = { ParentHeader = Markdown.H2 }
@@ -16,8 +16,8 @@ let private renderSpecMarkdown (args: string array) =
     let rootPath = [ "Imperium" ]
 
     let sections =
-        [ Accounting.renderSpecMarkdown opts filter rootPath
-          Rondel.renderSpecMarkdown opts filter rootPath ]
+        [ Accounting.renderMarkdown opts filter rootPath
+          Rondel.renderMarkdown opts filter rootPath ]
         |> List.choose id
 
     let title = $"## 📘{rootPath.[0]} Specification Based Tests"
@@ -30,7 +30,7 @@ let private renderSpecMarkdown (args: string array) =
 [<EntryPoint>]
 let main args =
     if args |> Array.contains "--render-spec-markdown" then
-        renderSpecMarkdown args |> printfn "%s"
+        renderMarkdown args |> printfn "%s"
         0
     else
         let allTests =

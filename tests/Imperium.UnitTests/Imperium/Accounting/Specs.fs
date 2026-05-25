@@ -20,7 +20,7 @@ let private runner: SpecRunner<Context, NoState, NoState, AccountingCommand, uni
 // Specs
 // ────────────────────────────────────────────────────────────────────────────────
 
-let private accountingSpecs =
+let private specifications =
     let gameId = Id.newId ()
     let billingId = Id.newId ()
     let spec = specOn Context.create
@@ -43,12 +43,12 @@ let private accountingSpecs =
           expect "payment is not marked as failed" assertNoPaymentFailed
       } ]
 
-let renderSpecMarkdown
+let renderMarkdown
     (options: Markdown.RenderOptions)
     (filter: SpecFilter.Predicate)
     (rootPath: string list)
     : string option =
-    accountingSpecs
+    specifications
     |> SpecFilter.apply filter (rootPath @ [ "Accounting" ])
     |> Markdown.render options "Accounting" runner
 
@@ -58,4 +58,4 @@ let renderSpecMarkdown
 
 [<Tests>]
 let tests =
-    testList "Accounting" (accountingSpecs |> List.map (SpecRunner.toExpectoTestList runner))
+    testList "Accounting" (specifications |> List.map (SpecRunner.toExpectoTestList runner))
