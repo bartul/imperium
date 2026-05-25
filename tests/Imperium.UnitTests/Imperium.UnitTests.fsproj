@@ -13,6 +13,8 @@
     <Compile Include="Support/Spec/Markdown.fs" />
 
     <Compile Include="Support/Spec.Tests/SpecificationTests.fs" />
+    <Compile Include="Support/Spec.Tests/SpecRunnerTests.fs" />
+    <Compile Include="Support/Spec.Tests/CollectionAssertTests.fs" />
     <Compile Include="Support/Spec.Tests/FilterTests.fs" />
     <Compile Include="Support/Spec.Tests/MarkdownTests.fs" />
 

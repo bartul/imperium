@@ -37,6 +37,8 @@ let main args =
             testList
                 "Imperium"
                 [ SpecificationTests.tests
+                  SpecRunnerTests.tests
+                  CollectionAssertTests.tests
                   FilterTests.tests
                   MarkdownTests.tests
                   AccountingContractTests.tests
