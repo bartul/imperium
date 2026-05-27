@@ -1,12 +1,16 @@
 namespace Imperium.Gameplay
 
+// ──────────────────────────────────────────────────────────────────────────
+// Facade
+// ──────────────────────────────────────────────────────────────────────────
+
 /// Public facade for the Gameplay bounded context.
-/// Placeholder until game-level coordination logic is added.
+/// Routes commands and inbound events to internal handlers.
 [<RequireQualifiedAccess>]
 module Gameplay =
 
-    // Gameplay types are internal implementation details.
-    // Public API will be added here as the module evolves.
+    /// Execute a Gameplay command. Routes to the appropriate command handler and commits its effects.
+    val execute: GameplayDependencies -> GameplayCommand -> Async<unit>
 
-    /// Placeholder to make module valid - will be removed when public API is added.
-    val internal placeholder: unit
+    /// Handle an inbound event from another bounded context. Routes to the appropriate event handler and commits its effects.
+    val handle: GameplayDependencies -> GameplayInboundEvent -> Async<unit>
