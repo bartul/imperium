@@ -1,12 +1,20 @@
 namespace Imperium.Gameplay
 
+open Imperium.Primitives
+
 // ──────────────────────────────────────────────────────────────────────────
-// Facade
+// State
 // ──────────────────────────────────────────────────────────────────────────
 
-[<RequireQualifiedAccess>]
-module Gameplay =
+type GameStatus =
+    | InSetup
+    | InPlay
 
-    let execute (_deps: GameplayDependencies) (_command: GameplayCommand) : Async<unit> = failwith "Not implemented."
+type GameInitialization = | RondelStartingPositions
 
-    let handle (_deps: GameplayDependencies) (_event: GameplayInboundEvent) : Async<unit> = failwith "Not implemented."
+type GameplayState =
+    { GameId: GameId
+      Nations: Set<NationId>
+      Players: PlayerRoster
+      Status: GameStatus
+      CompletedInitializations: Set<GameInitialization> }

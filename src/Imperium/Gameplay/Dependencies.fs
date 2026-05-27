@@ -1,12 +1,18 @@
 namespace Imperium.Gameplay
 
+open Imperium.Primitives
+
 // ──────────────────────────────────────────────────────────────────────────
-// Facade
+// Dependencies
 // ──────────────────────────────────────────────────────────────────────────
 
-[<RequireQualifiedAccess>]
-module Gameplay =
+type LoadGameplayState = GameId -> Async<GameplayState option>
 
-    let execute (_deps: GameplayDependencies) (_command: GameplayCommand) : Async<unit> = failwith "Not implemented."
+type GameplayEffects =
+    { State: GameplayState option
+      IntegrationEvents: GameplayEvent list
+      OutboundCommands: GameplayOutboundCommand list }
 
-    let handle (_deps: GameplayDependencies) (_event: GameplayInboundEvent) : Async<unit> = failwith "Not implemented."
+type CommitGameplayEffects = GameplayEffects -> Async<unit>
+
+type GameplayDependencies = { Load: LoadGameplayState; Commit: CommitGameplayEffects }

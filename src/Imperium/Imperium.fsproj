@@ -5,9 +5,19 @@
   <ItemGroup>
     <Compile Include="Primitives/Primitives.fs" />
     <Compile Include="Primitives/AsyncExtensions.fs" />
-    <Compile Include="Contract/Contract.fs" />
+    <Compile Include="Contract/Gameplay.fs" />
     <Compile Include="Contract/Accounting.fs" />
     <Compile Include="Contract/Rondel.fs" />
+    <Compile Include="Gameplay/Types.fsi" />
+    <Compile Include="Gameplay/Types.fs" />
+    <Compile Include="Gameplay/Commands.fsi" />
+    <Compile Include="Gameplay/Commands.fs" />
+    <Compile Include="Gameplay/Events.fsi" />
+    <Compile Include="Gameplay/Events.fs" />
+    <Compile Include="Gameplay/State.fsi" />
+    <Compile Include="Gameplay/State.fs" />
+    <Compile Include="Gameplay/Dependencies.fsi" />
+    <Compile Include="Gameplay/Dependencies.fs" />
     <Compile Include="Gameplay/Gameplay.fsi" />
     <Compile Include="Gameplay/Gameplay.fs" />
     <Compile Include="Accounting/Commands.fsi" />
