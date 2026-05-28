@@ -1,9 +1,11 @@
 # Repository Guidelines
-Last verified: 2026-05-27
+Last verified: 2026-05-28
 
 ## Agent Priorities
 
 - Follow the three-phase process in `docs/architecture.md`: define `.fsi`, write tests, then implement.
+- Prefer the Gameplay-style workflow for new domain work above other approaches: first define the base public interface/domain model in `.fsi` files so the outside shape is well-defined even if the internals are non-functional stubs; then proceed one behavior at a time with an incremental red-green loop.
+- Within the test phase, prefer that incremental red-green loop above batching: add one failing behavior test, implement the minimum production code to pass it, run focused verification, then move to the next behavior. Do not write a large suite of failing tests up front unless explicitly requested.
 - Handlers accept unified `RondelDependencies` record for consistency. When adding new handlers, use the same pattern.
 - Public API uses routers (`execute`, `handle`) as single entry points; individual handlers are internal implementation details.
 - Prefer minimal public surface; align `.fs` to `.fsi` without widening the API.
@@ -263,6 +265,7 @@ Domain modules (`.fsi` and `.fs` pairs) follow a consistent sectioned structure.
 
 ## Testing Guidelines
 - Unit tests live in `tests/Imperium.UnitTests` using Expecto 10.2.3 with FsCheck integration for property-based testing.
+- Preferred implementation rhythm for new domain work starts with a base interface definition: make the public `.fsi`/outward model explicit first, using compiling non-functional stubs when needed, then implement behavior one slice at a time. For each behavior, write one failing test, implement the smallest general-purpose production change that passes it, run the focused relevant test(s), then repeat. This interface-first plus red-green-next loop takes precedence over creating a broad set of failing tests before implementation.
 - Test modules are organized by concern, mirroring `src/`: bounded-context behavior specs in `Imperium.UnitTests.Rondel.Specs` and `Imperium.UnitTests.Accounting.Specs` (with sibling `Context`/`Assertions` modules under `Imperium/{BC}/`), transformation validation under `Imperium/Contract/`, and infrastructure plumbing under `Imperium.Terminal/` mirroring `src/Imperium.Terminal`.
 - Spec support lives in namespace `Imperium.Testing.Spec` (under `Support/Spec/`). Consumer files open `Imperium.Testing.Spec` to bring the `Specification`/`SpecRunner` types, the `SpecRunner` companion module, the `SpecFilter`/`Markdown`/`CollectionAssert` modules, and the framework's other types (`NoState`, `Action`, `Expectation`, `ExpectationOutcome`, `ExpectationRunResult`) into scope. Add `open Imperium.Testing.Spec.Specification` for unqualified access to the `spec`/`specOn` CE factories.
 - Use `[<Tests>]` attribute on test values for discovery by YoloDev.Expecto.TestSdk (enables VS Code Test Explorer integration).
