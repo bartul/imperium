@@ -91,18 +91,18 @@ module PlayerRoster =
 
     let create (players: Guid list) : Result<PlayerRoster, string> =
         match List.length players with
-        | count when count < minPlayers ->
-            Error $"A game requires at least {minPlayers} players, but got {count}."
+        | count when count < minPlayers -> Error $"A game requires at least {minPlayers} players, but got {count}."
+        | count when count > maxPlayers -> Error $"A game supports at most {maxPlayers} players, but got {count}."
         | _ -> failwith "PlayerRoster.create is not fully implemented yet."
-        // let count = List.length players
+    // let count = List.length players
 
-        // if count < minPlayers then
-        //     Error $"A game requires at least {minPlayers} players, but got {count}."
-        // elif count > maxPlayers then
-        //     Error $"A game supports at most {maxPlayers} players, but got {count}."
-        // elif (players |> List.distinct |> List.length) <> count then
-        //     Error "Players must be unique."
-        // else
-            // players |> List.traverseResultM PlayerId.create |> Result.map PlayerRoster
+    // if count < minPlayers then
+    //     Error $"A game requires at least {minPlayers} players, but got {count}."
+    // elif count > maxPlayers then
+    //     Error $"A game supports at most {maxPlayers} players, but got {count}."
+    // elif (players |> List.distinct |> List.length) <> count then
+    //     Error "Players must be unique."
+    // else
+    // players |> List.traverseResultM PlayerId.create |> Result.map PlayerRoster
 
     let value (PlayerRoster ids) = ids

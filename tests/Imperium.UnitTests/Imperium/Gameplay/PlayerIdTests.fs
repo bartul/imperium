@@ -18,7 +18,10 @@ let tests =
 
           testCase "tryParse round-trips the canonical string" (fun () ->
               let playerId = PlayerId.newId ()
-              let parsed = Expect.wantOk (PlayerId.tryParse (PlayerId.toString playerId)) "expected string to parse"
+
+              let parsed =
+                  Expect.wantOk (PlayerId.tryParse (PlayerId.toString playerId)) "expected string to parse"
+
               Expect.equal parsed playerId "parsed id should equal original")
 
           testCase "tryParse rejects an invalid string" (fun () ->
