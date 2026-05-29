@@ -54,11 +54,20 @@ type PlayerId = private PlayerId of Id
 
 /// Player identity helpers.
 module PlayerId =
-    /// Wrap an already validated shared Id as a Gameplay player id.
-    val create: Id -> PlayerId
+    /// Create a Gameplay player id from a non-empty Guid.
+    val create: System.Guid -> Result<PlayerId, string>
 
-    /// Unwrap the shared Id value.
-    val value: PlayerId -> Id
+    /// Create a new Gameplay player id.
+    val newId: unit -> PlayerId
+
+    /// Unwrap the underlying Guid value.
+    val value: PlayerId -> System.Guid
+
+    /// Convert the player id to its canonical string representation.
+    val toString: PlayerId -> string
+
+    /// Parse a Gameplay player id from string.
+    val tryParse: string -> Result<PlayerId, string>
 
 /// Validated roster of players taking part in a game.
 type PlayerRoster = private PlayerRoster of PlayerId list

@@ -69,9 +69,15 @@ module NationId =
 type PlayerId = private PlayerId of Id
 
 module PlayerId =
-    let create id = PlayerId id
+    let create guid = guid |> Id.createMap PlayerId
 
-    let value (PlayerId id) = id
+    let newId () = Id.newId () |> PlayerId
+
+    let value (PlayerId id) = id |> Id.value
+
+    let toString (PlayerId id) = id |> Id.toString
+
+    let tryParse raw = raw |> Id.tryParseMap PlayerId
 
 type PlayerRoster = private PlayerRoster of PlayerId list
 
