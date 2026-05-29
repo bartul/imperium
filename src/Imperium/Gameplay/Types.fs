@@ -2,6 +2,7 @@ namespace Imperium.Gameplay
 
 open System
 open Imperium.Primitives
+open FsToolkit.ErrorHandling
 
 // ──────────────────────────────────────────────────────────────────────────
 // Domain Values
@@ -79,9 +80,29 @@ module PlayerId =
 
     let tryParse raw = raw |> Id.tryParseMap PlayerId
 
-type PlayerRoster = private PlayerRoster of PlayerId list
+type PlayerRoster = private PlayerRoster of Set<PlayerId>
 
 module PlayerRoster =
-    let create (_ids: Id list) : Result<PlayerRoster, string> = failwith "Not implemented."
+    [<Literal>]
+    let private minPlayers = 2
+
+    [<Literal>]
+    let private maxPlayers = 6
+
+    let create (players: Guid list) : Result<PlayerRoster, string> =
+        match List.length players with
+        | count when count < minPlayers ->
+            Error $"A game requires at least {minPlayers} players, but got {count}."
+        | _ -> failwith "PlayerRoster.create is not fully implemented yet."
+        // let count = List.length players
+
+        // if count < minPlayers then
+        //     Error $"A game requires at least {minPlayers} players, but got {count}."
+        // elif count > maxPlayers then
+        //     Error $"A game supports at most {maxPlayers} players, but got {count}."
+        // elif (players |> List.distinct |> List.length) <> count then
+        //     Error "Players must be unique."
+        // else
+            // players |> List.traverseResultM PlayerId.create |> Result.map PlayerRoster
 
     let value (PlayerRoster ids) = ids

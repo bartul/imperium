@@ -28,6 +28,7 @@
     <Compile Include="Imperium/Gameplay/GameIdTests.fs" />
     <Compile Include="Imperium/Gameplay/NationIdTests.fs" />
     <Compile Include="Imperium/Gameplay/PlayerIdTests.fs" />
+    <Compile Include="Imperium/Gameplay/PlayerRosterTests.fs" />
 
     <Compile Include="Imperium/Rondel/Board.fs" />
     <Compile Include="Imperium/Rondel/Context.fs" />

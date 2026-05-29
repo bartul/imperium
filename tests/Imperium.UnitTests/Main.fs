@@ -46,6 +46,7 @@ let main args =
                   Gameplay.GameId.tests
                   Gameplay.NationId.tests
                   Gameplay.PlayerId.tests
+                  Gameplay.PlayerRoster.tests
                   Rondel.tests
                   TerminalBusTests.tests
                   TerminalRondelStoreTests.tests
