@@ -16,4 +16,9 @@ let tests =
                 testCase "create accepts a non-empty guid and round-trips its value" (fun () ->
                     let guid = Guid.NewGuid()
                     let gameId = Expect.wantOk (GameId.create guid) "expected guid to be accepted"
-                    Expect.equal (GameId.value gameId) guid "value should round-trip") ] ]
+                    Expect.equal (GameId.value gameId) guid "value should round-trip")
+
+                testCase "tryParse round-trips the canonical string" (fun () ->
+                    let gameId = GameId.newId ()
+                    let parsed = Expect.wantOk (GameId.tryParse (GameId.toString gameId)) "expected string to parse"
+                    Expect.equal parsed gameId "parsed id should equal original") ] ]
