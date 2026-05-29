@@ -93,6 +93,7 @@ module PlayerRoster =
         match List.length players with
         | count when count < minPlayers -> Error $"A game requires at least {minPlayers} players, but got {count}."
         | count when count > maxPlayers -> Error $"A game supports at most {maxPlayers} players, but got {count}."
+        | count when count <> (players |> List.distinct |> List.length) -> Error "Players must be unique."
         | _ -> failwith "PlayerRoster.create is not fully implemented yet."
     // let count = List.length players
 

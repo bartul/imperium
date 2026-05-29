@@ -13,4 +13,8 @@ let tests =
 
           testCase "create rejects more than six players" (fun () ->
               let players = List.init 7 (fun _ -> Guid.NewGuid())
-              Expect.isError (PlayerRoster.create players) "expected a seven-player roster to be rejected") ]
+              Expect.isError (PlayerRoster.create players) "expected a seven-player roster to be rejected")
+
+          testCase "create rejects duplicate players" (fun () ->
+              let duplicate = Guid.NewGuid()
+              Expect.isError (PlayerRoster.create [ duplicate; duplicate ]) "expected duplicate players to be rejected") ]
