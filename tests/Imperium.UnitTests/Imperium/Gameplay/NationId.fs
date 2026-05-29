@@ -9,4 +9,7 @@ let tests =
         "Gameplay.NationId"
         [ testCase "Germany round-trips through toString and tryParse" (fun () ->
               let parsed = Expect.wantOk (NationId.tryParse (NationId.toString NationId.Germany)) "expected Germany to parse"
-              Expect.equal parsed NationId.Germany "Germany should round-trip") ]
+              Expect.equal parsed NationId.Germany "Germany should round-trip")
+
+          testCase "tryParse rejects an unknown nation" (fun () ->
+              Expect.isError (NationId.tryParse "Spain") "expected unknown nation to be rejected") ]
