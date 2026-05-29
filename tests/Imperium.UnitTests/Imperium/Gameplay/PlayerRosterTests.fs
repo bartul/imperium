@@ -25,4 +25,6 @@ let tests =
               let roster =
                   Expect.wantOk (PlayerRoster.create players) "expected a valid roster to be accepted"
 
-              Expect.equal (PlayerRoster.value roster |> Set.count) 4 "roster should contain every player") ]
+              let rosterGuids = PlayerRoster.value roster |> Set.map PlayerId.value
+
+              Expect.equal rosterGuids (Set.ofList players) "roster should contain exactly the provided players") ]
