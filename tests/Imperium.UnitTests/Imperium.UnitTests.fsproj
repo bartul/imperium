@@ -26,6 +26,7 @@
     <Compile Include="Imperium/Accounting/Specs.fs" />
 
     <Compile Include="Imperium/Gameplay/GameId.fs" />
+    <Compile Include="Imperium/Gameplay/NationId.fs" />
 
     <Compile Include="Imperium/Rondel/Board.fs" />
     <Compile Include="Imperium/Rondel/Context.fs" />
