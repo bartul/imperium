@@ -11,7 +11,7 @@ open Imperium.Primitives
 type GameId = private GameId of Id
 
 module GameId =
-    let create g = g |> Id.createMap GameId
+    let create guid = guid |> Id.createMap GameId
 
     let newId () = Id.newId () |> GameId
 

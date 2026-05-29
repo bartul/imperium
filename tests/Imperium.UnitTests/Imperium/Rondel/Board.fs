@@ -72,7 +72,7 @@ let private center width (text: string) =
 
 let private renderBoardRow width cells tokensByCell =
     let renderLine renderCell =
-        cells |> List.map renderCell |> String.concat "|" |> (fun line -> $"|{line}|")
+        cells |> List.map renderCell |> String.concat "|" |> fun line -> $"|{line}|"
 
     let titleLine = renderLine (fun cell -> $" {center width (boardCellName cell)} ")
 
