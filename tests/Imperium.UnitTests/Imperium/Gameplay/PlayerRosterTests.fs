@@ -17,4 +17,12 @@ let tests =
 
           testCase "create rejects duplicate players" (fun () ->
               let duplicate = Guid.NewGuid()
-              Expect.isError (PlayerRoster.create [ duplicate; duplicate ]) "expected duplicate players to be rejected") ]
+              Expect.isError (PlayerRoster.create [ duplicate; duplicate ]) "expected duplicate players to be rejected")
+
+          testCase "create accepts a valid roster of unique players" (fun () ->
+              let players = List.init 4 (fun _ -> Guid.NewGuid())
+
+              let roster =
+                  Expect.wantOk (PlayerRoster.create players) "expected a valid roster to be accepted"
+
+              Expect.equal (PlayerRoster.value roster |> Set.count) 4 "roster should contain every player") ]
