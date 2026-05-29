@@ -15,4 +15,8 @@ let tests =
               Expect.isError (NationId.tryParse "Spain") "expected unknown nation to be rejected")
 
           testCase "tryParse rejects a blank value" (fun () ->
-              Expect.isError (NationId.tryParse "  ") "expected blank nation to be rejected") ]
+              Expect.isError (NationId.tryParse "  ") "expected blank nation to be rejected")
+
+          testCase "tryParse is case insensitive" (fun () ->
+              let parsed = Expect.wantOk (NationId.tryParse "GERMANY") "expected case-insensitive parse to succeed"
+              Expect.equal parsed NationId.Germany "should parse Germany regardless of case") ]
