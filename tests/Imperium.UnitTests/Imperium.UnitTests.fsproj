@@ -25,7 +25,10 @@
     <Compile Include="Imperium/Accounting/Assertions.fs" />
     <Compile Include="Imperium/Accounting/Specs.fs" />
 
-    <Compile Include="Imperium/Gameplay/GameplayTests.fs" />
+    <Compile Include="Imperium/Gameplay/GameIdTests.fs" />
+    <Compile Include="Imperium/Gameplay/NationIdTests.fs" />
+    <Compile Include="Imperium/Gameplay/PlayerIdTests.fs" />
+    <Compile Include="Imperium/Gameplay/PlayerRosterTests.fs" />
 
     <Compile Include="Imperium/Rondel/Board.fs" />
     <Compile Include="Imperium/Rondel/Context.fs" />

@@ -40,7 +40,7 @@ type NationId =
 /// Nation identity construction and formatting helpers.
 module NationId =
     /// All canonical nations supported by the game.
-    val all: Set<NationId>
+    val internal all: Set<NationId>
 
     /// Convert a canonical nation identity to its display name.
     val toString: NationId -> string
@@ -54,19 +54,28 @@ type PlayerId = private PlayerId of Id
 
 /// Player identity helpers.
 module PlayerId =
-    /// Wrap an already validated shared Id as a Gameplay player id.
-    val create: Id -> PlayerId
+    /// Create a Gameplay player id from a non-empty Guid.
+    val create: System.Guid -> Result<PlayerId, string>
 
-    /// Unwrap the shared Id value.
-    val value: PlayerId -> Id
+    /// Create a new Gameplay player id.
+    val newId: unit -> PlayerId
 
-/// Validated roster of players taking part in a game.
-type PlayerRoster = private PlayerRoster of PlayerId list
+    /// Unwrap the underlying Guid value.
+    val value: PlayerId -> System.Guid
+
+    /// Convert the player id to its canonical string representation.
+    val toString: PlayerId -> string
+
+    /// Parse a Gameplay player id from string.
+    val tryParse: string -> Result<PlayerId, string>
+
+/// Validated roster of distinct players taking part in a game.
+type PlayerRoster = private PlayerRoster of Set<PlayerId>
 
 /// Player roster construction and access helpers.
 module PlayerRoster =
-    /// Build a player roster from validated shared Id values.
-    val create: Id list -> Result<PlayerRoster, string>
+    /// Build a player roster from player Guids, validating count and uniqueness.
+    val create: System.Guid list -> Result<PlayerRoster, string>
 
-    /// Return player ids in roster order.
-    val value: PlayerRoster -> PlayerId list
+    /// Return the distinct players in the roster.
+    val value: PlayerRoster -> Set<PlayerId>

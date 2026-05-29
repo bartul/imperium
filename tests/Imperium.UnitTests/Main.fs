@@ -43,7 +43,10 @@ let main args =
                   AccountingContractTests.tests
                   RondelContractTests.tests
                   Accounting.tests
-                  Gameplay.tests
+                  Gameplay.GameId.tests
+                  Gameplay.NationId.tests
+                  Gameplay.PlayerId.tests
+                  Gameplay.PlayerRoster.tests
                   Rondel.tests
                   TerminalBusTests.tests
                   TerminalRondelStoreTests.tests

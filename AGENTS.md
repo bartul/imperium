@@ -1,5 +1,5 @@
 # Repository Guidelines
-Last verified: 2026-05-28
+Last verified: 2026-05-29
 
 ## Agent Priorities
 
@@ -274,6 +274,18 @@ Domain modules (`.fsi` and `.fs` pairs) follow a consistent sectioned structure.
 - The native Expecto runner and `--render-spec-markdown` accept Expecto's filter flags (`--filter`, `--filter-test-list`, `--filter-test-case`, `--run`, `--join-with`). `--run` supports exact expectation paths plus the project-specific hierarchical extension documented in `docs/architecture.md`; multiple filter flags use last-wins behavior. `dotnet test` uses VSTest filtering instead, e.g. `dotnet test --filter SpecFilter`. The markdown renderer omits BC sections whose specs all fail the filter and prints `_no specs match the filter_` when the entire document is empty.
 - Test organization: group related tests with `testList`, use descriptive test names in lowercase ("accepts valid GUID", not "AcceptsValidGuid").
 - Cover edge cases: null inputs, empty strings, invalid formats, boundary conditions.
+
+### Red-Green-Next Collaboration Loop (preferred)
+
+This makes the interface-first + red-green-next rhythm above concrete and applies to all domain work:
+
+- **One test at a time.** Add a single failing test for the next behavior — never a batch of failing tests up front. Confirm it is red (build + run the focused test/list) before any production code is written.
+- **One test file per type/unit.** Give each domain type its own test file named after it (e.g. `<Type>Tests.fs`). The file name carries the `Tests` suffix; the module name stays the bare type name (e.g. `module Imperium.UnitTests.<BC>.<Type>`). Register each new file in `Imperium.UnitTests.fsproj` and the native runner list in `Main.fs`.
+- **Signature-first when reshaping.** When a test needs a new or changed signature (a new function, a changed input/return type, a reshaped DU), update the `.fsi` and add a compiling stub (`failwith "Not implemented."`) in the `.fs` first, so the new test compiles and fails at runtime (red), then fill in the body.
+- **Division of labor.** By default the agent writes the failing test and verifies it is red, then hands off; the developer implements the smallest general-purpose production change that makes it pass. The agent only writes production code when explicitly asked to.
+- **Assertions use the Expecto `Expect` module.** Prefer `Expect.isError`, `Expect.wantOk`, `Expect.equal`, etc. over manual `match`/`failtest`.
+- **Commit on green.** As soon as a test passes, commit that single increment (the production change plus its test) before moving to the next test. Keep commit subjects imperative and behavior-focused.
+- **Small PR batches.** Slice a feature across several small branches/PRs (e.g. value types in one batch, transformations in the next, orchestration after) rather than one large change. Close a batch once it is cohesive and green instead of growing it.
 
 ### CE-Based Testing (Simple.Testing style)
 
