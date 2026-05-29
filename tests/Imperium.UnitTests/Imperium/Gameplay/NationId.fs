@@ -12,4 +12,7 @@ let tests =
               Expect.equal parsed NationId.Germany "Germany should round-trip")
 
           testCase "tryParse rejects an unknown nation" (fun () ->
-              Expect.isError (NationId.tryParse "Spain") "expected unknown nation to be rejected") ]
+              Expect.isError (NationId.tryParse "Spain") "expected unknown nation to be rejected")
+
+          testCase "tryParse rejects a blank value" (fun () ->
+              Expect.isError (NationId.tryParse "  ") "expected blank nation to be rejected") ]
