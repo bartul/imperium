@@ -54,4 +54,16 @@ let tests =
                     let contractEvent: ContractRondel.PositionedAtStart = { GameId = Guid.Empty }
 
                     let result = RondelPositionedAtStartInboundEvent.fromContract contractEvent
-                    Expect.isError result "inbound event cannot have empty GameId" ] ]
+                    Expect.isError result "inbound event cannot have empty GameId"
+
+                testCase "accepts a valid event and round-trips the GameId"
+                <| fun _ ->
+                    let gameId = Guid.NewGuid()
+                    let contractEvent: ContractRondel.PositionedAtStart = { GameId = gameId }
+
+                    let domain =
+                        Expect.wantOk
+                            (RondelPositionedAtStartInboundEvent.fromContract contractEvent)
+                            "valid event should transform successfully"
+
+                    Expect.equal (GameId.value domain.GameId) gameId "GameId should round-trip" ] ]
