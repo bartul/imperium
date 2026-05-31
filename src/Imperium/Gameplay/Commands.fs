@@ -14,9 +14,21 @@ and StartGameCommand = { GameId: GameId; Nations: Set<NationId>; Players: Player
 module StartGameCommand =
     let fromContract (command: Contract.Gameplay.StartGameCommand) : Result<StartGameCommand, string> =
         let gameId = GameId.create command.GameId
-        match gameId with
-        | Error e -> Error e
-        | Ok _ -> failwith "Not implemented."
+        let nations = 
+            command.Nations 
+            |> Array.map NationId.tryParse
+            |> Array.fold (fun acc result ->
+                match acc, result with
+                | Error accError, Error resultError -> Error (sprintf "%s; %s" accError resultError)   
+                | Error e, _ -> Error e
+                | _, Error e -> Error e
+                | Ok set, Ok nation -> Ok (Set.add nation set)
+            ) (Ok Set.empty)
+
+        match gameId, nations with
+        | Error e, _ -> Error e
+        | _, Error e -> Error e
+        | Ok _, Ok _ -> failwith "Not implemented."
 
 // ──────────────────────────────────────────────────────────────────────────
 // Outbound Commands
