@@ -14,7 +14,6 @@ type GameInitialization = | RondelStartingPositions
 
 type GameplayState =
     { GameId: GameId
-      Nations: Set<NationId>
       Players: PlayerRoster
       Status: GameStatus
       CompletedInitializations: Set<GameInitialization> }

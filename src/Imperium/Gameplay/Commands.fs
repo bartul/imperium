@@ -9,28 +9,17 @@ open Imperium.Primitives
 
 type GameplayCommand = StartGame of StartGameCommand
 
-and StartGameCommand = { GameId: GameId; Nations: Set<NationId>; Players: PlayerRoster }
+and StartGameCommand = { GameId: GameId; Players: PlayerRoster }
 
 module StartGameCommand =
     let fromContract (command: Contract.Gameplay.StartGameCommand) : Result<StartGameCommand, string> =
         let gameId = GameId.create command.GameId
-        let nations = 
-            command.Nations 
-            |> Array.map NationId.tryParse
-            |> Array.fold (fun acc result ->
-                match acc, result with
-                | Error accError, Error resultError -> Error (sprintf "%s; %s" accError resultError)   
-                | Error e, _ -> Error e
-                | _, Error e -> Error e
-                | Ok set, Ok nation -> Ok (Set.add nation set)
-            ) (Ok Set.empty)
         let players = PlayerRoster.create (command.PlayerIds |> List.ofArray)
 
-        match gameId, nations, players with
-        | Error e, _, _ -> Error e
-        | _, Error e, _ -> Error e
-        | _, _, Error e -> Error e
-        | Ok _, Ok _, Ok _ -> failwith "Not implemented."
+        match gameId, players with
+        | Error e, _ -> Error e
+        | _, Error e -> Error e
+        | Ok _, Ok _ -> failwith "Not implemented."
 
 // ──────────────────────────────────────────────────────────────────────────
 // Outbound Commands

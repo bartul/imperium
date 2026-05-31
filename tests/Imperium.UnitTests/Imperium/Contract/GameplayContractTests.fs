@@ -16,27 +16,15 @@ let tests =
                 <| fun _ ->
                     let contractCommand: ContractGameplay.StartGameCommand =
                         { GameId = Guid.Empty
-                          Nations = [| "Germany"; "France" |]
                           PlayerIds = [| Guid.NewGuid(); Guid.NewGuid() |] }
 
                     let result = StartGameCommand.fromContract contractCommand
                     Expect.isError result "start game command cannot have empty GameId"
 
-                testCase "rejects an unknown nation"
-                <| fun _ ->
-                    let contractCommand: ContractGameplay.StartGameCommand =
-                        { GameId = Guid.NewGuid()
-                          Nations = [| "Germany"; "Atlantis" |]
-                          PlayerIds = [| Guid.NewGuid(); Guid.NewGuid() |] }
-
-                    let result = StartGameCommand.fromContract contractCommand
-                    Expect.isError result "unknown nation should be rejected"
-
                 testCase "rejects an empty player id"
                 <| fun _ ->
                     let contractCommand: ContractGameplay.StartGameCommand =
                         { GameId = Guid.NewGuid()
-                          Nations = [| "Germany"; "France" |]
                           PlayerIds = [| Guid.NewGuid(); Guid.Empty |] }
 
                     let result = StartGameCommand.fromContract contractCommand
