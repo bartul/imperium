@@ -15,8 +15,7 @@ let tests =
               [ testCase "requires a valid game id"
                 <| fun _ ->
                     let contractCommand: ContractGameplay.StartGameCommand =
-                        { GameId = Guid.Empty
-                          PlayerIds = [| Guid.NewGuid(); Guid.NewGuid() |] }
+                        { GameId = Guid.Empty; PlayerIds = [| Guid.NewGuid(); Guid.NewGuid() |] }
 
                     let result = StartGameCommand.fromContract contractCommand
                     Expect.isError result "start game command cannot have empty GameId"
@@ -24,8 +23,25 @@ let tests =
                 testCase "rejects an empty player id"
                 <| fun _ ->
                     let contractCommand: ContractGameplay.StartGameCommand =
-                        { GameId = Guid.NewGuid()
-                          PlayerIds = [| Guid.NewGuid(); Guid.Empty |] }
+                        { GameId = Guid.NewGuid(); PlayerIds = [| Guid.NewGuid(); Guid.Empty |] }
 
                     let result = StartGameCommand.fromContract contractCommand
-                    Expect.isError result "empty player id should be rejected" ] ]
+                    Expect.isError result "empty player id should be rejected"
+
+                testCase "accepts a valid command and maps GameId and Players"
+                <| fun _ ->
+                    let gameId = Guid.NewGuid()
+                    let playerIds = [| Guid.NewGuid(); Guid.NewGuid(); Guid.NewGuid() |]
+
+                    let contractCommand: ContractGameplay.StartGameCommand =
+                        { GameId = gameId; PlayerIds = playerIds }
+
+                    let domain =
+                        Expect.wantOk
+                            (StartGameCommand.fromContract contractCommand)
+                            "valid command should transform successfully"
+
+                    Expect.equal (GameId.value domain.GameId) gameId "GameId should round-trip"
+
+                    let rosterGuids = PlayerRoster.value domain.Players |> Set.map PlayerId.value
+                    Expect.equal rosterGuids (Set.ofArray playerIds) "players should contain exactly the provided ids" ] ]

@@ -13,7 +13,4 @@ type GameStatus =
 type GameInitialization = | RondelStartingPositions
 
 type GameplayState =
-    { GameId: GameId
-      Players: PlayerRoster
-      Status: GameStatus
-      CompletedInitializations: Set<GameInitialization> }
+    { GameId: GameId; Players: PlayerRoster; Status: GameStatus; CompletedInitializations: Set<GameInitialization> }

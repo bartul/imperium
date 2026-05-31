@@ -19,7 +19,7 @@ module StartGameCommand =
         match gameId, players with
         | Error e, _ -> Error e
         | _, Error e -> Error e
-        | Ok _, Ok _ -> failwith "Not implemented."
+        | Ok gameId, Ok playerRoster -> Ok { GameId = gameId; Players = playerRoster }
 
 // ──────────────────────────────────────────────────────────────────────────
 // Outbound Commands
