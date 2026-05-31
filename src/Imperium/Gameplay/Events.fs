@@ -1,7 +1,7 @@
 namespace Imperium.Gameplay
 
 open Imperium
-open Imperium.Primitives
+open FsToolkit.ErrorHandling
 
 // ──────────────────────────────────────────────────────────────────────────
 // Integration Events
@@ -24,6 +24,7 @@ and RondelPositionedAtStartInboundEvent = { GameId: GameId }
 
 module RondelPositionedAtStartInboundEvent =
     let fromContract (event: Contract.Rondel.PositionedAtStart) : Result<RondelPositionedAtStartInboundEvent, string> =
-        match GameId.create event.GameId with
-        | Ok gameId -> Ok { GameId = gameId }
-        | Error e -> Error e
+        result {
+            let! gameId = GameId.create event.GameId
+            return { GameId = gameId }
+        }
