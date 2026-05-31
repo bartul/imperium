@@ -9,7 +9,7 @@ module Gameplay =
     // Commands
 
     /// Start a new game lifecycle and begin setup for participating bounded contexts.
-    type StartGameCommand = { GameId: Guid; Nations: string array; PlayerIds: Guid array }
+    type StartGameCommand = { GameId: Guid; PlayerIds: Guid array }
 
     /// Union of all commands that can be dispatched to Gameplay bounded context.
     /// Used for infrastructure routing and dispatch.

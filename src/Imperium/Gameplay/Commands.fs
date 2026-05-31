@@ -1,7 +1,7 @@
 namespace Imperium.Gameplay
 
 open Imperium
-open Imperium.Primitives
+open FsToolkit.ErrorHandling
 
 // ──────────────────────────────────────────────────────────────────────────
 // Commands
@@ -9,11 +9,15 @@ open Imperium.Primitives
 
 type GameplayCommand = StartGame of StartGameCommand
 
-and StartGameCommand = { GameId: GameId; Nations: Set<NationId>; Players: PlayerRoster }
+and StartGameCommand = { GameId: GameId; Players: PlayerRoster }
 
 module StartGameCommand =
-    let fromContract (_command: Contract.Gameplay.StartGameCommand) : Result<StartGameCommand, string> =
-        failwith "Not implemented."
+    let fromContract (command: Contract.Gameplay.StartGameCommand) : Result<StartGameCommand, string> =
+        result {
+            let! gameId = GameId.create command.GameId
+            let! players = PlayerRoster.create (command.PlayerIds |> List.ofArray)
+            return { GameId = gameId; Players = players }
+        }
 
 // ──────────────────────────────────────────────────────────────────────────
 // Outbound Commands

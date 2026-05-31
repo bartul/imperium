@@ -1,7 +1,7 @@
 namespace Imperium.Gameplay
 
 open Imperium
-open Imperium.Primitives
+open FsToolkit.ErrorHandling
 
 // ──────────────────────────────────────────────────────────────────────────
 // Integration Events
@@ -23,5 +23,8 @@ type GameplayInboundEvent = RondelPositionedAtStart of RondelPositionedAtStartIn
 and RondelPositionedAtStartInboundEvent = { GameId: GameId }
 
 module RondelPositionedAtStartInboundEvent =
-    let fromContract (_event: Contract.Rondel.PositionedAtStart) : Result<RondelPositionedAtStartInboundEvent, string> =
-        failwith "Not implemented."
+    let fromContract (event: Contract.Rondel.PositionedAtStart) : Result<RondelPositionedAtStartInboundEvent, string> =
+        result {
+            let! gameId = GameId.create event.GameId
+            return { GameId = gameId }
+        }

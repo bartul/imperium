@@ -11,7 +11,7 @@ open Imperium.Primitives
 type GameplayCommand = StartGame of StartGameCommand
 
 /// Intent to start a new game lifecycle.
-and StartGameCommand = { GameId: GameId; Nations: Set<NationId>; Players: PlayerRoster }
+and StartGameCommand = { GameId: GameId; Players: PlayerRoster }
 
 /// Transforms Contract StartGameCommand to Domain type.
 module StartGameCommand =

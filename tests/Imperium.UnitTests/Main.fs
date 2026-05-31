@@ -41,6 +41,7 @@ let main args =
                   FilterTests.tests
                   MarkdownTests.tests
                   AccountingContractTests.tests
+                  GameplayContractTests.tests
                   RondelContractTests.tests
                   Accounting.tests
                   Gameplay.GameId.tests
