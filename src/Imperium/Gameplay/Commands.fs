@@ -24,11 +24,13 @@ module StartGameCommand =
                 | _, Error e -> Error e
                 | Ok set, Ok nation -> Ok (Set.add nation set)
             ) (Ok Set.empty)
+        let players = PlayerRoster.create (command.PlayerIds |> List.ofArray)
 
-        match gameId, nations with
-        | Error e, _ -> Error e
-        | _, Error e -> Error e
-        | Ok _, Ok _ -> failwith "Not implemented."
+        match gameId, nations, players with
+        | Error e, _, _ -> Error e
+        | _, Error e, _ -> Error e
+        | _, _, Error e -> Error e
+        | Ok _, Ok _, Ok _ -> failwith "Not implemented."
 
 // ──────────────────────────────────────────────────────────────────────────
 // Outbound Commands
