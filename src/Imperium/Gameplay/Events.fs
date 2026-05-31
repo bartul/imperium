@@ -23,5 +23,7 @@ type GameplayInboundEvent = RondelPositionedAtStart of RondelPositionedAtStartIn
 and RondelPositionedAtStartInboundEvent = { GameId: GameId }
 
 module RondelPositionedAtStartInboundEvent =
-    let fromContract (_event: Contract.Rondel.PositionedAtStart) : Result<RondelPositionedAtStartInboundEvent, string> =
-        failwith "Not implemented."
+    let fromContract (event: Contract.Rondel.PositionedAtStart) : Result<RondelPositionedAtStartInboundEvent, string> =
+        match GameId.create event.GameId with
+        | Ok gameId -> Ok { GameId = gameId }
+        | Error e -> Error e

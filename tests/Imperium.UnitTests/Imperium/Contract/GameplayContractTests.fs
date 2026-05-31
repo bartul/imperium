@@ -5,6 +5,7 @@ open Expecto
 open Imperium.Gameplay
 
 module ContractGameplay = Imperium.Contract.Gameplay
+module ContractRondel = Imperium.Contract.Rondel
 
 [<Tests>]
 let tests =
@@ -44,4 +45,13 @@ let tests =
                     Expect.equal (GameId.value domain.GameId) gameId "GameId should round-trip"
 
                     let rosterGuids = PlayerRoster.value domain.Players |> Set.map PlayerId.value
-                    Expect.equal rosterGuids (Set.ofArray playerIds) "players should contain exactly the provided ids" ] ]
+                    Expect.equal rosterGuids (Set.ofArray playerIds) "players should contain exactly the provided ids" ]
+
+          testList
+              "RondelPositionedAtStartInboundEvent.fromContract"
+              [ testCase "requires a valid game id"
+                <| fun _ ->
+                    let contractEvent: ContractRondel.PositionedAtStart = { GameId = Guid.Empty }
+
+                    let result = RondelPositionedAtStartInboundEvent.fromContract contractEvent
+                    Expect.isError result "inbound event cannot have empty GameId" ] ]
