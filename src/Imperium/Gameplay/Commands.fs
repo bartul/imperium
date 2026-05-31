@@ -12,8 +12,11 @@ type GameplayCommand = StartGame of StartGameCommand
 and StartGameCommand = { GameId: GameId; Nations: Set<NationId>; Players: PlayerRoster }
 
 module StartGameCommand =
-    let fromContract (_command: Contract.Gameplay.StartGameCommand) : Result<StartGameCommand, string> =
-        failwith "Not implemented."
+    let fromContract (command: Contract.Gameplay.StartGameCommand) : Result<StartGameCommand, string> =
+        let gameId = GameId.create command.GameId
+        match gameId with
+        | Error e -> Error e
+        | Ok _ -> failwith "Not implemented."
 
 // ──────────────────────────────────────────────────────────────────────────
 // Outbound Commands

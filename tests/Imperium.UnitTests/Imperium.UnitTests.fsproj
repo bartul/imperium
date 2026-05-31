@@ -19,6 +19,7 @@
     <Compile Include="Support/Spec.Tests/MarkdownTests.fs" />
 
     <Compile Include="Imperium/Contract/AccountingContractTests.fs" />
+    <Compile Include="Imperium/Contract/GameplayContractTests.fs" />
     <Compile Include="Imperium/Contract/RondelContractTests.fs" />
 
     <Compile Include="Imperium/Accounting/Context.fs" />
