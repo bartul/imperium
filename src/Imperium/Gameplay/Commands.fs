@@ -28,6 +28,8 @@ type GameplayOutboundCommand = SetRondelToStartingPositions of SetRondelToStarti
 and SetRondelToStartingPositionsOutboundCommand = { GameId: GameId; Nations: Set<NationId> }
 
 module SetRondelToStartingPositionsOutboundCommand =
-    let toContract (command: SetRondelToStartingPositionsOutboundCommand) : Contract.Rondel.SetToStartingPositionsCommand =
+    let toContract
+        (command: SetRondelToStartingPositionsOutboundCommand)
+        : Contract.Rondel.SetToStartingPositionsCommand =
         { GameId = command.GameId |> GameId.value
           Nations = command.Nations |> Set.toArray |> Array.map NationId.toString }
