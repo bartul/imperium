@@ -29,6 +29,7 @@ and SetRondelToStartingPositionsOutboundCommand = { GameId: GameId; Nations: Set
 
 module SetRondelToStartingPositionsOutboundCommand =
     let toContract
-        (_command: SetRondelToStartingPositionsOutboundCommand)
+        (command: SetRondelToStartingPositionsOutboundCommand)
         : Contract.Rondel.SetToStartingPositionsCommand =
-        failwith "Not implemented."
+        { GameId = command.GameId |> GameId.value
+          Nations = command.Nations |> Set.toArray |> Array.map NationId.toString }

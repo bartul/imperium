@@ -1,5 +1,6 @@
 module Imperium.UnitTests.RondelHostTests
 
+open System.Collections.Concurrent
 open Expecto
 open Imperium.Accounting
 open Imperium.Primitives
@@ -25,13 +26,13 @@ let private waitFor (check: unit -> bool) =
     loop 5 12
 
 let private createRondelHost (dispatchToAccounting: DispatchToAccounting) =
-    let publishedEvents = ResizeArray<obj>()
+    let publishedEvents = ConcurrentQueue<obj>()
     let innerBus = Bus.create ()
 
     let bus =
         { new IBus with
             member _.Publish<'T>(event: 'T) =
-                publishedEvents.Add(box event)
+                publishedEvents.Enqueue(box event)
                 innerBus.Publish event
 
             member _.Subscribe<'T>(handler: 'T -> Async<unit>) = innerBus.Subscribe<'T> handler }

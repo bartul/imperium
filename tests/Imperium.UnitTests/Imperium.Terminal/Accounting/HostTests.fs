@@ -1,5 +1,6 @@
 module Imperium.UnitTests.AccountingHostTests
 
+open System.Collections.Concurrent
 open Expecto
 open Imperium.Accounting
 open Imperium.Primitives
@@ -24,7 +25,7 @@ let private waitFor (check: unit -> bool) =
     loop 5 12
 
 let private createAccountingHost (publishAccountingEvent: AccountingEvent -> Async<unit>) =
-    let publishedEvents = ResizeArray<obj>()
+    let publishedEvents = ConcurrentQueue<obj>()
     let innerBus = Bus.create ()
 
     let bus =
@@ -34,10 +35,10 @@ let private createAccountingHost (publishAccountingEvent: AccountingEvent -> Asy
                     if typeof<'T> = typeof<AccountingEvent> then
                         let accountingEvent = box event :?> AccountingEvent
                         do! publishAccountingEvent accountingEvent
-                        publishedEvents.Add(box accountingEvent)
+                        publishedEvents.Enqueue(box accountingEvent)
                         do! innerBus.Publish accountingEvent
                     else
-                        publishedEvents.Add(box event)
+                        publishedEvents.Enqueue(box event)
                         do! innerBus.Publish event
                 }
 
