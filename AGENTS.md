@@ -44,7 +44,7 @@ Last verified: 2026-05-31
   - `Support/Spec.Tests/` — spec framework unit tests (`SpecificationTests.fs`, `SpecRunnerTests.fs`, `CollectionAssertTests.fs`, `FilterTests.fs`, `MarkdownTests.fs`)
   - `Imperium/Contract/` — transformation validation (`AccountingContractTests.fs`, `GameplayContractTests.fs`, `RondelContractTests.fs`)
   - `Imperium/Accounting/` — BC behavior specs in `namespace Imperium.UnitTests.Accounting`: `Context.fs` (type `Context` + companion `module Context.create`), `Assertions.fs`, `Specs.fs` (module `Imperium.UnitTests.Accounting.Specs`, hosts the private `runner` and `specifications`)
-  - `Imperium/Gameplay/` — per-type unit tests (`GameIdTests.fs`, `NationIdTests.fs`, `PlayerIdTests.fs`, `PlayerRosterTests.fs`); module names match the bare type (e.g. `module Imperium.UnitTests.Gameplay.GameId`), files carry the `Tests` suffix
+  - `Imperium/Gameplay/` — per-type unit tests (`GameIdTests.fs`, `NationIdTests.fs`, `PlayerIdTests.fs`, `PlayerRosterTests.fs`) plus CE-based behavior specs (`Context.fs`, `Assertions.fs`, `Specs.fs`, in namespace `Imperium.UnitTests.Gameplay`); per-type test files carry the `Tests` suffix while their module names match the bare type (e.g. `module Imperium.UnitTests.Gameplay.GameId`)
   - `Imperium/Rondel/` — BC behavior specs in `namespace Imperium.UnitTests.Rondel`: `Board.fs` (`[<RequireQualifiedAccess>] Board.render` for state-as-board diagram), `Context.fs` (type `Context` + companion `module Context.create`), `Assertions.fs`, `Specs.fs` (module `Imperium.UnitTests.Rondel.Specs`, hosts the private `runner` and `specifications`)
   - `Imperium.Terminal/` — mirrors `src/Imperium.Terminal` (`BusTests.fs`, `Rondel/StoreTests.fs`, `Rondel/DirectCommitTests.fs`, `Rondel/HostTests.fs`, `Accounting/HostTests.fs`)
   - `Main.fs` — entry point + native runner + markdown renderer; uses module abbreviations `Accounting = Imperium.UnitTests.Accounting.Specs` and `Rondel = Imperium.UnitTests.Rondel.Specs` so callers keep short BC names.
@@ -190,6 +190,7 @@ Use this as part of the inner development loop: make changes, launch for review,
 - Use the default F# formatting (4-space indentation, modules and types in `PascalCase`, functions and values in `camelCase`).
 - Group related functions into modules that mirror file names (`Rondel`, `MonetarySystem`); expose a minimal public surface.
 - Prefer expression-based code and pattern matching over mutable branches.
+- **Lean aggressively on F# type inference in implementation files.** Omit type annotations anywhere F# can infer them — `let` bindings, function parameters, return types, lambda parameters, type ascriptions, generic arguments — anywhere a type token could appear. Tighter code reads better and stays flexible to refactors. Only annotate when the inference is genuinely ambiguous (e.g. two records sharing field names, an `obj`/`_` that needs disambiguating, a generic that won't otherwise be pinned, interop with an untyped API), or when you explicitly want a stricter type than F# would infer. The `.fsi` files remain fully explicit by design — they are the contract.
 - Before committing, run `dotnet fantomas .` to format code (configured via `.config/dotnet-tools.json`); keep diffs tidy and minimal.
 
 ### Signature Files: Function vs Value
