@@ -46,6 +46,15 @@ let private specifications =
               (assertRondelAskedToSetStartingPositions gameId NationId.all)
 
           expect "no game events are published yet" assertNoEvents
+      }
+
+      spec "starting an already-started game is ignored" {
+          given_command (StartGame { GameId = gameId; Players = players [ Guid.NewGuid(); Guid.NewGuid() ] })
+
+          when_command (StartGame { GameId = gameId; Players = players [ Guid.NewGuid(); Guid.NewGuid() ] })
+
+          expect "the rondel is not asked again" assertNoOutboundCommands
+          expect "no game events are published" assertNoEvents
       } ]
 
 let renderMarkdown options filter rootPath =

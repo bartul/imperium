@@ -13,10 +13,18 @@ module Gameplay =
                 let! state = load command.GameId
 
                 return
-                    { State = None
-                      IntegrationEvents = []
-                      OutboundCommands =
-                        [ SetRondelToStartingPositions { GameId = command.GameId; Nations = NationId.all } ] }
+                    if state.IsSome then
+                        { State = None; IntegrationEvents = []; OutboundCommands = [] }
+                    else
+                        { State =
+                            Some
+                                { GameId = command.GameId
+                                  Status = InPlay
+                                  Players = command.Players
+                                  CompletedInitializations = Set.empty }
+                          IntegrationEvents = []
+                          OutboundCommands =
+                            [ SetRondelToStartingPositions { GameId = command.GameId; Nations = NationId.all } ] }
             }
 
     let execute (deps: GameplayDependencies) (command: GameplayCommand) : Async<unit> =
