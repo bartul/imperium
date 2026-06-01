@@ -174,6 +174,7 @@ Before every commit, always run these steps in order:
 2. `dotnet build` — ensure the whole solution compiles with 0 errors and 0 warnings
 3. `dotnet test` — ensure all tests pass
 4. `dotnet run --no-build --project tests/Imperium.UnitTests/Imperium.UnitTests.fsproj -- --render-spec-markdown` — ensure specification markdown still renders successfully
+5. Update `AGENTS.md` if this commit changes anything it describes — file layout, public API surface, architectural patterns, test coverage snapshot, the open-work status, or a design decision. Purely internal/private changes that don't surface in the doc can skip this step.
 
 ### Launch Terminal App for Review
 
