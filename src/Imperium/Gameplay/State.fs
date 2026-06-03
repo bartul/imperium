@@ -10,6 +10,7 @@ type GameStatus =
     | InSetup
     | InPlay
 
+[<RequireQualifiedAccess>]
 type GameInitialization = | Rondel
 
 type GameplayState =
