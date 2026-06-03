@@ -12,7 +12,8 @@ type GameStatus =
     | InPlay
 
 /// Setup work completed by participating bounded contexts.
-type GameInitialization = | RondelStartingPositions
+[<RequireQualifiedAccess>]
+type GameInitialization = | Rondel
 
 /// Persistent Gameplay state for a game lifecycle.
 type GameplayState =

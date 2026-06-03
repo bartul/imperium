@@ -170,6 +170,7 @@ Last verified: 2026-05-31
 ### Pre-Commit Checklist
 
 Before every commit, always run these steps in order:
+0. Confirm you are **not on `master`** — run `git branch --show-current` and verify the result is a feature branch, not `master`. If you are on `master`, create a feature branch before committing.
 1. `dotnet fantomas .` — format all F# files
 2. `dotnet build` — ensure the whole solution compiles with 0 errors and 0 warnings
 3. `dotnet test` — ensure all tests pass
@@ -424,7 +425,7 @@ Use branch name prefixes to categorize the type of work, following conventional 
 
 ## Pull Request Workflow
 
-All changes must go through pull requests to maintain code quality and enable proper review. Direct pushes to `master` are discouraged (see Branch Protection below).
+All changes must go through pull requests to maintain code quality and enable proper review. **Never commit directly to `master`** — it is a protected branch. Always work on a dedicated feature branch and open a PR. If you find yourself on `master` with uncommitted changes or commits ahead of `origin/master`, create a branch from the current HEAD and reset `master` to `origin/master` before proceeding.
 
 ### Standard Workflow
 

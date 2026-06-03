@@ -6,34 +6,55 @@ namespace Imperium.Gameplay
 
 [<RequireQualifiedAccess>]
 module Gameplay =
-
     module internal Handlers =
-        let startGame (load: LoadGameplayState) (command: StartGameCommand) : Async<GameplayEffects> =
-            async {
-                let! state = load command.GameId
+        let startGame state (command: StartGameCommand) =
+            match state with
+            | Some _ -> GameplayEffects.empty
+            | None ->
+                let newState =
+                    { GameId = command.GameId
+                      Status = InSetup
+                      Players = command.Players
+                      CompletedInitializations = Set.empty }
 
-                return
-                    if state.IsSome then
-                        { State = None; IntegrationEvents = []; OutboundCommands = [] }
-                    else
-                        { State =
-                            Some
-                                { GameId = command.GameId
-                                  Status = InPlay
-                                  Players = command.Players
-                                  CompletedInitializations = Set.empty }
-                          IntegrationEvents = []
-                          OutboundCommands =
-                            [ SetRondelToStartingPositions { GameId = command.GameId; Nations = NationId.all } ] }
-            }
+                let newCommand =
+                    SetRondelToStartingPositions { GameId = command.GameId; Nations = NationId.all }
 
-    let execute (deps: GameplayDependencies) (command: GameplayCommand) : Async<unit> =
+                GameplayEffects.create newState |> GameplayEffects.withCommand newCommand
+
+        let rondelPositionedAtStart state (event: RondelPositionedAtStartInboundEvent) =
+            match state with
+            | Some s when s.CompletedInitializations |> Set.contains GameInitialization.Rondel |> not ->
+                GameplayEffects.create { s with CompletedInitializations = Set.singleton GameInitialization.Rondel }
+                |> GameplayEffects.withEvent (SetupCompleted { GameId = event.GameId })
+            | _ -> GameplayEffects.empty
+
+    let execute deps command =
         async {
-            let! effects =
+            let gameId =
                 match command with
-                | StartGame cmd -> Handlers.startGame deps.Load cmd
+                | StartGame cmd -> cmd.GameId
+
+            let! state = deps.Load gameId
+
+            let effects =
+                match command with
+                | StartGame cmd -> Handlers.startGame state cmd
 
             do! deps.Commit effects
         }
 
-    let handle (_deps: GameplayDependencies) (_event: GameplayInboundEvent) : Async<unit> = failwith "Not implemented."
+    let handle deps event =
+        async {
+            let gameId =
+                match event with
+                | RondelPositionedAtStart evt -> evt.GameId
+
+            let! state = deps.Load gameId
+
+            let effects =
+                match event with
+                | RondelPositionedAtStart evt -> Handlers.rondelPositionedAtStart state evt
+
+            do! deps.Commit effects
+        }
