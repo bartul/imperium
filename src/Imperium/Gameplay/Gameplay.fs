@@ -8,13 +8,13 @@ namespace Imperium.Gameplay
 module Gameplay =
     module internal Handlers =
         let startGame (state: GameplayState option) (command: StartGameCommand) : GameplayEffects =
-            if state.IsSome then
-                { State = None; IntegrationEvents = []; OutboundCommands = [] }
-            else
+            match state with
+            | Some s -> { State = None; IntegrationEvents = []; OutboundCommands = [] }
+            | None ->
                 { State =
                     Some
                         { GameId = command.GameId
-                          Status = InPlay
+                          Status = InSetup
                           Players = command.Players
                           CompletedInitializations = Set.empty }
                   IntegrationEvents = []
@@ -26,16 +26,18 @@ module Gameplay =
             (event: RondelPositionedAtStartInboundEvent)
             : GameplayEffects =
             match state with
-            | Some s ->
-                { State =
-                    Some { s with CompletedInitializations = Set.singleton GameInitialization.Rondel }
+            | Some s when s.CompletedInitializations |> Set.contains GameInitialization.Rondel |> not ->
+                { State = Some { s with CompletedInitializations = Set.singleton GameInitialization.Rondel }
                   IntegrationEvents = [ SetupCompleted { GameId = event.GameId } ]
                   OutboundCommands = [] }
-            | None -> { State = None; IntegrationEvents = []; OutboundCommands = [] }
+            | _ -> { State = None; IntegrationEvents = []; OutboundCommands = [] }
 
     let execute (deps: GameplayDependencies) (command: GameplayCommand) : Async<unit> =
         async {
-            let gameId = match command with | StartGame cmd -> cmd.GameId
+            let gameId =
+                match command with
+                | StartGame cmd -> cmd.GameId
+
             let! state = deps.Load gameId
 
             let effects =
@@ -47,7 +49,10 @@ module Gameplay =
 
     let handle (deps: GameplayDependencies) (event: GameplayInboundEvent) : Async<unit> =
         async {
-            let gameId = match event with | RondelPositionedAtStart evt -> evt.GameId
+            let gameId =
+                match event with
+                | RondelPositionedAtStart evt -> evt.GameId
+
             let! state = deps.Load gameId
 
             let effects =

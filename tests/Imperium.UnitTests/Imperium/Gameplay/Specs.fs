@@ -57,6 +57,16 @@ let private specifications =
           expect "no outbound commands are emitted" assertNoOutboundCommands
       }
 
+      spec "rondel confirming starting positions again after setup is complete is ignored" {
+          given_command (StartGame { GameId = gameId; Players = players [ Guid.NewGuid(); Guid.NewGuid() ] })
+          given_event (RondelPositionedAtStart { GameId = gameId })
+
+          when_event (RondelPositionedAtStart { GameId = gameId })
+
+          expect "no game events are published" assertNoEvents
+          expect "no outbound commands are emitted" assertNoOutboundCommands
+      }
+
       spec "starting an already-started game is ignored" {
           given_command (StartGame { GameId = gameId; Players = players [ Guid.NewGuid(); Guid.NewGuid() ] })
 
