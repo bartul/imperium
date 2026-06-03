@@ -26,6 +26,9 @@ let assertRondelAskedToSetStartingPositions gameId nations =
         (SetRondelToStartingPositions { GameId = gameId; Nations = nations })
         "rondel should be asked to set its starting positions"
 
+let assertSetupCompleted gameId =
+    assertExactEvent (SetupCompleted { GameId = gameId }) "the gameplay should announce that setup is complete"
+
 let assertNoEvents = events.HasSize 0 "no game events should be published yet"
 
 let assertNoOutboundCommands =

@@ -10,7 +10,7 @@ type GameStatus =
     | InSetup
     | InPlay
 
-type GameInitialization = | RondelStartingPositions
+type GameInitialization = | Rondel
 
 type GameplayState =
     { GameId: GameId; Players: PlayerRoster; Status: GameStatus; CompletedInitializations: Set<GameInitialization> }

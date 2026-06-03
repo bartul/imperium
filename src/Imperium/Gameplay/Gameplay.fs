@@ -6,7 +6,6 @@ namespace Imperium.Gameplay
 
 [<RequireQualifiedAccess>]
 module Gameplay =
-
     module internal Handlers =
         let startGame (load: LoadGameplayState) (command: StartGameCommand) : Async<GameplayEffects> =
             async {
@@ -27,6 +26,23 @@ module Gameplay =
                             [ SetRondelToStartingPositions { GameId = command.GameId; Nations = NationId.all } ] }
             }
 
+        let rondelPositionedAtStart
+            (load: LoadGameplayState)
+            (event: RondelPositionedAtStartInboundEvent)
+            : Async<GameplayEffects> =
+            async {
+                let! state = load event.GameId
+
+                return
+                    match state with
+                    | Some s ->
+                        { State =
+                            Some { s with CompletedInitializations = Set.singleton GameInitialization.Rondel }
+                          IntegrationEvents = [ SetupCompleted { GameId = event.GameId } ]
+                          OutboundCommands = [] }
+                    | None -> { State = None; IntegrationEvents = []; OutboundCommands = [] }
+            }
+
     let execute (deps: GameplayDependencies) (command: GameplayCommand) : Async<unit> =
         async {
             let! effects =
@@ -36,4 +52,12 @@ module Gameplay =
             do! deps.Commit effects
         }
 
-    let handle (_deps: GameplayDependencies) (_event: GameplayInboundEvent) : Async<unit> = failwith "Not implemented."
+    let handle (deps: GameplayDependencies) (event: GameplayInboundEvent) : Async<unit> =
+        async {
+            let! effects =
+                match event with
+                | RondelPositionedAtStart rondelAtStartEvent ->
+                    Handlers.rondelPositionedAtStart deps.Load rondelAtStartEvent
+
+            do! deps.Commit effects
+        }
