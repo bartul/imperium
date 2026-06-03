@@ -9,17 +9,18 @@ module Gameplay =
     module internal Handlers =
         let startGame (state: GameplayState option) (command: StartGameCommand) : GameplayEffects =
             match state with
-            | Some s -> { State = None; IntegrationEvents = []; OutboundCommands = [] }
+            | Some _ -> GameplayEffects.empty
             | None ->
-                { State =
-                    Some
-                        { GameId = command.GameId
-                          Status = InSetup
-                          Players = command.Players
-                          CompletedInitializations = Set.empty }
-                  IntegrationEvents = []
-                  OutboundCommands =
-                    [ SetRondelToStartingPositions { GameId = command.GameId; Nations = NationId.all } ] }
+                let newState =
+                    { GameId = command.GameId
+                      Status = InSetup
+                      Players = command.Players
+                      CompletedInitializations = Set.empty }
+
+                let newCommand =
+                    SetRondelToStartingPositions { GameId = command.GameId; Nations = NationId.all }
+
+                GameplayEffects.create newState |> GameplayEffects.withCommand newCommand
 
         let rondelPositionedAtStart
             (state: GameplayState option)
@@ -27,10 +28,9 @@ module Gameplay =
             : GameplayEffects =
             match state with
             | Some s when s.CompletedInitializations |> Set.contains GameInitialization.Rondel |> not ->
-                { State = Some { s with CompletedInitializations = Set.singleton GameInitialization.Rondel }
-                  IntegrationEvents = [ SetupCompleted { GameId = event.GameId } ]
-                  OutboundCommands = [] }
-            | _ -> { State = None; IntegrationEvents = []; OutboundCommands = [] }
+                GameplayEffects.create { s with CompletedInitializations = Set.singleton GameInitialization.Rondel }
+                |> GameplayEffects.withEvent (SetupCompleted { GameId = event.GameId })
+            | _ -> GameplayEffects.empty
 
     let execute (deps: GameplayDependencies) (command: GameplayCommand) : Async<unit> =
         async {

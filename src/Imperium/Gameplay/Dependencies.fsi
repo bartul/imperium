@@ -15,6 +15,13 @@ type GameplayEffects =
       IntegrationEvents: GameplayEvent list
       OutboundCommands: GameplayOutboundCommand list }
 
+module GameplayEffects =
+    val empty: GameplayEffects
+    val withState: GameplayState -> GameplayEffects -> GameplayEffects
+    val create: GameplayState -> GameplayEffects
+    val withEvent: GameplayEvent -> GameplayEffects -> GameplayEffects
+    val withCommand: GameplayOutboundCommand -> GameplayEffects -> GameplayEffects
+
 /// Commit boundary for Gameplay effects.
 type CommitGameplayEffects = GameplayEffects -> Async<unit>
 
