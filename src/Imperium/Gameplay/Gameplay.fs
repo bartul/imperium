@@ -7,7 +7,7 @@ namespace Imperium.Gameplay
 [<RequireQualifiedAccess>]
 module Gameplay =
     module internal Handlers =
-        let startGame (state: GameplayState option) (command: StartGameCommand) : GameplayEffects =
+        let startGame state (command: StartGameCommand) =
             match state with
             | Some _ -> GameplayEffects.empty
             | None ->
@@ -22,17 +22,14 @@ module Gameplay =
 
                 GameplayEffects.create newState |> GameplayEffects.withCommand newCommand
 
-        let rondelPositionedAtStart
-            (state: GameplayState option)
-            (event: RondelPositionedAtStartInboundEvent)
-            : GameplayEffects =
+        let rondelPositionedAtStart state (event: RondelPositionedAtStartInboundEvent) =
             match state with
             | Some s when s.CompletedInitializations |> Set.contains GameInitialization.Rondel |> not ->
                 GameplayEffects.create { s with CompletedInitializations = Set.singleton GameInitialization.Rondel }
                 |> GameplayEffects.withEvent (SetupCompleted { GameId = event.GameId })
             | _ -> GameplayEffects.empty
 
-    let execute (deps: GameplayDependencies) (command: GameplayCommand) : Async<unit> =
+    let execute deps command =
         async {
             let gameId =
                 match command with
@@ -47,7 +44,7 @@ module Gameplay =
             do! deps.Commit effects
         }
 
-    let handle (deps: GameplayDependencies) (event: GameplayInboundEvent) : Async<unit> =
+    let handle deps event =
         async {
             let gameId =
                 match event with
