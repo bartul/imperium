@@ -1,6 +1,5 @@
 namespace Imperium.Gameplay
 
-open System
 open FsToolkit.ErrorHandling
 
 // ──────────────────────────────────────────────────────────────────────────
@@ -16,7 +15,7 @@ module PlayerRoster =
     [<Literal>]
     let private maxPlayers = 6
 
-    let create (players: Guid list) : Result<PlayerRoster, string> =
+    let create players =
         match List.length players with
         | count when count < minPlayers -> Error $"A game requires at least {minPlayers} players, but got {count}."
         | count when count > maxPlayers -> Error $"A game supports at most {maxPlayers} players, but got {count}."
