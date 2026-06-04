@@ -1,8 +1,6 @@
 namespace Imperium.Gameplay
 
 open Imperium
-open Imperium.Primitives
-
 // ──────────────────────────────────────────────────────────────────────────
 // Integration Events
 // ──────────────────────────────────────────────────────────────────────────
