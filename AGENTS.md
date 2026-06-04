@@ -397,10 +397,9 @@ let tests = testList "Accounting" (specifications |> List.map (SpecRunner.toExpe
     - NationId: Germany round-trips through toString/tryParse; rejects unknown nation; rejects blank value; case-insensitive parse
     - PlayerId: create rejects empty Guid; create round-trips value; tryParse round-trips canonical string; tryParse rejects invalid string
     - PlayerRoster: rejects fewer than two players; rejects more than six players; rejects duplicate players; accepts a valid roster of unique players (exact set-membership check)
-  - **Imperium/Contract/GameplayContractTests.fs** (6 transformation validation tests):
+  - **Imperium/Contract/GameplayContractTests.fs** (5 transformation validation tests):
     - StartGameCommand.fromContract: requires a valid GameId; rejects an empty player id; accepts a valid command and maps GameId and Players
     - RondelPositionedAtStartInboundEvent.fromContract: requires a valid GameId; accepts a valid event and round-trips the GameId
-    - GameplayEvent.toContract: maps SetupCompleted event
   - **Imperium/Gameplay/Specs.fs** (4 CE-based spec expectations across 2 specs):
     - starting a new game asks the rondel to set its starting positions (rondel is asked with all six nations; no game events are published yet)
     - starting an already-started game is ignored (the rondel is not asked again; no game events are published)
