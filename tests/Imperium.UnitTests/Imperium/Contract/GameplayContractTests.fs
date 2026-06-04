@@ -66,4 +66,21 @@ let tests =
                             (RondelPositionedAtStartInboundEvent.fromContract contractEvent)
                             "valid event should transform successfully"
 
-                    Expect.equal (GameId.value domain.GameId) gameId "GameId should round-trip" ] ]
+                    Expect.equal (GameId.value domain.GameId) gameId "GameId should round-trip" ]
+
+          testList
+              "GameplayEvent.toContract"
+              [ testCase "maps setup completed event"
+                <| fun _ ->
+                    let gameId = Guid.NewGuid()
+
+                    let domainGameId =
+                        Expect.wantOk (GameId.create gameId) "valid game id should be accepted"
+
+                    let contractEvent =
+                        GameplayEvent.toContract (SetupCompleted { GameId = domainGameId })
+
+                    Expect.equal
+                        contractEvent
+                        (ContractGameplay.SetupCompleted { GameId = gameId })
+                        "event should round-trip" ] ]
