@@ -1,4 +1,4 @@
-module Imperium.UnitTests.Gameplay.Specs
+module Imperium.UnitTests.Gameplay.Specification
 
 open System
 open Expecto
@@ -83,7 +83,7 @@ let private specifications =
           expect "no game events are published" assertNoEvents
       } ]
 
-let renderMarkdown options filter rootPath =
+let markdown options filter rootPath =
     specifications
     |> SpecFilter.apply filter (rootPath @ [ "Gameplay" ])
     |> Markdown.render options "Gameplay" runner
@@ -93,5 +93,5 @@ let renderMarkdown options filter rootPath =
 // ────────────────────────────────────────────────────────────────────────────────
 
 [<Tests>]
-let tests =
+let all =
     testList "Gameplay" (specifications |> List.map (SpecRunner.toExpectoTestList runner))

@@ -8,8 +8,14 @@
     <Compile Include="Contract/Gameplay.fs" />
     <Compile Include="Contract/Accounting.fs" />
     <Compile Include="Contract/Rondel.fs" />
-    <Compile Include="Gameplay/Types.fsi" />
-    <Compile Include="Gameplay/Types.fs" />
+    <Compile Include="Gameplay/GameId.fsi" />
+    <Compile Include="Gameplay/GameId.fs" />
+    <Compile Include="Gameplay/NationId.fsi" />
+    <Compile Include="Gameplay/NationId.fs" />
+    <Compile Include="Gameplay/PlayerId.fsi" />
+    <Compile Include="Gameplay/PlayerId.fs" />
+    <Compile Include="Gameplay/PlayerRoster.fsi" />
+    <Compile Include="Gameplay/PlayerRoster.fs" />
     <Compile Include="Gameplay/Commands.fsi" />
     <Compile Include="Gameplay/Commands.fs" />
     <Compile Include="Gameplay/Events.fsi" />

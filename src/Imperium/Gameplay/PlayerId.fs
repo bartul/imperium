@@ -1,18 +1,21 @@
 namespace Imperium.Gameplay
 
+open Imperium.Primitives
+
 // ──────────────────────────────────────────────────────────────────────────
-// State
+// Domain Values
 // ──────────────────────────────────────────────────────────────────────────
 
-/// Current lifecycle status for a game.
-type GameStatus =
-    | InSetup
-    | InPlay
+[<Struct>]
+type PlayerId = private PlayerId of Id
 
-/// Setup work completed by participating bounded contexts.
-[<RequireQualifiedAccess>]
-type GameInitialization = | Rondel
+module PlayerId =
+    let create guid = guid |> Id.createMap PlayerId
 
-/// Persistent Gameplay state for a game lifecycle.
-type GameplayState =
-    { GameId: GameId; Players: PlayerRoster; Status: GameStatus; CompletedInitializations: Set<GameInitialization> }
+    let newId () = Id.newId () |> PlayerId
+
+    let value (PlayerId id) = id |> Id.value
+
+    let toString (PlayerId id) = id |> Id.toString
+
+    let tryParse raw = raw |> Id.tryParseMap PlayerId
