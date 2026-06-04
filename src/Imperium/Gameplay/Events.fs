@@ -12,7 +12,9 @@ type GameplayEvent = SetupCompleted of SetupCompletedEvent
 and SetupCompletedEvent = { GameId: GameId }
 
 module GameplayEvent =
-    let toContract (_event: GameplayEvent) : Contract.Gameplay.GameplayEvent = failwith "Not implemented."
+    let toContract event =
+        match event with
+        | SetupCompleted event -> Contract.Gameplay.SetupCompleted { GameId = GameId.value event.GameId }
 
 // ──────────────────────────────────────────────────────────────────────────
 // Incoming Events
