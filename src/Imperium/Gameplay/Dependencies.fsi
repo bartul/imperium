@@ -15,15 +15,15 @@ type GameplayEffects =
       IntegrationEvents: GameplayEvent list
       OutboundCommands: GameplayOutboundCommand list }
 
-/// Builders for constructing and accumulating GameplayEffects in a pipeline style.
-module GameplayEffects =
-    /// The initial empty effects: no state change, no events, no commands.
-    val empty: GameplayEffects
+/// Internal builders for constructing and accumulating GameplayEffects in a pipeline style.
+module internal GameplayEffects =
+    /// No effects: no state change, no events, no commands.
+    val none: GameplayEffects
 
     /// Returns effects with the given state applied.
     val withState: GameplayState -> GameplayEffects -> GameplayEffects
 
-    /// Creates effects from a state, starting from empty.
+    /// Creates effects containing the given state and nothing else.
     val create: GameplayState -> GameplayEffects
 
     /// Appends an integration event to effects.

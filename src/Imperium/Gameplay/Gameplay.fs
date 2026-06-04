@@ -9,7 +9,7 @@ module Gameplay =
     module internal Handlers =
         let startGame state (command: StartGameCommand) =
             match state with
-            | Some _ -> GameplayEffects.empty
+            | Some _ -> GameplayEffects.none
             | None ->
                 let newState =
                     { GameId = command.GameId
@@ -27,7 +27,7 @@ module Gameplay =
             | Some s when s.CompletedInitializations |> Set.contains GameInitialization.Rondel |> not ->
                 GameplayEffects.create { s with CompletedInitializations = Set.singleton GameInitialization.Rondel }
                 |> GameplayEffects.withEvent (SetupCompleted { GameId = event.GameId })
-            | _ -> GameplayEffects.empty
+            | _ -> GameplayEffects.none
 
     let execute deps command =
         async {

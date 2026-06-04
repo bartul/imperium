@@ -13,10 +13,10 @@ type GameplayEffects =
       IntegrationEvents: GameplayEvent list
       OutboundCommands: GameplayOutboundCommand list }
 
-module GameplayEffects =
-    let empty = { State = None; IntegrationEvents = []; OutboundCommands = [] }
+module internal GameplayEffects =
+    let none = { State = None; IntegrationEvents = []; OutboundCommands = [] }
     let withState state effects = { effects with State = Some state }
-    let create state = empty |> withState state
+    let create state = none |> withState state
 
     let withEvent event effects =
         { effects with IntegrationEvents = effects.IntegrationEvents @ [ event ] }
