@@ -1,26 +1,11 @@
 namespace Imperium.Gameplay
 
 open System
-open Imperium.Primitives
 open FsToolkit.ErrorHandling
 
 // ──────────────────────────────────────────────────────────────────────────
 // Domain Values
 // ──────────────────────────────────────────────────────────────────────────
-
-[<Struct>]
-type PlayerId = private PlayerId of Id
-
-module PlayerId =
-    let create guid = guid |> Id.createMap PlayerId
-
-    let newId () = Id.newId () |> PlayerId
-
-    let value (PlayerId id) = id |> Id.value
-
-    let toString (PlayerId id) = id |> Id.toString
-
-    let tryParse raw = raw |> Id.tryParseMap PlayerId
 
 type PlayerRoster = private PlayerRoster of Set<PlayerId>
 
