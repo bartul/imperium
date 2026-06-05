@@ -18,8 +18,10 @@
     <Compile Include="Gameplay/PlayerRoster.fs" />
     <Compile Include="Gameplay/Commands.fsi" />
     <Compile Include="Gameplay/Commands.fs" />
-    <Compile Include="Gameplay/Events.fsi" />
-    <Compile Include="Gameplay/Events.fs" />
+    <Compile Include="Gameplay/GameplayEvent.fsi" />
+    <Compile Include="Gameplay/GameplayEvent.fs" />
+    <Compile Include="Gameplay/GameplayInboundEvents.fsi" />
+    <Compile Include="Gameplay/GameplayInboundEvents.fs" />
     <Compile Include="Gameplay/GameplayState.fsi" />
     <Compile Include="Gameplay/GameplayState.fs" />
     <Compile Include="Gameplay/Dependencies.fsi" />
