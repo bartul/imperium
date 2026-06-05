@@ -28,8 +28,8 @@
     <Compile Include="Gameplay/GameplayState.fs" />
     <Compile Include="Gameplay/GameplayEffects.fsi" />
     <Compile Include="Gameplay/GameplayEffects.fs" />
-    <Compile Include="Gameplay/Dependencies.fsi" />
-    <Compile Include="Gameplay/Dependencies.fs" />
+    <Compile Include="Gameplay/GameplayDependencies.fsi" />
+    <Compile Include="Gameplay/GameplayDependencies.fs" />
     <Compile Include="Gameplay/Gameplay.fsi" />
     <Compile Include="Gameplay/Gameplay.fs" />
     <Compile Include="Accounting/Commands.fsi" />
