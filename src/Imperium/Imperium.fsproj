@@ -20,8 +20,8 @@
     <Compile Include="Gameplay/Commands.fs" />
     <Compile Include="Gameplay/Events.fsi" />
     <Compile Include="Gameplay/Events.fs" />
-    <Compile Include="Gameplay/State.fsi" />
-    <Compile Include="Gameplay/State.fs" />
+    <Compile Include="Gameplay/GameplayState.fsi" />
+    <Compile Include="Gameplay/GameplayState.fs" />
     <Compile Include="Gameplay/Dependencies.fsi" />
     <Compile Include="Gameplay/Dependencies.fs" />
     <Compile Include="Gameplay/Gameplay.fsi" />
