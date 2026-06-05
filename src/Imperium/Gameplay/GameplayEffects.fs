@@ -1,10 +1,8 @@
 namespace Imperium.Gameplay
 
 // ──────────────────────────────────────────────────────────────────────────
-// Dependencies
+// Effects
 // ──────────────────────────────────────────────────────────────────────────
-
-type LoadGameplayState = GameId -> Async<GameplayState option>
 
 type GameplayEffects =
     { State: GameplayState option
@@ -21,7 +19,3 @@ module internal GameplayEffects =
 
     let withCommand command effects =
         { effects with OutboundCommands = effects.OutboundCommands @ [ command ] }
-
-type CommitGameplayEffects = GameplayEffects -> Async<unit>
-
-type GameplayDependencies = { Load: LoadGameplayState; Commit: CommitGameplayEffects }
