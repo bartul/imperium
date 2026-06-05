@@ -16,8 +16,10 @@
     <Compile Include="Gameplay/PlayerId.fs" />
     <Compile Include="Gameplay/PlayerRoster.fsi" />
     <Compile Include="Gameplay/PlayerRoster.fs" />
-    <Compile Include="Gameplay/Commands.fsi" />
-    <Compile Include="Gameplay/Commands.fs" />
+    <Compile Include="Gameplay/GameplayCommand.fsi" />
+    <Compile Include="Gameplay/GameplayCommand.fs" />
+    <Compile Include="Gameplay/GameplayOutboundCommand.fsi" />
+    <Compile Include="Gameplay/GameplayOutboundCommand.fs" />
     <Compile Include="Gameplay/GameplayEvent.fsi" />
     <Compile Include="Gameplay/GameplayEvent.fs" />
     <Compile Include="Gameplay/GameplayInboundEvents.fsi" />
