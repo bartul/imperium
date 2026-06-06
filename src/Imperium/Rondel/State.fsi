@@ -48,7 +48,7 @@ module RondelState =
 
     /// Remove a pending move for an existing nation.
     /// Raises if the nation is not present in the state.
-    val withoutPendingMove: string -> RondelState -> RondelState
+    val internal withoutPendingMove: string -> RondelState -> RondelState
 
     /// Convert domain state to serializable contract representation.
     val toContract: RondelState -> Contract.Rondel.RondelState

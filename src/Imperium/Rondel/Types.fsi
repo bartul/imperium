@@ -55,7 +55,7 @@ type Space =
 
 module Space =
     /// Maps a rondel space to its corresponding action.
-    val toAction: Space -> Action
+    val internal toAction: Space -> Action
 
     /// Assembly-internal: clockwise distance between two spaces (0..7).
     val internal distance: Space -> Space -> int
