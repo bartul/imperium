@@ -11,7 +11,7 @@ open Imperium.UnitTests.Gameplay.Assertions
 // Runner
 // ────────────────────────────────────────────────────────────────────────────────
 
-let private runner =
+let internal runner =
     { SpecRunner.empty with
         Execute = fun ctx cmd -> Gameplay.execute ctx.Deps cmd |> Async.RunSynchronously
         Handle = fun ctx evt -> Gameplay.handle ctx.Deps evt |> Async.RunSynchronously

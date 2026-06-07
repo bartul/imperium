@@ -17,6 +17,7 @@ let private renderMarkdown (args: string array) =
     let sections =
         [ Accounting.renderMarkdown opts filter rootPath
           Gameplay.Specification.markdown opts filter rootPath
+          Gameplay.QuerySpecification.markdown opts filter rootPath
           Rondel.renderMarkdown opts filter rootPath ]
         |> List.choose id
 
@@ -50,6 +51,7 @@ let main args =
                   Gameplay.PlayerId.tests
                   Gameplay.PlayerRoster.tests
                   Gameplay.Specification.all
+                  Gameplay.QuerySpecification.all
                   Rondel.tests
                   TerminalBusTests.tests
                   TerminalRondelStoreTests.tests

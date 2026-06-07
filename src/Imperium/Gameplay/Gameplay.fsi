@@ -5,7 +5,7 @@ namespace Imperium.Gameplay
 // ──────────────────────────────────────────────────────────────────────────
 
 /// Public facade for the Gameplay bounded context.
-/// Routes commands and inbound events to internal handlers.
+/// Routes commands, inbound events, and queries to internal handlers.
 [<RequireQualifiedAccess>]
 module Gameplay =
 
@@ -14,3 +14,6 @@ module Gameplay =
 
     /// Handle an inbound event from another bounded context. Routes to the appropriate event handler and commits its effects.
     val handle: GameplayDependencies -> GameplayInboundEvent -> Async<unit>
+
+    /// Get the public Gameplay status projection for a game. Returns None if game not found.
+    val getGameplayStatus: GameplayQueryDependencies -> GetGameplayStatusQuery -> Async<GameplayStatusView option>

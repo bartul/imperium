@@ -8,7 +8,8 @@ type Context =
       Events: ResizeArray<GameplayEvent>
       Commands: ResizeArray<GameplayOutboundCommand>
       Store: Dictionary<GameId, GameplayState>
-      GameId: GameId }
+      GameId: GameId
+      GetGameplayStatus: unit -> GameplayStatusView option }
 
 module Context =
     let create gameId =
@@ -31,8 +32,21 @@ module Context =
                 effects.OutboundCommands |> List.iter commands.Add
             }
 
+        let loadStatus id =
+            async {
+                let! state = load id
+                return state |> Option.map GameplayStatusProjection.fromState
+            }
+
+        let queryDeps: GameplayQueryDependencies = { LoadStatus = loadStatus }
+
+        let getGameplayStatusForGame () =
+            Gameplay.getGameplayStatus queryDeps { GameId = gameId }
+            |> Async.RunSynchronously
+
         { Deps = { Load = load; Commit = commit }
           Events = events
           Commands = commands
           Store = store
-          GameId = gameId }
+          GameId = gameId
+          GetGameplayStatus = getGameplayStatusForGame }
