@@ -1,5 +1,6 @@
 module Imperium.UnitTests.Gameplay.Assertions
 
+open Expecto
 open Imperium.Gameplay
 open Imperium.Testing.Spec.CollectionAssert
 
@@ -33,3 +34,30 @@ let assertNoEvents = events.HasSize 0 "no game events should be published yet"
 
 let assertNoOutboundCommands =
     commands.HasSize 0 "no outbound commands should be emitted"
+
+// ────────────────────────────────────────────────────────────────────────────────
+// Query assertions
+// ────────────────────────────────────────────────────────────────────────────────
+
+let getGameplayStatusResult ctx = ctx.GetGameplayStatus()
+
+let assertNoGameplayStatus ctx =
+    Expect.isNone (getGameplayStatusResult ctx) "no gameplay status should be returned"
+
+let assertGameplayStatus ctx =
+    Expect.isSome (getGameplayStatusResult ctx) "gameplay status should be returned"
+
+let assertGameplayStatusForGameId gameId ctx =
+    let result = getGameplayStatusResult ctx
+    Expect.isSome result "gameplay status should be returned"
+    Expect.equal result.Value.GameId gameId "gameplay status should belong to expected game"
+
+let assertGameplayInPlay expected ctx =
+    let result = getGameplayStatusResult ctx
+    Expect.isSome result "gameplay status should be returned"
+    Expect.equal result.Value.InPlay expected "in-play status should match"
+
+let assertGameplayPlayerCount expected ctx =
+    let result = getGameplayStatusResult ctx
+    Expect.isSome result "gameplay status should be returned"
+    Expect.equal result.Value.NumberOfPlayers expected "player count should match"

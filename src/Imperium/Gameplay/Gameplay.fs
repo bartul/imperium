@@ -25,7 +25,10 @@ module Gameplay =
         let rondelPositionedAtStart state (event: RondelPositionedAtStartInboundEvent) =
             match state with
             | Some s when s.CompletedInitializations |> Set.contains GameInitialization.Rondel |> not ->
-                GameplayEffects.create { s with CompletedInitializations = Set.singleton GameInitialization.Rondel }
+                GameplayEffects.create
+                    { s with
+                        Status = InPlay
+                        CompletedInitializations = s.CompletedInitializations |> Set.add GameInitialization.Rondel }
                 |> GameplayEffects.withEvent (SetupCompleted { GameId = event.GameId })
             | _ -> GameplayEffects.none
 
@@ -43,6 +46,12 @@ module Gameplay =
 
             do! deps.Commit effects
         }
+
+    let getGameplayStatus
+        (deps: GameplayQueryDependencies)
+        (query: GetGameplayStatusQuery)
+        : Async<GameplayStatusView option> =
+        Queries.getGameplayStatus deps query
 
     let handle deps event =
         async {
