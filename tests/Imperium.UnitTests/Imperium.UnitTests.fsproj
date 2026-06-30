@@ -49,8 +49,10 @@
     <Compile Include="Main.fs" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="Expecto" Version="10.2.3" />
-    <PackageReference Include="Expecto.FsCheck" Version="10.2.3" />
+    <!-- NU1608: YoloDev.Expecto.TestSdk 0.15.6 caps Expecto at < 11.0.0, but the suite runs fine on
+         11.0.0. Remove this NoWarn once the adapter ships a version that allows Expecto 11. -->
+    <PackageReference Include="Expecto" Version="11.0.0" NoWarn="NU1608" />
+    <PackageReference Include="Expecto.FsCheck" Version="11.0.0" />
     <PackageReference Include="YoloDev.Expecto.TestSdk" Version="0.15.6" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.6.0" />
     <PackageReference Include="GitHubActionsTestLogger" Version="3.0.4" />
