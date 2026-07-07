@@ -4,6 +4,10 @@ open Imperium
 open Imperium.Primitives
 open FsToolkit.ErrorHandling
 
+// ──────────────────────────────────────────────────────────────────────────
+// Commands
+// ──────────────────────────────────────────────────────────────────────────
+
 type AccountingCommand =
     | ChargeNationForRondelMovement of ChargeNationForRondelMovementCommand
     | VoidRondelCharge of VoidRondelChargeCommand
