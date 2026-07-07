@@ -3,6 +3,10 @@ namespace Imperium.Accounting
 open Imperium
 open Imperium.Primitives
 
+// ──────────────────────────────────────────────────────────────────────────
+// Events
+// ──────────────────────────────────────────────────────────────────────────
+
 type AccountingEvent =
     | RondelInvoicePaid of RondelInvoicePaidEvent
     | RondelInvoicePaymentFailed of RondelInvoicePaymentFailedEvent
