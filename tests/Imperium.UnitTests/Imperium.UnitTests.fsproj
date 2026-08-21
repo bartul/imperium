@@ -53,7 +53,7 @@
     <PackageReference Include="Expecto.FsCheck" Version="11.1.0" />
     <PackageReference Include="YoloDev.Expecto.TestSdk" Version="0.16.0" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.8.1" />
-    <PackageReference Include="GitHubActionsTestLogger" Version="3.0.4" />
+    <PackageReference Include="GitHubActionsTestLogger" Version="3.0.5" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\Imperium\Imperium.fsproj" />
