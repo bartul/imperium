@@ -4,7 +4,7 @@
   "features": {
     "ghcr.io/devcontainers/features/github-cli:1": {}
   },
-  "postCreateCommand": "sudo chown -R vscode:vscode /home/vscode/.nuget && cd /workspaces/imperium && dotnet tool restore && dotnet restore Imperium.sln",
+  "postCreateCommand": "sudo chown -R vscode:vscode /home/vscode/.nuget && cd /workspaces/imperium && dotnet tool restore && dotnet restore Imperium.slnx",
   "forwardPorts": [5000, 5001],
   "mounts": [
     "source=nuget,target=/home/vscode/.nuget/packages,type=volume"
