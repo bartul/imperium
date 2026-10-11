@@ -1,5 +1,5 @@
 # Repository Guidelines
-Last verified: 2026-06-07
+Last verified: 2026-10-11
 
 ## Agent Priorities
 
@@ -29,11 +29,11 @@ Last verified: 2026-06-07
   - Explicit status (`approved`, `proposed`, or `deferred`)
 
 ## Project Structure & Module Organization
-- `Imperium.slnx` stitches together the core F# library, ASP.NET Core web host, and unit test project.
+- `Imperium.slnx` stitches together the core F# library, ASP.NET Core web host, Terminal UI app, and unit test project.
 - `src/Imperium` is organized as one folder per bounded context, each owning its own namespace. Compile order (mirrors `Imperium.fsproj`):
   - `Primitives/` — `Primitives.fs` (namespace `Imperium.Primitives`), `AsyncExtensions.fs` (`[<AutoOpen>] module Imperium.AsyncExtensions`)
   - `Contract/` — `Gameplay.fs`, `Accounting.fs`, `Rondel.fs` (all in `namespace Imperium.Contract`, intentionally no `.fsi`)
-  - `Gameplay/` — `GameId.fsi/.fs`, `NationId.fsi/.fs`, `PlayerId.fsi/.fs`, `PlayerRoster.fsi/.fs`, `GameplayCommand.fsi/.fs`, `GameplayOutboundCommand.fsi/.fs`, `GameplayEvent.fsi/.fs`, `GameplayInboundEvents.fsi/.fs`, `GameplayState.fsi/.fs`, `Projections.fsi/.fs`, `GameplayEffects.fsi/.fs`, `GameplayDependencies.fsi/.fs`, `Queries.fsi/.fs`, `Gameplay.fsi/.fs` (`namespace Imperium.Gameplay`, `[<RequireQualifiedAccess>] module Gameplay` facade)
+  - `Gameplay/` — `GameId.fsi/.fs`, `NationId.fsi/.fs`, `PlayerId.fsi/.fs`, `PlayerRoster.fsi/.fs`, `GameplayCommand.fsi/.fs`, `GameplayOutboundCommand.fsi/.fs`, `GameplayEvent.fsi/.fs`, `GameplayInboundEvents.fsi/.fs`, `GameplayState.fsi/.fs`, `Projections.fsi/.fs`, `GameplayEffects.fsi/.fs`, `GameplayDependencies.fsi/.fs`, `Queries.fsi/.fs`, `Handlers.fs`, `Gameplay.fsi/.fs` (`namespace Imperium.Gameplay`, `[<RequireQualifiedAccess>] module Gameplay` facade)
   - `Accounting/` — `AccountingCommand.fsi/.fs`, `AccountingEvent.fsi/.fs`, `AccountingDependencies.fsi/.fs`, `Handlers.fs`, `Accounting.fsi/.fs` (`namespace Imperium.Accounting`, `[<RequireQualifiedAccess>] module Accounting` facade)
   - `Rondel/` — `RondelBillingId.fsi/.fs`, `Action.fsi/.fs`, `Space.fsi/.fs`, `RondelCommand.fsi/.fs`, `RondelOutboundCommand.fsi/.fs`, `RondelEvent.fsi/.fs`, `RondelInboundEvent.fsi/.fs`, `RondelState.fsi/.fs`, `RondelEffects.fsi/.fs`, `RondelDependencies.fsi/.fs`, `Movement.fs`, `Invoices.fs`, `Handlers.fs`, `Queries.fsi/.fs`, `Rondel.fsi/.fs` (`namespace Imperium.Rondel`, `[<RequireQualifiedAccess>] module Rondel` facade)
 - **Namespace + facade convention.** Each bounded context lives in a `namespace Imperium.<BC>` that spans multiple files. Public domain types (commands, events, state, dependencies) sit directly at the namespace level. Routers and query handlers are exposed only through a same-named `[<RequireQualifiedAccess>] module <BC>` facade. Standard caller idiom: `open Imperium.Rondel` then `Rondel.execute deps cmd` / `Rondel.handle deps evt` / `Rondel.getNationPositions deps q`. Bare `execute` is intentionally not in scope.
@@ -59,10 +59,10 @@ Last verified: 2026-06-07
   - Events use record types (e.g., `RondelEvent = | PositionedAtStart of PositionedAtStart` where `PositionedAtStart = { GameId: Guid }`)
 - **Domain modules:** CQRS bounded contexts with `.fsi` files defining public APIs
   - Gameplay owns `GameId` in `Gameplay/GameId.fsi/.fs`; `NationId` in `Gameplay/NationId.fsi/.fs`; `PlayerId` in `Gameplay/PlayerId.fsi/.fs`; `PlayerRoster` in `Gameplay/PlayerRoster.fsi/.fs`; `GameStatus`, `GameInitialization`, and `GameplayState` live in `Gameplay/GameplayState.fsi/.fs`. Rondel exposes `Action`, `RondelBillingId`, and `Space` from matching type-named files; `RondelBillingId.ofId` enables creating billing IDs from `Id` for in-process event conversion.
-  - **Two-layer architecture:** Transformation modules (accept Contract types, return `Result<DomainType, string>`) + Command/Event handlers (accept Domain types, return `Async<unit>`)
+  - **Two-layer architecture:** Transformation modules (accept Contract types, return `Result<DomainType, string>`) + Command/Event handlers (accept Domain types, return effects that the public routers commit; routers return `Async<unit>`)
   - Transformation modules: Named after domain types (e.g., `SetToStartingPositionsCommand.fromContract`, `MoveCommand.fromContract`, `InvoicePaidInboundEvent.fromContract`) using directional naming (`fromContract` for Contract → Domain, `toContract` for Domain → Contract)
-  - Command handlers: Accept domain types directly, throw exceptions for business rule violations, return `Async<unit>`
-  - Event handlers: Accept domain event types (after transformation), return `Async<unit>` (throw exceptions for errors)
+  - Command handlers: Accept domain types directly, throw exceptions for business rule violations, return effects (Rondel: `Async<RondelEffects>`; Gameplay: pure `GameplayEffects`); the public `execute` router commits them and returns `Async<unit>`. Accounting's stateless skeleton is the exception: its handlers publish directly and return `Async<unit>`
+  - Event handlers: Accept domain event types (after transformation), return effects the same way (throw exceptions for errors); the public `handle` router commits them and returns `Async<unit>`
   - All handlers take dependency injections explicitly (e.g., `load`, `save`, `publish`, specialized services)
   - `Imperium.Gameplay` exposes (at namespace level): transformation modules (StartGameCommand, GameplayEvent, RondelPositionedAtStartInboundEvent, SetRondelToStartingPositionsOutboundCommand), domain identity/value types (`GameId`, `NationId`, `PlayerId`, `PlayerRoster` as `Set<PlayerId>`), state types (GameStatus, GameInitialization, GameplayState), projection/query types (GameplayStatusView, GetGameplayStatusQuery), command routing DU (GameplayCommand), native integration event routing DU (GameplayEvent), inbound event routing DU (GameplayInboundEvent), outbound command routing DU (GameplayOutboundCommand), and dependency types (LoadGameplayState, GameplayEffects, CommitGameplayEffects, GameplayDependencies, LoadGameplayStatusProjection, GameplayQueryDependencies). The `GameplayEffects` record remains public as the commit-boundary payload, while its pipeline-style companion builder module (`none`, `withState`, `create`, `withEvent`, `withCommand`) is assembly-internal. `GameplayStatusProjection.fromState` projects state into the current status view (`GameId`, `InPlay`, `NumberOfPlayers`). Inbound transformations (`StartGameCommand.fromContract`, `RondelPositionedAtStartInboundEvent.fromContract`) are implemented using the FsToolkit `result {}` CE. `SetRondelToStartingPositionsOutboundCommand.toContract` and `GameplayEvent.toContract` are implemented. The `[<RequireQualifiedAccess>] module Gameplay` facade exposes `val execute` (StartGame branch: new-game emits the Rondel starting-positions outbound command sourced from `NationId.all`; existing-game is an idempotent no-op), `val handle` (RondelPositionedAtStart branch: records Rondel setup completion, moves the game to `InPlay`, and emits `SetupCompleted` once), and `val getGameplayStatus` (thin query over `GameplayQueryDependencies.LoadStatus`). Internal pure handlers live in `Gameplay/Handlers.fs`.
   - `Imperium.Accounting` exposes (at namespace level): transformation modules (ChargeNationForRondelMovementCommand, VoidRondelChargeCommand, AccountingEvent), domain command types (ChargeNationForRondelMovementCommand with `Id` GameId/BillingId, VoidRondelChargeCommand), domain event types (RondelInvoicePaidEvent, RondelInvoicePaymentFailedEvent with `Id` GameId/BillingId), command routing DU (AccountingCommand), event routing DU (AccountingEvent), dependency types (PublishAccountingEvent, AccountingDependencies record). The `[<RequireQualifiedAccess>] module Accounting` facade exposes `val execute: AccountingDependencies -> AccountingCommand -> Async<unit>` (called as `Accounting.execute`)
@@ -83,13 +83,13 @@ Last verified: 2026-06-07
 - **Internal command handlers** (`setToStartingPositions`, `move`): Accept a `LoadRondelState` function, then domain command types; return `Async<RondelEffects>`; throw exceptions for business rule violations; marked `internal`, not exposed in `.fsi`. Routers commit the returned effects.
 - **Internal event handlers** (`onInvoicePaid`, `onInvoicePaymentFailed`): Accept a `LoadRondelState` function, then domain event types (after transformation from Contract types); return `Async<RondelEffects>`; throw exceptions on errors; marked `internal`, not exposed in `.fsi`. Routers commit the returned effects.
 - **Unified dependencies**: All Rondel handlers accept a single `RondelDependencies` record with `Async<_>` based dependencies (`{ Load: Id -> Async<RondelState option>; Commit: RondelEffects -> Async<unit> }`). `Load` resolves current state; `Commit` durably applies the resulting effects (state, integration events, outbound commands) as an atomic unit. Implementations use `async {}` CE with `let!`/`do!` bindings. The split lets each host (terminal sandbox, future durable runtimes) own the commit-boundary primitive without re-shaping the core surface.
-- **Public API surface**: Only the facade `Rondel` module is exposed in `Rondel/Rondel.fsi` (and similarly `Accounting` in `Accounting/Accounting.fsi`); individual handlers live in `Handlers.fs` and pure logic in `Movement.fs` / `Invoices.fs` as `module internal`. This provides a clean, minimal API with single entry points for commands and events.
+- **Public API surface**: Only the facade `Rondel` module is exposed in `Rondel/Rondel.fsi` (and similarly `Accounting` in `Accounting/Accounting.fsi` and `Gameplay` in `Gameplay/Gameplay.fsi`); individual handlers live in `Handlers.fs` and pure logic in `Movement.fs` / `Invoices.fs` as `module internal`. This provides a clean, minimal API with single entry points for commands and events.
 - Dependency composition: the host wires `Load` directly and builds `Commit` from its own persistence/publish/dispatch primitives. The terminal sandbox uses `RondelDirectCommit.create store.Save bus.Publish dispatch`, which sequences save → publish → dispatch with `failwith` failure semantics. Load uses domain `RondelState` and `Id`; persistence adapters map to/from `Contract.Rondel.RondelState`. Outbound commands use domain types (`RondelOutboundCommand`) with per-command `toContract` transformations targeting appropriate bounded contexts.
 - Signature files define public shape first; implementations should not widen the surface in `.fs`.
 - **AsyncExtensions module**: Provides `Async.AwaitTaskWithCT` helper for calling Task-based libraries (e.g., EF Core, Marten, Azure SDK) with the implicit CancellationToken from async context. Usage: `let! result = Async.AwaitTaskWithCT (fun ct -> library.MethodAsync(arg, ct))`.
 
 ### Rondel Implementation Patterns
-- **Two-layer architecture**: Transformation layer (validates inputs, returns `Result`) + Handler layer (validates business rules, throws exceptions, returns `Async<unit>`)
+- **Two-layer architecture**: Transformation layer (validates inputs, returns `Result`) + Handler layer (validates business rules, throws exceptions, returns `Async<RondelEffects>`; the public routers commit and return `Async<unit>`)
 - **Transformation modules** (`SetToStartingPositionsCommand`, `MoveCommand`): Named after domain command types; use `Result` monad to validate Contract inputs (GameId, Space names) and construct domain types
 - **Handler pipeline pattern**: Internal handlers in `Rondel/Handlers.fs` follow a `load state → execute pure logic → return effects` shape using `async {}` CE. The public routers (`Rondel.execute`, `Rondel.handle`) orchestrate the pipeline by collecting the returned effects and invoking `deps.Commit` exactly once per command/event. Internal handlers delegate to pure functions in dedicated files (`Movement.execute` in `Rondel/Movement.fs`, `SetToStartingPositions.execute` in `Rondel/Handlers.fs`, `OnInvoicePaid.handle` / `OnInvoicePaymentFailed.handle` in `Rondel/Invoices.fs`), preserving the separation between business rules and IO.
 - **Pure execution modules**: Each command/event has a corresponding `module internal` containing pure business logic (`Movement`, `SetToStartingPositions`, `OnInvoicePaid`, `OnInvoicePaymentFailed`). The `execute`/`handle` function in each module accepts command/event and state, returns `(state, events, commands)` tuple with no IO. The `Handlers` module lifts each tuple into a named `RondelEffects` record via its private `toEffects` helper. This enables testing business rules without mocking IO dependencies.
@@ -98,7 +98,7 @@ Last verified: 2026-06-07
 - **MoveOutcome type**: Internal discriminated union with named fields carrying complete context (targetSpace, distance, nation, rejectedCommand). All cases encapsulate necessary data, eliminating closure dependencies on outer scope variables for cleaner functional design.
 - **Decision chain**: Validates moves through `Decision` monad (`noMovesAllowedIfNotInitialized` → `noMovesAllowedForNationNotInGame` → `firstMoveIsFreeToAnyPosition` → `decideMovementOutcome`) producing `MoveOutcome`. Lives in `Rondel/Movement.fs`.
 - **Side-effect separation**: `handleMoveOutcome` transforms `MoveOutcome` to a `(state, events, commands)` tuple inside the `Movement` module; the `Handlers.move` adapter lifts that to `RondelEffects` and returns it. All IO lives in the injected `Commit` (terminal: `RondelDirectCommit`), invoked by the facade router.
-- **Command dispatch**: Uses `List.fold` with `Result.bind` to sequence outbound commands (`RondelOutboundCommand` with `ChargeMovement` and `VoidCharge` cases), returning first error or `Ok ()`. Infrastructure layer receives domain commands and calls per-command `toContract` transformations to dispatch to appropriate bounded contexts.
+- **Command dispatch**: `RondelDirectCommit` dispatches outbound commands (`RondelOutboundCommand` with `ChargeMovement` and `VoidCharge` cases) sequentially after save and publish, failing via `failwith` on the first dispatch `Error`. Infrastructure layer receives domain commands and calls per-command `toContract` transformations to dispatch to appropriate bounded contexts.
 
 ### Open Work (current)
 - Rondel public API: Two routers (`Rondel.execute` for commands, `Rondel.handle` for events) plus two query handlers (`Rondel.getNationPositions`, `Rondel.getRondelOverview`) on the `[<RequireQualifiedAccess>] module Rondel` facade; all return `Async<unit>` / `Async<_>` for implicit CancellationToken propagation. Individual command/event handlers are internal implementation details in `Rondel/Handlers.fs`.
@@ -107,15 +107,16 @@ Last verified: 2026-06-07
 - Accounting public API: One router (`Accounting.execute` for commands) on the `[<RequireQualifiedAccess>] module Accounting` facade returns `Async<unit>` for implicit CancellationToken propagation; skeleton implementation for Phase 1.
 - Accounting internal structure: Stateless skeleton with no persistent state, split across `Accounting/AccountingCommand.fsi/.fs` (commands and command transformations), `Accounting/AccountingEvent.fsi/.fs` (events and event transformations), `Accounting/AccountingDependencies.fsi/.fs` (dependency types), `Accounting/Handlers.fs` (internal command handlers), and `Accounting/Accounting.fsi/.fs` (public facade). `Handlers.chargeNationForRondelMovement` auto-approves charges (immediately publishes `RondelInvoicePaid` event), `Handlers.voidRondelCharge` is no-op. Future implementation can add balance tracking, transaction history, and payment validation.
 - Gameplay public API: Two routers (`Gameplay.execute` for commands, `Gameplay.handle` for inbound events) plus one query handler (`Gameplay.getGameplayStatus`) on the `[<RequireQualifiedAccess>] module Gameplay` facade. Interface/model files are split across `GameId`, `NationId`, `PlayerId`, `PlayerRoster`, `GameplayCommand`, `GameplayOutboundCommand`, `GameplayEvent`, `GameplayInboundEvents`, `GameplayState`, `Projections`, `GameplayEffects`, `GameplayDependencies`, `Queries`, and facade files. Value types (`GameId`, `NationId`, `PlayerId`, `PlayerRoster` as `Set<PlayerId>`) and inbound transformations (`StartGameCommand.fromContract`, `RondelPositionedAtStartInboundEvent.fromContract`, both using the `result {}` CE) are implemented. `Gameplay.execute` handles the `StartGame` branch (emits `SetRondelToStartingPositions` with `NationId.all` for a new game; idempotent no-op for an already-started game), `Gameplay.handle` handles `RondelPositionedAtStart` (records Rondel setup completion, moves status to `InPlay`, and emits `SetupCompleted` once), `Gameplay.getGameplayStatus` returns a `GameplayStatusView option` through `GameplayQueryDependencies.LoadStatus`, and `SetRondelToStartingPositionsOutboundCommand.toContract` / `GameplayEvent.toContract` are implemented.
-- Tests use helper pattern: private record types (`Rondel`, `Accounting`) with routers (sync wrappers using `Async.RunSynchronously`), factory functions return router record with async dependencies + observable collections for verification.
+- Terminal/Gameplay wiring gap: the Terminal composition root does not wire `Gameplay` yet; `App.handleNewGame` sends `SetToStartingPositions` directly to `RondelHost` instead of going through `Gameplay.execute (StartGame ...)`. Tracked in #142.
+- Tests use a per-BC context pattern: each BC's `Context.fs` defines a `Context` record (dependencies plus `ResizeArray` collections capturing events/commands) and a `Context.create` factory with in-memory dependencies; the spec module defines a private `{ SpecRunner.empty with ... }` runner whose `Execute`/`Handle` call the public facade routers synchronously via `Async.RunSynchronously`.
 
 ### Multi-Environment Architecture (Phase 1: Terminal App)
 - See `docs/architecture.md` for full architecture and design decisions.
-- **Terminal app** (`Imperium.Terminal`): In-process app with Terminal.Gui v2 (`2.0.0-develop.5259`), MailboxProcessor hosting, in-memory store.
+- **Terminal app** (`Imperium.Terminal`): In-process app with Terminal.Gui v2 (`2.4.17`), MailboxProcessor hosting, in-memory store.
 - **Key patterns:**
   - `IBus` interface for cross-bounded-context **events** (pub/sub with generic `Publish<'T>` and `Subscribe<'T>`); implementation uses `ConcurrentDictionary<Type, obj>` storing typed handler lists to avoid boxing events on publish
   - Thunk injection for cross-BC **commands** (breaks circular dependencies, type-safe direct calls)
-  - Each BC has a `Host` (e.g., `RondelHost`, `AccountingHost`) with `Execute` entry point
+  - Each hosted BC has a `Host` (`RondelHost`, `AccountingHost`) with `Execute` entry point; Gameplay has no host yet (#142)
   - MailboxProcessor serializes commands/events per BC with fire-and-forget `Post` (no reply channel); queries bypass for direct store access
   - `SupervisedMailbox` centralizes per-message `try/with` so terminal hosts remain alive after individual handler failures; mailbox error handlers are `Async<unit>` and currently publish `SystemNotification` events through the bus
   - Domain events used directly (not contract types) since everything is in-process; `RondelBillingId.ofId` enables domain-to-domain event conversion without contract layer
@@ -128,13 +129,14 @@ Last verified: 2026-06-07
   ├── SupervisedMailbox.fs      # Shared mailbox supervision helper for terminal hosts
   ├── Rondel/
   │   ├── Store.fs              # RondelStore with InMemoryRondelStore
+  │   ├── DirectCommit.fs       # Direct (non-durable) RondelEffects commit adapter
   │   ├── Host.fs               # RondelHost with MailboxProcessor, event subscriptions, query handlers
   │   └── UI/
-  │       └── RondelView.fs     # Stateless canvas grid with SelectionMode and shared RondelViewState
+  │       └── RondelView.fs     # Stateless canvas grid with SelectionMode and shared RondelViewState (RondelLayout.mkAttr)
   ├── Accounting/
   │   └── Host.fs               # AccountingHost with MailboxProcessor, publishes inner events
   ├── Shell/
-  │   ├── UI.fs                 # Shared UI helpers (invokeOnMainThread, frameView, mkAttr)
+  │   ├── UI.fs                 # Shared UI helpers (invokeOnMainThread, frameView, listView)
   │   ├── SystemEvent.fs        # UI lifecycle events plus SystemNotification types
   │   ├── EventLogView.fs       # Bus-driven event log panel
   │   └── App.fs                # Application layout, menu bar, keyboard shortcuts
@@ -144,7 +146,7 @@ Last verified: 2026-06-07
 - **RondelHost implementation:** `SupervisedMailbox` processes `Command` and `InboundEvent` messages; subscribes to `AccountingEvent`; converts using `RondelBillingId.ofId`; dispatches to Accounting via thunk; queries call domain handlers directly. Mailbox failures publish `SystemNotification` with source `RondelHost`; severity is `Error` for command failures and `Warning` for inbound event failures (e.g., events targeting unknown/uninitialized games are expected in sandbox phase).
 - **AccountingHost implementation:** `SupervisedMailbox` processes commands; publishes `AccountingEvent` values directly to the bus for RondelHost subscriptions. Mailbox failures publish `SystemNotification` with source `AccountingHost`.
 - **Technology choices (terminal):** Terminal.Gui v2 (TUI framework with views, menu bars, keyboard/mouse support), direct function calls for in-process messaging.
-- **RondelView architecture:** Stateless `RondelCanvas` (zero mutable fields) reads from shared `RondelViewState` record with mutable fields (`CurrentGame`, `Selection`, `Positions`). `SelectionMode` record (`Nation` + `Space`) replaces separate selection tracking — single `Option` makes state transitions atomic. `SyncFocus()` method toggles canvas focus based on selection state. Navigation uses `RondelLayout.nextSpace`/`prevSpace` helpers. `onSpaceSelected: Space -> unit` callback replaces direct `RondelHost` dependency. Color scheme: Investor=teal, Import=orange, Production=grey, Maneuver=green, Taxation=yellow, Factory=blue. Emoji flags (🇦🇹🇫🇷🇩🇪🇬🇧🇮🇹🇷🇺) on nation abbreviations with `displayWidth` helper for correct terminal centering.
+- **RondelView architecture:** Stateless `RondelCanvas` (zero mutable fields) reads from shared `RondelViewState` record with mutable fields (`CurrentGame`, `Selection`, `Positions`). `SelectionMode` record (`Nation` + `Space`) replaces separate selection tracking — single `Option` makes state transitions atomic. `SyncFocus()` method toggles canvas focus based on selection state. Navigation uses `RondelLayout.nextSpace`/`prevSpace` helpers. `onSpaceSelected: Space -> unit` callback replaces direct `RondelHost` dependency. Color scheme: Investor=Cyan, Import=Yellow, Production=Gray, Maneuver=Green, Taxation=BrightYellow, Factory=Blue. Emoji flags (🇦🇹🇫🇷🇩🇪🇬🇧🇮🇹🇷🇺) on nation abbreviations with `displayWidth` helper for correct terminal centering.
 
 ## Agent Skills
 
@@ -231,7 +233,7 @@ Domain modules (`.fsi` and `.fs` pairs) follow a consistent sectioned structure.
 | 6 | **Incoming Events** | Inbound event routing DU and individual event records (received from other domains) |
 | 7 | **Effects and Dependencies** | `RondelEffects` plus `CommitRondelEffects` in `RondelEffects.fsi/.fs`; `LoadRondelState`, `LoadRondelStateForQuery`, `RondelDependencies`, and `RondelQueryDependencies` in `RondelDependencies.fsi/.fs` |
 | 8 | **Transformations** | Modules with `fromContract` (Contract → Domain), `toContract` (Domain → Contract) functions (including per-outbound-command `toContract`) |
-| 9 | **Handlers (Internal Types)** | `.fs` only: private helpers that lift `(state, events, commands)` tuples to `RondelEffects`, internal modules with pure `execute` functions (`Move.execute`, `SetToStartingPositions.execute`), internal DUs for routing/outcomes (`MoveOutcome`) |
+| 9 | **Handlers (Internal Types)** | `.fs` only: private helpers that lift `(state, events, commands)` tuples to `RondelEffects`, internal modules with pure `execute` functions (`Movement.execute`, `SetToStartingPositions.execute`), internal DUs for routing/outcomes (`MoveOutcome`) |
 | 10 | **Handlers** | Public routers (`execute`, `handle`) followed by internal command handlers (delegate to pure module functions), then internal event handlers |
 
 **XML Documentation Comments:**
@@ -267,9 +269,9 @@ Domain modules (`.fsi` and `.fs` pairs) follow a consistent sectioned structure.
 **Reference Implementation:** See `Rondel.fsi` and `Rondel.fs` for the canonical example.
 
 ## Testing Guidelines
-- Unit tests live in `tests/Imperium.UnitTests` using Expecto 10.2.3 with FsCheck integration for property-based testing.
+- Unit tests live in `tests/Imperium.UnitTests` using Expecto 11.1.0 with FsCheck integration for property-based testing.
 - Preferred implementation rhythm for new domain work starts with a base interface definition: make the public `.fsi`/outward model explicit first, using compiling non-functional stubs when needed, then implement behavior one slice at a time. For each behavior, write one failing test, implement the smallest general-purpose production change that passes it, run the focused relevant test(s), then repeat. This interface-first plus red-green-next loop takes precedence over creating a broad set of failing tests before implementation.
-- Test modules are organized by concern, mirroring `src/`: bounded-context behavior specs in `Imperium.UnitTests.Rondel.Specs` and `Imperium.UnitTests.Accounting.Specs` (with sibling `Context`/`Assertions` modules under `Imperium/{BC}/`), transformation validation under `Imperium/Contract/`, and infrastructure plumbing under `Imperium.Terminal/` mirroring `src/Imperium.Terminal`.
+- Test modules are organized by concern, mirroring `src/`: bounded-context behavior specs in `Imperium.UnitTests.Rondel.Specs`, `Imperium.UnitTests.Accounting.Specs`, and Gameplay's `Specification.fs`/`QuerySpecification.fs` (with sibling `Context`/`Assertions` modules under `Imperium/{BC}/`), per-type value tests under `Imperium/Gameplay/`, transformation validation under `Imperium/Contract/`, and infrastructure plumbing under `Imperium.Terminal/` mirroring `src/Imperium.Terminal`.
 - Spec support lives in namespace `Imperium.Testing.Spec` (under `Support/Spec/`). Consumer files open `Imperium.Testing.Spec` to bring the `Specification`/`SpecRunner` types, the `SpecRunner` companion module, the `SpecFilter`/`Markdown`/`CollectionAssert` modules, and the framework's other types (`NoState`, `Action`, `Expectation`, `ExpectationOutcome`, `ExpectationRunResult`) into scope. Add `open Imperium.Testing.Spec.Specification` for unqualified access to the `spec`/`specOn` CE factories.
 - Use `[<Tests>]` attribute on test values for discovery by YoloDev.Expecto.TestSdk (enables VS Code Test Explorer integration).
 - Execute `dotnet test` (via TestSdk) or `dotnet run --project tests/Imperium.UnitTests/Imperium.UnitTests.fsproj` (native Expecto runner with colorized output).
@@ -374,6 +376,10 @@ let tests = testList "Accounting" (specifications |> List.map (SpecRunner.toExpe
     - load returns None for unknown game
     - save then load returns saved state
     - save overwrites existing state
+  - **Imperium.Terminal/Rondel/DirectCommitTests.fs** (3 commit-adapter tests):
+    - saves state, then publishes events, then dispatches commands
+    - save Error stops the pipeline and skips publish and dispatch
+    - dispatch Error surfaces after save and publish have completed
   - **Imperium.Terminal/Rondel/HostTests.fs** (7 plumbing tests with exponential backoff):
     - wires command execution to domain
     - wires domain events to bus
@@ -466,8 +472,7 @@ All changes must go through pull requests to maintain code quality and enable pr
    - Push additional commits as needed
 
 7. **Merge** - Once approved and CI passes, merge to master
-   - Use "Squash and merge" for clean history (preferred)
-   - Use "Merge commit" to preserve detailed commit history
+   - Use "Squash and merge" (the only merge method enabled in `.github/repo-config.json`)
    - Delete branch after merging
 
 ### Branch Protection
