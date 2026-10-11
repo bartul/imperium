@@ -8,13 +8,13 @@ The domain is split into isolated bounded contexts that communicate only through
 
 - **Rondel** — The central movement mechanic. Nations move clockwise on an 8-space wheel. Handles free moves (1-3 spaces), paid moves (4-6 spaces with charge dispatch), pending payment states, and move supersession. Fully implemented with command/event handlers and query handlers.
 - **Accounting** — Processes charges and publishes payment results. Currently a skeleton that auto-approves all charges.
-- **Gameplay** — Game orchestration, scoring, turn management. Not yet implemented.
+- **Gameplay** — Game lifecycle orchestration. Handles `StartGame` (enters setup and dispatches `SetRondelToStartingPositions` to Rondel) and the inbound `RondelPositionedAtStart` event (moves the game to `InPlay` and publishes `SetupCompleted`), plus the `getGameplayStatus` query. Turn management, scoring, and game ending are future slices. See `docs/gameplay.md` for the event model.
 
 Cross-BC communication uses `Contract.*` DTOs with plain primitive types (`Guid`, `string`) and shared value types (`Amount`). Domain types never leak across boundaries.
 
 ## CQRS Pattern
 
-Each bounded context exposes two routers as its public API:
+Each bounded context exposes routers as its public API — `execute` for commands and, where the context consumes inbound events (Rondel, Gameplay), `handle` for events. Accounting currently exposes only `execute`:
 
 ```fsharp
 val execute: RondelDependencies -> RondelCommand -> Async<unit>       // commands
@@ -30,11 +30,11 @@ val getRondelOverview:  RondelQueryDependencies -> GetRondelOverviewQuery  -> As
 
 ## Handler Pipeline
 
-All command/event handlers follow the same four-step pattern:
+Rondel and Gameplay command/event handlers follow the same four-step pattern (Accounting's stateless skeleton still publishes directly from its handlers):
 
 1. **Load** — Fetch current state from the store via the injected `Load` dependency
-2. **Execute** — Pure business logic in internal modules (e.g., `Move.execute`) returns a `(state, events, commands)` tuple
-3. **Return effects** — Handlers wrap the tuple as a `RondelEffects` record and return it; no IO is performed inside the handler
+2. **Execute** — Pure business logic in internal modules (e.g., `Movement.execute`) returns a `(state, events, commands)` tuple
+3. **Return effects** — Handlers return an effects record (Rondel lifts the tuple into `RondelEffects`; Gameplay builds `GameplayEffects` directly); no IO is performed inside the handler
 4. **Commit** — The public router (`execute`, `handle`) invokes the injected `Commit` once per command/event; infrastructure decides how to apply the effects atomically
 
 This separates pure domain logic from IO and concentrates the commit policy in a single seam.
@@ -56,7 +56,7 @@ The terminal sandbox composes `Commit` from `RondelDirectCommit.create store.Sav
 A two-layer transformation pattern validates data at BC boundaries:
 
 - **Layer 1 — Transformation modules** (`fromContract`/`toContract`): Convert between Contract DTOs and domain types, returning `Result<Domain, string>` on input
-- **Layer 2 — Handlers**: Accept validated domain types and injected dependencies, return `Async<unit>`
+- **Layer 2 — Handlers**: Accept validated domain types and return effects (e.g., `RondelEffects`, `GameplayEffects`) without performing IO; the public routers commit those effects through the injected dependencies and return `Async<unit>` (Accounting's stateless skeleton is the exception: its handlers publish directly)
 
 Contract types live in `Imperium.Contract` and use only primitives suitable for serialization. Domain modules hide internal IDs and state behind `.fsi` signature files.
 
