@@ -268,25 +268,18 @@ let private specifications =
           state (
               RondelState.create gameId nations
               |> RondelState.withNationPosition "France" Space.Taxation
+              |> RondelState.withPendingMove "France" Space.Investor voidedBillingId
           )
 
-          given_command (Move { Nation = "France"; Space = Space.Investor; GameId = gameId })
-          given_event (InvoicePaymentFailed { BillingId = invoicePaidBillingId; GameId = gameId })
+          given_command (Move { GameId = gameId; Nation = "France"; Space = Space.Factory })
 
           when_event (InvoicePaid { GameId = gameId; BillingId = voidedBillingId })
-          when_command (Move { GameId = gameId; Nation = "France"; Space = Space.Factory })
+
+          expect "late payment does not determine an action" assertNoActionDetermined
 
           expect
               "late payment preserves the already completed movement"
-              (assertExactEvent
-                  (ActionDetermined { GameId = gameId; Nation = "France"; Action = Action.Factory })
-                  "factory action should be determined")
-
-          expect
-              "late payment does not determine the action"
-              (events.HasNone
-                  (fun e -> e = ActionDetermined { GameId = gameId; Nation = "France"; Action = Action.Investor })
-                  "investor action should not be determined")
+              (assertNationPosition "France" (Some Space.Factory) None)
       }
 
       let invoicePaymentFailedBillingId = newBillingId ()
