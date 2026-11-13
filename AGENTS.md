@@ -112,7 +112,7 @@ Last verified: 2026-10-11
 
 ### Multi-Environment Architecture (Phase 1: Terminal App)
 - See `docs/architecture.md` for full architecture and design decisions.
-- **Terminal app** (`Imperium.Terminal`): In-process app with Terminal.Gui v2 (`2.4.17`), MailboxProcessor hosting, in-memory store.
+- **Terminal app** (`Imperium.Terminal`): In-process app with Terminal.Gui v2 (version pinned in `src/Imperium.Terminal/Imperium.Terminal.fsproj`), MailboxProcessor hosting, in-memory store.
 - **Key patterns:**
   - `IBus` interface for cross-bounded-context **events** (pub/sub with generic `Publish<'T>` and `Subscribe<'T>`); implementation uses `ConcurrentDictionary<Type, obj>` storing typed handler lists to avoid boxing events on publish
   - Thunk injection for cross-BC **commands** (breaks circular dependencies, type-safe direct calls)
@@ -269,7 +269,7 @@ Domain modules (`.fsi` and `.fs` pairs) follow a consistent sectioned structure.
 **Reference Implementation:** See `Rondel.fsi` and `Rondel.fs` for the canonical example.
 
 ## Testing Guidelines
-- Unit tests live in `tests/Imperium.UnitTests` using Expecto 11.1.0 with FsCheck integration for property-based testing.
+- Unit tests live in `tests/Imperium.UnitTests` using Expecto (version pinned in `Imperium.UnitTests.fsproj`) with FsCheck integration for property-based testing.
 - Preferred implementation rhythm for new domain work starts with a base interface definition: make the public `.fsi`/outward model explicit first, using compiling non-functional stubs when needed, then implement behavior one slice at a time. For each behavior, write one failing test, implement the smallest general-purpose production change that passes it, run the focused relevant test(s), then repeat. This interface-first plus red-green-next loop takes precedence over creating a broad set of failing tests before implementation.
 - Test modules are organized by concern, mirroring `src/`: bounded-context behavior specs in `Imperium.UnitTests.Rondel.Specs`, `Imperium.UnitTests.Accounting.Specs`, and Gameplay's `Specification.fs`/`QuerySpecification.fs` (with sibling `Context`/`Assertions` modules under `Imperium/{BC}/`), per-type value tests under `Imperium/Gameplay/`, transformation validation under `Imperium/Contract/`, and infrastructure plumbing under `Imperium.Terminal/` mirroring `src/Imperium.Terminal`.
 - Spec support lives in namespace `Imperium.Testing.Spec` (under `Support/Spec/`). Consumer files open `Imperium.Testing.Spec` to bring the `Specification`/`SpecRunner` types, the `SpecRunner` companion module, the `SpecFilter`/`Markdown`/`CollectionAssert` modules, and the framework's other types (`NoState`, `Action`, `Expectation`, `ExpectationOutcome`, `ExpectationRunResult`) into scope. Add `open Imperium.Testing.Spec.Specification` for unqualified access to the `spec`/`specOn` CE factories.
@@ -565,7 +565,7 @@ The project uses GitHub Actions for automated quality checks on all pull request
 
 **.config/dotnet-tools.json** contains:
 
-- `fantomas` (7.0.5): F# code formatter
+- `fantomas` (version pinned in the manifest): F# code formatter
 
 **Restore tools locally:**
 
