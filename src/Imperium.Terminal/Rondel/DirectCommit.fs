@@ -8,7 +8,7 @@ open Imperium.Rondel
 
 /// Direct (non-durable) commit adapter for RondelEffects.
 /// Sequences state save → integration-event publish → outbound-command dispatch.
-/// Failures propagate as exceptions, mirroring prior `Rondel.materialize` semantics.
+/// A save or dispatch `Error` is raised as an exception and skips the remaining steps.
 [<RequireQualifiedAccess>]
 module RondelDirectCommit =
     let create

@@ -24,7 +24,9 @@ module Rondel =
     /// Nation successfully moved to a space and the corresponding action was determined.
     and ActionDetermined = { GameId: Guid; Nation: string; Action: string }
 
-    /// Nation's movement rejected due to payment failure.
+    /// Nation's move to a space was rejected: the rondel is not set up for the game, the nation
+    /// is not in the game, the move stays put or exceeds 6 spaces, a new move superseded this
+    /// unpaid one, or its payment failed. Space is the rejected target.
     and MoveToActionSpaceRejected = { GameId: Guid; Nation: string; Space: string }
 
     // State for persistence
