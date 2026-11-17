@@ -23,7 +23,7 @@ jobs:
     - name: Setup .NET
       uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
       with:
-        dotnet-version: 10.0.x
+        global-json-file: global.json
 
     - name: Cache NuGet packages
       uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -95,7 +95,7 @@ jobs:
       id: spec_markdown
       run: |
         mkdir -p ./TestResults
-        dotnet tests/Imperium.UnitTests/bin/Release/net10.0/Imperium.UnitTests.dll --render-spec-markdown > ./TestResults/spec-markdown.md
+        dotnet tests/Imperium.UnitTests/bin/Release/net11.0/Imperium.UnitTests.dll --render-spec-markdown > ./TestResults/spec-markdown.md
       continue-on-error: true
 
     - name: Generate job summary

@@ -1,6 +1,6 @@
 {
   "name": "Imperium Codespace",
-  "image": "mcr.microsoft.com/devcontainers/dotnet:1-10.0-noble",
+  "image": "mcr.microsoft.com/devcontainers/dotnet:2-11.0-resolute",
   "features": {
     "ghcr.io/devcontainers/features/github-cli:1": {}
   },

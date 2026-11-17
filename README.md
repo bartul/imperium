@@ -39,7 +39,7 @@ docs/                    Design documents and official game rules
 
 ## Prerequisites
 
-- [.NET 10 SDK](https://dotnet.microsoft.com/download)
+- [.NET 11 SDK](https://dotnet.microsoft.com/download)
 
 ## Build & Development
 
@@ -99,7 +99,7 @@ let private rondelSpecs =
 
 | | |
 |---|---|
-| **Language** | F# on .NET 10 |
+| **Language** | F# on .NET 11 |
 | **Terminal UI** | Terminal.Gui v2 |
 | **Testing** | Expecto |
 | **Utilities** | FsToolkit.ErrorHandling |
