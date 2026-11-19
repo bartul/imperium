@@ -1,29 +1,47 @@
 # Bounded context blueprint
 
-Use this guide when creating or extending a bounded context in `src/Imperium`. Gameplay shows a stateful context with pure handlers and a read projection. Rondel shows how to split more involved rules into internal modules. Accounting shows the current stateless case with a command router and an injected publisher.
+Each bounded context owns its domain types and exposes its operations through a same-named facade, such as `Gameplay` or `Rondel`. On a write, the facade routes the incoming message to an internal handler. In Gameplay and Rondel, the handler describes any state update, events, and outbound commands for the host to apply. Accounting is stateless and publishes payment results through an injected function. Queries use separate read dependencies and return views.
 
 ## Files and compile order
 
-Give the context a PascalCase folder, an `Imperium.<Context>` namespace, and a same-named facade module. The filenames below are stems for `.fsi` and `.fs` pairs, except where the extension is shown explicitly.
+```text
+src/Imperium/
+├── Primitives/    Shared values such as Id and Amount
+├── Contract/      One file per context for data exchanged at its boundary
+├── Accounting/    Charges and payment results
+├── Gameplay/      Game lifecycle and setup
+└── Rondel/        Movement, positions, and pending payments
 
-| File | Contents |
-| --- | --- |
-| `<Context>` | The public facade with `execute`, `handle` when the context consumes inbound events, and named queries when it offers reads. |
-| `<Context>Command` | The command routing union, its payload records, and inbound contract conversions. |
-| `<Context>Event` | The integration events the context publishes, their payload records, and conversion to contracts. |
-| `<Context>InboundEvent` | The inbound event routing union, its payload records, and conversions from the producer's contracts. |
-| `<Context>OutboundCommand` | Commands the context asks other contexts to execute, with conversions to the receiving context's contracts. |
-| `<Context>State` | The state record and related types, along with construction, updates, and persistence mappings where needed. |
-| `<Context>Effects` | The write-side output record containing an optional state update, integration events, and outbound commands. |
-| `<Context>Dependencies` | The injected function types and dependency records for writes and queries. |
-| `Handlers.fs` | The internal `Handlers` module for command and inbound event processing. |
-| `Queries` | Query inputs, the internal `Queries` module, and view types that belong to those queries. |
-| `Projections` | View types and pure projection functions when they are used separately from query handlers. |
-| `<TypeName>` | A standalone domain type and its companion module, such as Gameplay's `GameId` or Rondel's `Space`. |
+tests/Imperium.UnitTests/Imperium/
+├── Accounting/    Accounting behavior
+├── Gameplay/      Gameplay behavior, queries, and value types
+├── Rondel/        Rondel behavior and queries
+└── Contract/      Contract transformations
+```
 
-Use singular filenames for routing types even when the union has several cases. `RondelInboundEvent.fsi` and `GameplayInboundEvent.fsi` follow this rule. Add a file when the context gains the capability it describes. Accounting currently uses the facade, commands, events, dependencies, and handlers.
+Give each context a PascalCase folder and an `Imperium.<Context>` namespace. Add files as the context gains the capabilities below. Each filename stem stands for a matching `.fsi` signature and `.fs` implementation unless an extension is shown.
 
-List source files explicitly in `Imperium.fsproj`. Put each `.fsi` immediately before its `.fs`. Compile primitives and contracts before context code. Within each context, put types before their consumers, including a projection type before any dependency that returns it. Compile internal rule modules before the handlers that call them and the facade after its dependencies, handlers, and queries. Gameplay and Rondel compile `Queries` on different sides of `Handlers` because both orders satisfy their dependencies. [Project compile order](../src/Imperium/Imperium.fsproj)
+| File | Responsibility | Present in |
+| --- | --- | --- |
+| `<Context>` | Public facade for commands, inbound events, and queries supported by the context. | All three |
+| `<Context>Command` | Commands the context accepts, their payloads, and conversions from contracts. | All three |
+| `<Context>Event` | Integration events the context publishes, their payloads, and conversions to contracts. | All three |
+| `<Context>Dependencies` | Records of host-supplied functions for writes and, where needed, reads. | All three |
+| `Handlers.fs` | Internal command handlers and, where applicable, inbound event handlers. | All three |
+| `<Context>InboundEvent` | Events consumed from other contexts, their local payloads, and inbound conversions. | Gameplay, Rondel |
+| `<Context>OutboundCommand` | Commands addressed to other contexts and conversions to the recipients’ contracts. | Gameplay, Rondel |
+| `<Context>State` | State, updates, and persistence mappings where needed. | Gameplay, Rondel |
+| `<Context>Effects` | The optional state update, integration events, and outbound commands produced by a write. | Gameplay, Rondel |
+| `<TypeName>` | A standalone domain type and its companion module, such as `GameId` or `Space`. | Gameplay, Rondel |
+| `Queries` | Query inputs, internal query handlers, and any views defined alongside them. | Gameplay, Rondel |
+| `Projections` | View types and projection functions used independently of query handlers. | Gameplay |
+| `Movement.fs`, `Invoices.fs` | Domain rules grouped into internal modules as the handlers grow. | Rondel |
+
+Use a singular filename for a routing union, even if it has several cases. The name reflects who owns the message. Accounting publishes `RondelInvoicePaid` as a case of `AccountingEvent`. The terminal host converts it to `InvoicePaid`, a case of `RondelInboundEvent`, and enqueues it for `Rondel.handle`. [Published event](../src/Imperium/Accounting/AccountingEvent.fsi) · [Inbound event](../src/Imperium/Rondel/RondelInboundEvent.fsi) · [Host conversion](../src/Imperium.Terminal/Rondel/Host.fs)
+
+**Between contexts.** Compile `Primitives` and `Contract` first in `Imperium.fsproj`. The Gameplay, Accounting, and Rondel file groups can then compile in any order. Each context owns its domain types and uses shared contracts at context boundaries. A direct reference to another context’s domain type would introduce a compile-order dependency.
+
+**Within a context.** List each `.fsi` immediately before its `.fs` and put types before their consumers, including a projection type before any dependency that returns it. Compile internal rule modules before the handlers that call them and the facade after its dependencies, handlers, and queries. Gameplay and Rondel compile `Queries` on different sides of `Handlers` because both orders satisfy their dependencies. [Project compile order](../src/Imperium/Imperium.fsproj)
 
 ## Public API and domain types
 
@@ -45,7 +63,7 @@ Use `.fsi` files to define the API and document input, output, and failure behav
 
 ## Write-side dependencies and effects
 
-Inject dependencies as records of F# functions. A stateful context loads the current state by ID and commits a named effects record through functions provided by the host. Gameplay uses this shape. [Gameplay dependencies](../src/Imperium/Gameplay/GameplayDependencies.fsi) · [Gameplay effects](../src/Imperium/Gameplay/GameplayEffects.fsi)
+Inject dependencies as records of F# functions. Gameplay declares both `LoadGameplayState` and `CommitGameplayEffects` in its dependencies file. A function type can also live beside its payload, as `CommitRondelEffects` does in `RondelEffects.fsi`. The Gameplay signatures below show how the host receives the result of a write. [Gameplay dependencies](../src/Imperium/Gameplay/GameplayDependencies.fsi) · [Gameplay effects](../src/Imperium/Gameplay/GameplayEffects.fsi) · [Rondel effects](../src/Imperium/Rondel/RondelEffects.fsi)
 
 ```fsharp
 type GameplayEffects =
@@ -61,10 +79,10 @@ type GameplayDependencies = { Load: LoadGameplayState; Commit: CommitGameplayEff
 Expose the effects record so the host can apply it. Keep construction helpers internal when they are used only by domain handlers, as with `GameplayEffects.withEvent`. [Gameplay effects signature](../src/Imperium/Gameplay/GameplayEffects.fsi)
 
 1. The facade routes a command or inbound event to the matching handler. Load the current state through `Load` in the facade, as Gameplay does, or in the handler adapter, as Rondel does.
-2. Run the business rules on the typed input and loaded state. Gameplay's handlers build effects directly. Rondel's handlers call pure rule functions and convert their results into `RondelEffects`.
-3. Call `Commit` once after the handler succeeds. An empty effect can represent an idempotent request. `State = None` means there is no state update, and integration events and outbound commands can still be present.
+2. Run the business rules on the typed input and loaded state. Gameplay’s handlers build effects directly. Rondel’s handlers delegate movement and invoice rules to internal modules and convert their results into `RondelEffects`.
+3. Call `Commit` once after the handler succeeds. An empty effects record can represent an idempotent request. **`State = None` skips the state update.** The same record can still contain events to publish or commands to dispatch.
 
-Use `Async<_>` at the IO boundary so cancellation flows through the workflow. Handler and dependency exceptions propagate through the facade's `Async<unit>`. The host owns how a batch of effects is applied and what durability it provides. Rondel's terminal adapter saves state, publishes integration events, then dispatches commands sequentially. A failure stops the remaining steps, and earlier steps may already have taken effect. Accounting's stateless handler uses its injected `Publish` function directly. [Gameplay facade](../src/Imperium/Gameplay/Gameplay.fs) · [Rondel facade](../src/Imperium/Rondel/Rondel.fs) · [Terminal commit adapter](../src/Imperium.Terminal/Rondel/DirectCommit.fs) · [Accounting handlers](../src/Imperium/Accounting/Handlers.fs)
+Use `Async<_>` at the IO boundary so cancellation flows through the workflow. Handler and dependency exceptions propagate through the facade’s `Async<unit>`. [Gameplay facade](../src/Imperium/Gameplay/Gameplay.fs) · [Rondel handlers](../src/Imperium/Rondel/Handlers.fs) · [Rondel facade](../src/Imperium/Rondel/Rondel.fs)
 
 ## Query dependencies
 
@@ -74,17 +92,23 @@ Define a separate `<Context>QueryDependencies` record with only the functions th
 
 Put DTOs in `src/Imperium/Contract/<Context>.fs`, in a module named for the context under `Imperium.Contract`. Contract files expose their types directly and use `.fs` alone. Use serializable fields such as `Guid` and `string` and shared values such as `Amount` where appropriate. At a contract boundary, validate inputs with `fromContract : ContractType -> Result<DomainType, string>` on the receiving payload's companion module. Use `toContract` for integration events and outbound commands, with commands targeting the receiving context's contract. [Gameplay contracts](../src/Imperium/Contract/Gameplay.fs) · [Gameplay inbound event conversion](../src/Imperium/Gameplay/GameplayInboundEvent.fs) · [Gameplay outbound command conversion](../src/Imperium/Gameplay/GameplayOutboundCommand.fs)
 
-Keep the core dependency direction toward shared primitives and contracts. The host composes stores, publishers, and dispatch functions and translates messages between contexts. The terminal host can map between domain messages directly in-process. For example, it converts an `AccountingEvent` to a `RondelInboundEvent` before enqueueing it for `Rondel.handle`. [Terminal Rondel host](../src/Imperium.Terminal/Rondel/Host.fs) · [Terminal composition root](../src/Imperium.Terminal/Program.fs)
+Context code depends on shared primitives and contracts. The host supplies stores, publishers, and dispatch functions. Because the terminal hosts run in one process, they can translate domain messages directly. [Terminal Rondel host](../src/Imperium.Terminal/Rondel/Host.fs) · [Terminal composition root](../src/Imperium.Terminal/Program.fs)
+
+**Commit behavior belongs to the host.** Rondel’s terminal adapter saves the state when present, publishes integration events, then dispatches outbound commands. A failure stops the remaining steps. Earlier saves, publications, or dispatches may already have taken effect. [Terminal commit adapter](../src/Imperium.Terminal/Rondel/DirectCommit.fs)
 
 ## Test structure
 
-The test project mirrors the source projects. Put domain tests in `tests/Imperium.UnitTests/Imperium/<Context>/` and follow the `Imperium.UnitTests.<Context>` namespace or module prefix. [Unit test project](../tests/Imperium.UnitTests/Imperium.UnitTests.fsproj)
+Put domain tests in `tests/Imperium.UnitTests/Imperium/<Context>/` and use the `Imperium.UnitTests.<Context>` namespace or module prefix. The Gameplay branch below shows the files used by its behavior and query specifications. [Unit test project](../tests/Imperium.UnitTests/Imperium.UnitTests.fsproj)
 
 ```text
 tests/Imperium.UnitTests/
 ├── Imperium/
 │   ├── Accounting/
 │   ├── Gameplay/
+│   │   ├── Context.fs              In-memory dependencies and captured effects
+│   │   ├── Assertions.fs           Expectations expressed in domain terms
+│   │   ├── Specification.fs        Behavior scenarios and their runner
+│   │   └── QuerySpecification.fs   Query scenarios using the same runner
 │   ├── Rondel/
 │   └── Contract/
 ├── Imperium.Terminal/
@@ -108,7 +132,9 @@ tests/Imperium.UnitTests/
 
 Define the public shape in `.fsi` first and add a matching `.fs` implementation that compiles. Add one failing behavior test through the public facade, implement the behavior, and verify it before moving to the next case. [Module development process](architecture.md#module-development-process)
 
-Build the context-specific runner from `SpecRunner.empty`. Wire `Execute` and `Handle` to the public routers using `Async.RunSynchronously` as applicable. Add callbacks to seed and capture state and to clear recorded events and commands. The runner clears recorded effects after setup by default. Use `preserve` when the expectation also needs setup effects. Use `specOn` with the fixture factory so each `expect` runs against a fresh context. Use `given_command` or `given_event` for setup and `when_command` or `when_event` for the behavior under test. Query specs can set up state through the same runner and call the public query through a fixture helper inside the assertion. [Gameplay fixture](../tests/Imperium.UnitTests/Imperium/Gameplay/Context.fs) · [Gameplay behavior specs](../tests/Imperium.UnitTests/Imperium/Gameplay/Specification.fs) · [Gameplay query specs](../tests/Imperium.UnitTests/Imperium/Gameplay/QuerySpecification.fs) · [Shared spec runner](../tests/Imperium.UnitTests/Support/Spec/SpecRunner.fs)
+1. **Create the fixture.** Pass the fixture factory to `specOn` so each expectation gets a fresh context. Build the context-specific runner from `SpecRunner.empty` and wire the supported routers through `Async.RunSynchronously`. Supply callbacks for the state and effects the fixture tracks. Accounting only needs `Execute` and `ClearEvents`. [Gameplay fixture](../tests/Imperium.UnitTests/Imperium/Gameplay/Context.fs) · [Accounting runner](../tests/Imperium.UnitTests/Imperium/Accounting/Specs.fs)
+2. **Exercise the behavior.** Use `given_command` or `given_event` for setup and `when_command` or `when_event` for the action under test. Between setup and the action, the runner invokes the configured clearing callbacks. The callbacks on `SpecRunner.empty` do nothing. Use `preserve` to carry setup effects into the assertion. [Gameplay behavior specs](../tests/Imperium.UnitTests/Imperium/Gameplay/Specification.fs) · [Shared spec runner](../tests/Imperium.UnitTests/Support/Spec/SpecRunner.fs)
+3. **Assert the outcome.** Each `expect` runs the scenario independently. Check the fixture’s recorded commands and events, or call a public query through the fixture and assert on the returned view. [Gameplay query specs](../tests/Imperium.UnitTests/Imperium/Gameplay/QuerySpecification.fs)
 
 ### Compile order and registration
 
