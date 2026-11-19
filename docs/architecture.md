@@ -4,13 +4,15 @@ This document describes the system architecture, design patterns, and developmen
 
 ## Bounded Contexts
 
-The domain is split into isolated bounded contexts that communicate only through Contract DTOs:
+Each bounded context owns a distinct part of the domain.
 
 - **Rondel** — The central movement mechanic. Nations move clockwise on an 8-space wheel. Handles free moves (1-3 spaces), paid moves (4-6 spaces with charge dispatch), pending payment states, and move supersession. Fully implemented with command/event handlers and query handlers.
 - **Accounting** — Processes charges and publishes payment results. Currently a skeleton that auto-approves all charges.
 - **Gameplay** — Game lifecycle orchestration. Handles `StartGame` (enters setup and dispatches `SetRondelToStartingPositions` to Rondel) and the inbound `RondelPositionedAtStart` event (moves the game to `InPlay` and publishes `SetupCompleted`), plus the `getGameplayStatus` query. Turn management, scoring, and game ending are future slices. See `docs/gameplay.md` for the event model.
 
-Cross-BC communication uses `Contract.*` DTOs with plain primitive types (`Guid`, `string`) and shared value types (`Amount`). Domain types never leak across boundaries.
+Cross-context contract boundaries use `Contract.*` DTOs with primitive types (`Guid`, `string`) and shared value types (`Amount`). The terminal host also maps domain messages directly between contexts within the process.
+
+See the [bounded context blueprint](bounded-context-structure.md) for file layout, API and handler shapes, dependency records, and host wiring.
 
 ## CQRS Pattern
 
@@ -58,7 +60,7 @@ A two-layer transformation pattern validates data at BC boundaries:
 - **Layer 1 — Transformation modules** (`fromContract`/`toContract`): Convert between Contract DTOs and domain types, returning `Result<Domain, string>` on input
 - **Layer 2 — Handlers**: Accept validated domain types and return effects (e.g., `RondelEffects`, `GameplayEffects`) without performing IO; the public routers commit those effects through the injected dependencies and return `Async<unit>` (Accounting's stateless skeleton is the exception: its handlers publish directly)
 
-Contract types live in `Imperium.Contract` and use only primitives suitable for serialization. Domain modules hide internal IDs and state behind `.fsi` signature files.
+Contract types live in `Imperium.Contract` and use primitives and shared values suitable for serialization. Domain modules hide internal IDs and state behind `.fsi` signature files.
 
 ## Signature Files as API Contracts
 

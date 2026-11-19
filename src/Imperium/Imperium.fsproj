@@ -22,8 +22,8 @@
     <Compile Include="Gameplay/GameplayOutboundCommand.fs" />
     <Compile Include="Gameplay/GameplayEvent.fsi" />
     <Compile Include="Gameplay/GameplayEvent.fs" />
-    <Compile Include="Gameplay/GameplayInboundEvents.fsi" />
-    <Compile Include="Gameplay/GameplayInboundEvents.fs" />
+    <Compile Include="Gameplay/GameplayInboundEvent.fsi" />
+    <Compile Include="Gameplay/GameplayInboundEvent.fs" />
     <Compile Include="Gameplay/GameplayState.fsi" />
     <Compile Include="Gameplay/GameplayState.fs" />
     <Compile Include="Gameplay/Projections.fsi" />
